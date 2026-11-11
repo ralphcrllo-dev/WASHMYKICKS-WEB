@@ -1132,9 +1132,53 @@ function CustomerBookAppointmentWizard({
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [selectedBranchId, setSelectedBranchId] = useState<number>(initialBranchId)
   const [selectedServiceId, setSelectedServiceId] = useState<string>('02') // Deep Cleaning default like screenshot
-  const [selectedDay, setSelectedDay] = useState<number>(28) // March 28, 2026 like screenshot
+  const [calendarYear, setCalendarYear] = useState<number>(2026)
+  const [calendarMonth, setCalendarMonth] = useState<number>(2) // 0=Jan, 2=March default
+  const [selectedDay, setSelectedDay] = useState<number>(28)
   const [selectedTime, setSelectedTime] = useState<string>('10:30 AM')
   const [shoeModel, setShoeModel] = useState<string>('Air Jordan 1 Retro High')
+
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ]
+  const currentMonthName = monthNames[calendarMonth]
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
+  const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay()
+  const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate()
+  const prevMonthTrailingDays = Array.from(
+    { length: firstDayOfWeek },
+    (_, idx) => daysInPrevMonth - firstDayOfWeek + idx + 1
+  )
+  const activeSelectedDay = Math.min(selectedDay, daysInMonth)
+
+  const handlePrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11)
+      setCalendarYear((y) => y - 1)
+    } else {
+      setCalendarMonth((m) => m - 1)
+    }
+  }
+
+  const handleNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0)
+      setCalendarYear((y) => y + 1)
+    } else {
+      setCalendarMonth((m) => m + 1)
+    }
+  }
 
   useEffect(() => {
     setSelectedBranchId(initialBranchId)
@@ -1163,14 +1207,30 @@ function CustomerBookAppointmentWizard({
   ]
 
   const handleConfirm = () => {
+    const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`
+    const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
+    const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
+
+    void createBookingRecord({
+      customerId: 1,
+      branchServiceId: selectedBranch.id,
+      scheduledAt: scheduledIso,
+      priceAtBooking: numericPrice,
+      customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${selectedTime})`,
+      customerEmail: 'juan.delacruz@email.com',
+      customerName: 'Juan Dela Cruz',
+      serviceName: selectedService.title,
+      branchName: selectedBranch.name,
+    }).catch(() => null)
+
     const newOrder: JobOrder = {
-      id: `WMK-2026-${Math.floor(1850 + Math.random() * 900)}`,
+      id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
       customer: 'Juan Dela Cruz',
       email: 'juan.delacruz@email.com',
       shoe: shoeModel || 'Sneaker Pair',
       service: selectedService.title,
       branch: selectedBranch.name,
-      date: `March ${selectedDay}, 2026`,
+      date: formattedDate,
       time: selectedTime,
       price: selectedService.price.replace('From ', ''),
       status: 'Pending Assessment',
@@ -1353,11 +1413,13 @@ function CustomerBookAppointmentWizard({
 
           <div className="calendar-box">
             <div className="calendar-nav">
-              <button type="button" aria-label="Previous month">
+              <button type="button" aria-label="Previous month" onClick={handlePrevMonth}>
                 <ChevronLeft size={14} />
               </button>
-              <b>March 2026</b>
-              <button type="button" aria-label="Next month">
+              <b>
+                {currentMonthName} {calendarYear}
+              </b>
+              <button type="button" aria-label="Next month" onClick={handleNextMonth}>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -1367,16 +1429,16 @@ function CustomerBookAppointmentWizard({
                   {d}
                 </div>
               ))}
-              {[23, 24, 25, 26, 27, 28].map((d) => (
+              {prevMonthTrailingDays.map((d) => (
                 <button key={`prev-${d}`} type="button" disabled className="calendar-day muted">
                   {d}
                 </button>
               ))}
-              {Array.from({ length: 29 }, (_, idx) => idx + 1).map((day) => (
+              {Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => (
                 <button
                   key={day}
                   type="button"
-                  className={`calendar-day ${selectedDay === day ? 'selected' : ''}`}
+                  className={`calendar-day ${activeSelectedDay === day ? 'selected' : ''}`}
                   onClick={() => setSelectedDay(day)}
                 >
                   {day}
@@ -1402,7 +1464,9 @@ function CustomerBookAppointmentWizard({
           <div className="wizard-header">
             <span className="step-tag">STEP 4 OF 5</span>
             <h2>Select a schedule</h2>
-            <p>Pick your preferred time slot on March {selectedDay}, 2026.</p>
+            <p>
+              Pick your preferred time slot on {currentMonthName} {activeSelectedDay}, {calendarYear}.
+            </p>
           </div>
 
           <div className="wizard-grid-2" style={{ marginBottom: 20 }}>
@@ -1501,7 +1565,7 @@ function CustomerBookAppointmentWizard({
               <div className="confirm-text">
                 <span>DROP-OFF</span>
                 <b>
-                  March {selectedDay}, 2026 · {selectedTime}
+                  {currentMonthName} {activeSelectedDay}, {calendarYear} · {selectedTime}
                 </b>
                 <small>Selected appointment date · {shoeModel}</small>
               </div>

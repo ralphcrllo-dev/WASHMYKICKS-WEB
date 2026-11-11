@@ -32098,9 +32098,50 @@ ${suffix}`;
     const [step, setStep] = (0, import_react5.useState)(1);
     const [selectedBranchId, setSelectedBranchId] = (0, import_react5.useState)(initialBranchId);
     const [selectedServiceId, setSelectedServiceId] = (0, import_react5.useState)("02");
+    const [calendarYear, setCalendarYear] = (0, import_react5.useState)(2026);
+    const [calendarMonth, setCalendarMonth] = (0, import_react5.useState)(2);
     const [selectedDay, setSelectedDay] = (0, import_react5.useState)(28);
     const [selectedTime, setSelectedTime] = (0, import_react5.useState)("10:30 AM");
     const [shoeModel, setShoeModel] = (0, import_react5.useState)("Air Jordan 1 Retro High");
+    const monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ];
+    const currentMonthName = monthNames[calendarMonth];
+    const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+    const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay();
+    const daysInPrevMonth = new Date(calendarYear, calendarMonth, 0).getDate();
+    const prevMonthTrailingDays = Array.from(
+      { length: firstDayOfWeek },
+      (_, idx) => daysInPrevMonth - firstDayOfWeek + idx + 1
+    );
+    const activeSelectedDay = Math.min(selectedDay, daysInMonth);
+    const handlePrevMonth = () => {
+      if (calendarMonth === 0) {
+        setCalendarMonth(11);
+        setCalendarYear((y) => y - 1);
+      } else {
+        setCalendarMonth((m) => m - 1);
+      }
+    };
+    const handleNextMonth = () => {
+      if (calendarMonth === 11) {
+        setCalendarMonth(0);
+        setCalendarYear((y) => y + 1);
+      } else {
+        setCalendarMonth((m) => m + 1);
+      }
+    };
     (0, import_react5.useEffect)(() => {
       setSelectedBranchId(initialBranchId);
     }, [initialBranchId]);
@@ -32124,14 +32165,28 @@ ${suffix}`;
       "06:30 PM"
     ];
     const handleConfirm = () => {
+      const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`;
+      const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
+      const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
+      void createBookingRecord({
+        customerId: 1,
+        branchServiceId: selectedBranch.id,
+        scheduledAt: scheduledIso,
+        priceAtBooking: numericPrice,
+        customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${selectedTime})`,
+        customerEmail: "juan.delacruz@email.com",
+        customerName: "Juan Dela Cruz",
+        serviceName: selectedService.title,
+        branchName: selectedBranch.name
+      }).catch(() => null);
       const newOrder = {
-        id: `WMK-2026-${Math.floor(1850 + Math.random() * 900)}`,
+        id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
         customer: "Juan Dela Cruz",
         email: "juan.delacruz@email.com",
         shoe: shoeModel || "Sneaker Pair",
         service: selectedService.title,
         branch: selectedBranch.name,
-        date: `March ${selectedDay}, 2026`,
+        date: formattedDate,
         time: selectedTime,
         price: selectedService.price.replace("From ", ""),
         status: "Pending Assessment",
@@ -32297,18 +32352,22 @@ ${suffix}`;
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-box", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-nav", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Previous month", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronLeft, { size: 14 }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "March 2026" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Next month", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 14 }) })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Previous month", onClick: handlePrevMonth, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronLeft, { size: 14 }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+              currentMonthName,
+              " ",
+              calendarYear
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Next month", onClick: handleNextMonth, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 14 }) })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-grid", children: [
             ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "calendar-dow", children: d }, d)),
-            [23, 24, 25, 26, 27, 28].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", disabled: true, className: "calendar-day muted", children: d }, `prev-${d}`)),
-            Array.from({ length: 29 }, (_, idx) => idx + 1).map((day) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            prevMonthTrailingDays.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", disabled: true, className: "calendar-day muted", children: d }, `prev-${d}`)),
+            Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
               "button",
               {
                 type: "button",
-                className: `calendar-day ${selectedDay === day ? "selected" : ""}`,
+                className: `calendar-day ${activeSelectedDay === day ? "selected" : ""}`,
                 onClick: () => setSelectedDay(day),
                 children: day
               },
@@ -32329,9 +32388,13 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "step-tag", children: "STEP 4 OF 5" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Select a schedule" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { children: [
-            "Pick your preferred time slot on March ",
-            selectedDay,
-            ", 2026."
+            "Pick your preferred time slot on ",
+            currentMonthName,
+            " ",
+            activeSelectedDay,
+            ", ",
+            calendarYear,
+            "."
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", style: { marginBottom: 20 }, children: timeSlots.map((slot) => {
@@ -32414,9 +32477,12 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-text", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "DROP-OFF" }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-                "March ",
-                selectedDay,
-                ", 2026 \xB7 ",
+                currentMonthName,
+                " ",
+                activeSelectedDay,
+                ", ",
+                calendarYear,
+                " \xB7 ",
                 selectedTime
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
