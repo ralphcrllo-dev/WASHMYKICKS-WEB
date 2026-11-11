@@ -194,3 +194,57 @@ VALUES
   ('STORAGE_BEFORE_BUCKET', 'before-photos'),
   ('STORAGE_AFTER_BUCKET', 'after-photos')
 ON CONFLICT (setting_key) DO NOTHING;
+
+-- Demo User Accounts (Customer, Staff, Administrator)
+INSERT INTO public.user_accounts (user_id, role_id, branch_id, username, email, password_hash, account_status, email_verified_at)
+VALUES
+  (1, 1, 1, 'juan_delacruz', 'customer@washmykicks.ph', 'SUPABASE_AUTH_MANAGED', 'ACTIVE', NOW()),
+  (2, 2, 1, 'carlo_mendoza', 'staff@washmykicks.ph', 'SUPABASE_AUTH_MANAGED', 'ACTIVE', NOW()),
+  (3, 3, 1, 'mika_cruz', 'admin@washmykicks.ph', 'SUPABASE_AUTH_MANAGED', 'ACTIVE', NOW())
+ON CONFLICT (email) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('public.user_accounts', 'user_id'), COALESCE((SELECT MAX(user_id) FROM public.user_accounts), 3), true);
+
+-- Demo Customer Profile (customer_id = 1 for immediate booking & CRM testing)
+INSERT INTO public.customer_profiles (customer_id, user_id, first_name, last_name, phone, address)
+VALUES
+  (1, 1, 'Juan', 'Dela Cruz', '+63 917 555 0142', 'San Juan City, Metro Manila')
+ON CONFLICT (user_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('public.customer_profiles', 'customer_id'), COALESCE((SELECT MAX(customer_id) FROM public.customer_profiles), 1), true);
+
+-- Initial Branch Inventory Across Branches
+INSERT INTO public.branch_inventory (branch_id, item_id, current_quantity, reorder_level, updated_at)
+SELECT b.branch_id, i.item_id, 25.00, 10.00, NOW()
+FROM public.branches b
+CROSS JOIN public.inventory_items i
+ON CONFLICT (branch_id, item_id) DO NOTHING;
+
+-- Initial Booking & Service Order (triggers automatic service_order + notification creation)
+INSERT INTO public.bookings (booking_id, customer_id, branch_service_id, scheduled_at, price_at_booking, booking_status, customer_request)
+SELECT 1, 1, bs.branch_service_id, NOW() + INTERVAL '1 day', 650.00, 'Confirmed', 'Air Jordan 1 Retro High OG Chicago — Deep Cleaning'
+FROM public.branch_services bs
+WHERE bs.branch_id = 1 AND bs.service_id = 2
+LIMIT 1
+ON CONFLICT (booking_id) DO NOTHING;
+
+SELECT setval(pg_get_serial_sequence('public.bookings', 'booking_id'), COALESCE((SELECT MAX(booking_id) FROM public.bookings), 1), true);
+
+-- Allow publishable client testing across operational tables alongside role-based policies
+DO $$
+DECLARE
+  t TEXT;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'user_accounts', 'customer_profiles', 'bookings', 'service_orders',
+    'shoe_assessments', 'assessment_photos', 'crm_interactions',
+    'notifications', 'notification_contexts', 'customer_notification_preferences',
+    'suppliers', 'inventory_items', 'purchase_orders', 'purchase_order_items',
+    'deliveries', 'delivery_items', 'branch_inventory', 'stock_movements',
+    'supplier_returns', 'audit_logs', 'system_settings'
+  ]
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "wmk_publishable_client_%I" ON public.%I;', t, t);
+    EXECUTE format('CREATE POLICY "wmk_publishable_client_%I" ON public.%I FOR ALL USING (TRUE) WITH CHECK (TRUE);', t, t);
+  END LOOP;
+END $$;
