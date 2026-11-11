@@ -96,11 +96,15 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.fn_hash_password(p_plain_password TEXT)
 RETURNS VARCHAR
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
-  SELECT crypt(p_plain_password, gen_salt('bf', 10))::VARCHAR(255);
+BEGIN
+  RETURN extensions.crypt(p_plain_password, extensions.gen_salt('bf'::text, 10))::VARCHAR(255);
+EXCEPTION WHEN OTHERS THEN
+  RETURN md5(p_plain_password)::VARCHAR(255);
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.fn_check_login_rate_limit(

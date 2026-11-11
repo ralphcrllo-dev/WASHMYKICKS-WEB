@@ -214,13 +214,42 @@ ON CONFLICT (user_id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('public.customer_profiles', 'customer_id'), COALESCE((SELECT MAX(customer_id) FROM public.customer_profiles), 1), true);
 
 -- Initial Branch Inventory Across Branches
-INSERT INTO public.branch_inventory (branch_id, item_id, current_quantity, reorder_level, updated_at)
-SELECT b.branch_id, i.item_id, 25.00, 10.00, NOW()
+INSERT INTO public.branch_inventory (branch_id, item_id, reorder_level, updated_at)
+SELECT b.branch_id, i.item_id, 10.00, NOW()
 FROM public.branches b
 CROSS JOIN public.inventory_items i
 ON CONFLICT (branch_id, item_id) DO NOTHING;
 
--- Initial Booking & Service Order (triggers automatic service_order + notification creation)
+-- Initial Stock Movements (25 units per branch inventory item)
+INSERT INTO public.stock_movements (branch_inventory_id, recorded_by_user_id, movement_type, quantity_change, transfer_reference, movement_date, notes)
+SELECT bi.branch_inventory_id, 3, 'RESTOCK', 25.00, 'INIT-SEED-2026', NOW(), 'Initial branch stock allocation'
+FROM public.branch_inventory bi
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.stock_movements sm WHERE sm.branch_inventory_id = bi.branch_inventory_id
+);
+
+-- Initial Purchase Order, Delivery & Supplier Return (for complete 26-table testing)
+INSERT INTO public.purchase_orders (purchase_order_id, supplier_id, branch_id, requested_by_user_id, approved_by_user_id, supplier_quote_reference, order_date, purchase_status, notes, approved_at)
+VALUES (1, 1, 1, 2, 3, 'ANG-QUOTE-2026-001', NOW() - INTERVAL '3 days', 'Received', 'Monthly cleaning & restoration supply replenishment', NOW() - INTERVAL '2 days')
+ON CONFLICT (purchase_order_id) DO NOTHING;
+
+INSERT INTO public.purchase_order_items (purchase_order_item_id, purchase_order_id, item_id, quantity_requested, quoted_unit_cost)
+VALUES (1, 1, 1, 20.00, 450.00)
+ON CONFLICT (purchase_order_item_id) DO NOTHING;
+
+INSERT INTO public.deliveries (delivery_id, purchase_order_id, received_by_user_id, delivery_date, proof_of_delivery_path, delivery_status, delivery_notes)
+VALUES (1, 1, 2, NOW() - INTERVAL '1 day', 'pod/WMK-POD-2026-001.pdf', 'Received', 'Received in good condition at San Juan branch')
+ON CONFLICT (delivery_id) DO NOTHING;
+
+INSERT INTO public.delivery_items (delivery_item_id, delivery_id, purchase_order_item_id, quantity_received)
+VALUES (1, 1, 1, 20.00)
+ON CONFLICT (delivery_item_id) DO NOTHING;
+
+INSERT INTO public.supplier_returns (supplier_return_id, delivery_item_id, quantity_returned, reason, supplier_response, refund_amount, return_status, requested_at, resolved_at)
+VALUES (1, 1, 1.00, 'Damaged bottle seal during transit', 'Replacement unit approved by supplier', 450.00, 'Replaced', NOW() - INTERVAL '1 day', NOW())
+ON CONFLICT (supplier_return_id) DO NOTHING;
+
+-- Initial Booking & Service Order (triggers automatic service_order + shoe_assessment + notification creation)
 INSERT INTO public.bookings (booking_id, customer_id, branch_service_id, scheduled_at, price_at_booking, booking_status, customer_request)
 SELECT 1, 1, bs.branch_service_id, NOW() + INTERVAL '1 day', 650.00, 'Confirmed', 'Air Jordan 1 Retro High OG Chicago — Deep Cleaning'
 FROM public.branch_services bs
@@ -229,6 +258,25 @@ LIMIT 1
 ON CONFLICT (booking_id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('public.bookings', 'booking_id'), COALESCE((SELECT MAX(booking_id) FROM public.bookings), 1), true);
+
+-- Initial Assessment Photo & CRM Interaction & Notification Preferences
+INSERT INTO public.assessment_photos (photo_id, assessment_id, uploaded_by_user_id, photo_type, file_path, caption, uploaded_at)
+SELECT 1, sa.assessment_id, 2, 'BEFORE_LEFT', 'branch-1/order-1/before_left.jpg', 'Left profile before deep cleaning', NOW()
+FROM public.shoe_assessments sa
+LIMIT 1
+ON CONFLICT (photo_id) DO NOTHING;
+
+INSERT INTO public.crm_interactions (interaction_id, customer_id, handled_by_user_id, interaction_type, customer_message, staff_response, rating, interaction_status, interaction_at, responded_at)
+VALUES (1, 1, 2, 'REVIEW', 'Super clean restoration on my Jordan 1 Chicago! Highly recommended.', 'Thank you for trusting WashMyKicks San Juan!', 5, 'Published', NOW(), NOW())
+ON CONFLICT (interaction_id) DO NOTHING;
+
+INSERT INTO public.customer_notification_preferences (customer_id, preference_type, is_enabled)
+VALUES
+  (1, 'EMAIL_BOOKING', TRUE),
+  (1, 'EMAIL_ORDER_STATUS', TRUE),
+  (1, 'EMAIL_PICKUP', TRUE),
+  (1, 'IN_APP', TRUE)
+ON CONFLICT (customer_id, preference_type) DO NOTHING;
 
 -- Allow publishable client testing across operational tables alongside role-based policies
 DO $$

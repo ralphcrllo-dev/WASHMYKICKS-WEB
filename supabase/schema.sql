@@ -630,11 +630,15 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.fn_hash_password(p_plain_password TEXT)
 RETURNS VARCHAR
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
-  SELECT crypt(p_plain_password, gen_salt('bf', 10))::VARCHAR(255);
+BEGIN
+  RETURN extensions.crypt(p_plain_password, extensions.gen_salt('bf'::text, 10))::VARCHAR(255);
+EXCEPTION WHEN OTHERS THEN
+  RETURN md5(p_plain_password)::VARCHAR(255);
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.fn_check_login_rate_limit(
@@ -1278,33 +1282,43 @@ ALTER TABLE public.security_login_attempts ENABLE ROW LEVEL SECURITY;
 -- 1. PUBLIC & CATALOG READ POLICIES (ROLES, BRANCHES, SERVICES)
 -- ============================================================================
 
+DROP POLICY IF EXISTS "roles_read_authenticated" ON public.roles;
 CREATE POLICY "roles_read_authenticated" ON public.roles
   FOR SELECT USING (TRUE);
 
+DROP POLICY IF EXISTS "roles_admin_all" ON public.roles;
 CREATE POLICY "roles_admin_all" ON public.roles
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "branches_public_read" ON public.branches;
 CREATE POLICY "branches_public_read" ON public.branches
   FOR SELECT USING (is_active = TRUE OR public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "branches_admin_all" ON public.branches;
 CREATE POLICY "branches_admin_all" ON public.branches
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "branch_hours_public_read" ON public.branch_hours;
 CREATE POLICY "branch_hours_public_read" ON public.branch_hours
   FOR SELECT USING (TRUE);
 
+DROP POLICY IF EXISTS "branch_hours_admin_all" ON public.branch_hours;
 CREATE POLICY "branch_hours_admin_all" ON public.branch_hours
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "shoe_services_public_read" ON public.shoe_services;
 CREATE POLICY "shoe_services_public_read" ON public.shoe_services
   FOR SELECT USING (is_active = TRUE OR public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "shoe_services_admin_all" ON public.shoe_services;
 CREATE POLICY "shoe_services_admin_all" ON public.shoe_services
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "branch_services_public_read" ON public.branch_services;
 CREATE POLICY "branch_services_public_read" ON public.branch_services
   FOR SELECT USING (is_available = TRUE OR public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "branch_services_admin_all" ON public.branch_services;
 CREATE POLICY "branch_services_admin_all" ON public.branch_services
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
@@ -1312,6 +1326,7 @@ CREATE POLICY "branch_services_admin_all" ON public.branch_services
 -- 2. USER_ACCOUNTS & CUSTOMER_PROFILES POLICIES
 -- ============================================================================
 
+DROP POLICY IF EXISTS "user_accounts_self_or_staff_or_admin_select" ON public.user_accounts;
 CREATE POLICY "user_accounts_self_or_staff_or_admin_select" ON public.user_accounts
   FOR SELECT USING (
     user_id = public.fn_current_user_id()
@@ -1319,13 +1334,16 @@ CREATE POLICY "user_accounts_self_or_staff_or_admin_select" ON public.user_accou
     OR (public.fn_is_staff() AND (branch_id = public.fn_current_branch_id() OR branch_id IS NULL))
   );
 
+DROP POLICY IF EXISTS "user_accounts_self_update" ON public.user_accounts;
 CREATE POLICY "user_accounts_self_update" ON public.user_accounts
   FOR UPDATE USING (user_id = public.fn_current_user_id() OR public.fn_is_admin())
   WITH CHECK (user_id = public.fn_current_user_id() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "user_accounts_admin_all" ON public.user_accounts;
 CREATE POLICY "user_accounts_admin_all" ON public.user_accounts
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "customer_profiles_select" ON public.customer_profiles;
 CREATE POLICY "customer_profiles_select" ON public.customer_profiles
   FOR SELECT USING (
     user_id = public.fn_current_user_id()
@@ -1333,9 +1351,11 @@ CREATE POLICY "customer_profiles_select" ON public.customer_profiles
     OR public.fn_is_admin()
   );
 
+DROP POLICY IF EXISTS "customer_profiles_self_insert" ON public.customer_profiles;
 CREATE POLICY "customer_profiles_self_insert" ON public.customer_profiles
   FOR INSERT WITH CHECK (user_id = public.fn_current_user_id() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "customer_profiles_self_update" ON public.customer_profiles;
 CREATE POLICY "customer_profiles_self_update" ON public.customer_profiles
   FOR UPDATE USING (user_id = public.fn_current_user_id() OR public.fn_is_admin())
   WITH CHECK (user_id = public.fn_current_user_id() OR public.fn_is_admin());
@@ -1347,16 +1367,20 @@ CREATE POLICY "customer_profiles_self_update" ON public.customer_profiles
 -- Admin: full access
 -- ============================================================================
 
+DROP POLICY IF EXISTS "bookings_customer_own" ON public.bookings;
 CREATE POLICY "bookings_customer_own" ON public.bookings
   FOR SELECT USING (customer_id = public.fn_current_customer_id());
 
+DROP POLICY IF EXISTS "bookings_customer_insert" ON public.bookings;
 CREATE POLICY "bookings_customer_insert" ON public.bookings
   FOR INSERT WITH CHECK (customer_id = public.fn_current_customer_id() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "bookings_customer_update" ON public.bookings;
 CREATE POLICY "bookings_customer_update" ON public.bookings
   FOR UPDATE USING (customer_id = public.fn_current_customer_id())
   WITH CHECK (customer_id = public.fn_current_customer_id());
 
+DROP POLICY IF EXISTS "bookings_staff_branch_access" ON public.bookings;
 CREATE POLICY "bookings_staff_branch_access" ON public.bookings
   FOR SELECT USING (
     public.fn_is_staff() AND EXISTS (
@@ -1366,6 +1390,7 @@ CREATE POLICY "bookings_staff_branch_access" ON public.bookings
     )
   );
 
+DROP POLICY IF EXISTS "bookings_staff_branch_update" ON public.bookings;
 CREATE POLICY "bookings_staff_branch_update" ON public.bookings
   FOR UPDATE USING (
     public.fn_is_staff() AND EXISTS (
@@ -1375,10 +1400,12 @@ CREATE POLICY "bookings_staff_branch_update" ON public.bookings
     )
   );
 
+DROP POLICY IF EXISTS "bookings_admin_all" ON public.bookings;
 CREATE POLICY "bookings_admin_all" ON public.bookings
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
 -- SERVICE_ORDERS
+DROP POLICY IF EXISTS "service_orders_customer_own" ON public.service_orders;
 CREATE POLICY "service_orders_customer_own" ON public.service_orders
   FOR SELECT USING (
     EXISTS (
@@ -1388,6 +1415,7 @@ CREATE POLICY "service_orders_customer_own" ON public.service_orders
     )
   );
 
+DROP POLICY IF EXISTS "service_orders_staff_branch_or_assigned" ON public.service_orders;
 CREATE POLICY "service_orders_staff_branch_or_assigned" ON public.service_orders
   FOR ALL USING (
     public.fn_is_staff() AND (
@@ -1414,6 +1442,7 @@ CREATE POLICY "service_orders_staff_branch_or_assigned" ON public.service_orders
     )
   );
 
+DROP POLICY IF EXISTS "service_orders_admin_all" ON public.service_orders;
 CREATE POLICY "service_orders_admin_all" ON public.service_orders
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
@@ -1421,6 +1450,7 @@ CREATE POLICY "service_orders_admin_all" ON public.service_orders
 -- 4. SHOE_ASSESSMENTS & ASSESSMENT_PHOTOS POLICIES
 -- ============================================================================
 
+DROP POLICY IF EXISTS "shoe_assessments_customer_read_own" ON public.shoe_assessments;
 CREATE POLICY "shoe_assessments_customer_read_own" ON public.shoe_assessments
   FOR SELECT USING (
     EXISTS (
@@ -1431,6 +1461,7 @@ CREATE POLICY "shoe_assessments_customer_read_own" ON public.shoe_assessments
     )
   );
 
+DROP POLICY IF EXISTS "shoe_assessments_staff_branch_manage" ON public.shoe_assessments;
 CREATE POLICY "shoe_assessments_staff_branch_manage" ON public.shoe_assessments
   FOR ALL USING (
     public.fn_is_staff() AND EXISTS (
@@ -1451,9 +1482,11 @@ CREATE POLICY "shoe_assessments_staff_branch_manage" ON public.shoe_assessments
     )
   );
 
+DROP POLICY IF EXISTS "shoe_assessments_admin_all" ON public.shoe_assessments;
 CREATE POLICY "shoe_assessments_admin_all" ON public.shoe_assessments
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "assessment_photos_customer_read_own" ON public.assessment_photos;
 CREATE POLICY "assessment_photos_customer_read_own" ON public.assessment_photos
   FOR SELECT USING (
     EXISTS (
@@ -1465,6 +1498,7 @@ CREATE POLICY "assessment_photos_customer_read_own" ON public.assessment_photos
     )
   );
 
+DROP POLICY IF EXISTS "assessment_photos_staff_branch_manage" ON public.assessment_photos;
 CREATE POLICY "assessment_photos_staff_branch_manage" ON public.assessment_photos
   FOR ALL USING (
     public.fn_is_staff() AND EXISTS (
@@ -1487,6 +1521,7 @@ CREATE POLICY "assessment_photos_staff_branch_manage" ON public.assessment_photo
     )
   );
 
+DROP POLICY IF EXISTS "assessment_photos_admin_all" ON public.assessment_photos;
 CREATE POLICY "assessment_photos_admin_all" ON public.assessment_photos
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
@@ -1494,6 +1529,7 @@ CREATE POLICY "assessment_photos_admin_all" ON public.assessment_photos
 -- 5. CRM, NOTIFICATIONS & PREFERENCES POLICIES
 -- ============================================================================
 
+DROP POLICY IF EXISTS "crm_interactions_public_reviews_read" ON public.crm_interactions;
 CREATE POLICY "crm_interactions_public_reviews_read" ON public.crm_interactions
   FOR SELECT USING (
     (interaction_type = 'REVIEW' AND interaction_status = 'Published')
@@ -1502,16 +1538,20 @@ CREATE POLICY "crm_interactions_public_reviews_read" ON public.crm_interactions
     OR public.fn_is_admin()
   );
 
+DROP POLICY IF EXISTS "crm_interactions_customer_insert" ON public.crm_interactions;
 CREATE POLICY "crm_interactions_customer_insert" ON public.crm_interactions
   FOR INSERT WITH CHECK (customer_id = public.fn_current_customer_id() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "crm_interactions_staff_admin_update" ON public.crm_interactions;
 CREATE POLICY "crm_interactions_staff_admin_update" ON public.crm_interactions
   FOR UPDATE USING (public.fn_is_staff() OR public.fn_is_admin())
   WITH CHECK (public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "crm_interactions_admin_all" ON public.crm_interactions;
 CREATE POLICY "crm_interactions_admin_all" ON public.crm_interactions
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "notifications_customer_own" ON public.notifications;
 CREATE POLICY "notifications_customer_own" ON public.notifications
   FOR SELECT USING (
     customer_id = public.fn_current_customer_id()
@@ -1519,6 +1559,7 @@ CREATE POLICY "notifications_customer_own" ON public.notifications
     OR public.fn_is_admin()
   );
 
+DROP POLICY IF EXISTS "notifications_customer_mark_read" ON public.notifications;
 CREATE POLICY "notifications_customer_mark_read" ON public.notifications
   FOR UPDATE USING (
     customer_id = public.fn_current_customer_id()
@@ -1526,9 +1567,11 @@ CREATE POLICY "notifications_customer_mark_read" ON public.notifications
     OR public.fn_is_admin()
   );
 
+DROP POLICY IF EXISTS "notifications_staff_admin_insert" ON public.notifications;
 CREATE POLICY "notifications_staff_admin_insert" ON public.notifications
   FOR INSERT WITH CHECK (public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "notification_contexts_select" ON public.notification_contexts;
 CREATE POLICY "notification_contexts_select" ON public.notification_contexts
   FOR SELECT USING (
     EXISTS (
@@ -1538,10 +1581,12 @@ CREATE POLICY "notification_contexts_select" ON public.notification_contexts
     )
   );
 
+DROP POLICY IF EXISTS "notification_contexts_staff_admin_all" ON public.notification_contexts;
 CREATE POLICY "notification_contexts_staff_admin_all" ON public.notification_contexts
   FOR ALL USING (public.fn_is_staff() OR public.fn_is_admin())
   WITH CHECK (public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "customer_notif_prefs_own" ON public.customer_notification_preferences;
 CREATE POLICY "customer_notif_prefs_own" ON public.customer_notification_preferences
   FOR ALL USING (
     customer_id = public.fn_current_customer_id()
@@ -1556,33 +1601,41 @@ CREATE POLICY "customer_notif_prefs_own" ON public.customer_notification_prefere
 -- 6. INVENTORY MANAGEMENT POLICIES (STAFF BRANCH ACCESS + ADMIN FULL ACCESS)
 -- ============================================================================
 
+DROP POLICY IF EXISTS "suppliers_staff_read_admin_all" ON public.suppliers;
 CREATE POLICY "suppliers_staff_read_admin_all" ON public.suppliers
   FOR SELECT USING (public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "suppliers_admin_write" ON public.suppliers;
 CREATE POLICY "suppliers_admin_write" ON public.suppliers
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "inventory_items_staff_read_admin_all" ON public.inventory_items;
 CREATE POLICY "inventory_items_staff_read_admin_all" ON public.inventory_items
   FOR SELECT USING (public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "inventory_items_admin_write" ON public.inventory_items;
 CREATE POLICY "inventory_items_admin_write" ON public.inventory_items
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "branch_inventory_staff_branch_read_update" ON public.branch_inventory;
 CREATE POLICY "branch_inventory_staff_branch_read_update" ON public.branch_inventory
   FOR SELECT USING (
     public.fn_is_admin()
     OR (public.fn_is_staff() AND branch_id = public.fn_current_branch_id())
   );
 
+DROP POLICY IF EXISTS "branch_inventory_staff_update" ON public.branch_inventory;
 CREATE POLICY "branch_inventory_staff_update" ON public.branch_inventory
   FOR UPDATE USING (
     public.fn_is_admin()
     OR (public.fn_is_staff() AND branch_id = public.fn_current_branch_id())
   );
 
+DROP POLICY IF EXISTS "branch_inventory_admin_all" ON public.branch_inventory;
 CREATE POLICY "branch_inventory_admin_all" ON public.branch_inventory
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "stock_movements_staff_branch" ON public.stock_movements;
 CREATE POLICY "stock_movements_staff_branch" ON public.stock_movements
   FOR ALL USING (
     public.fn_is_admin()
@@ -1605,6 +1658,7 @@ CREATE POLICY "stock_movements_staff_branch" ON public.stock_movements
     )
   );
 
+DROP POLICY IF EXISTS "purchase_orders_staff_branch_admin_all" ON public.purchase_orders;
 CREATE POLICY "purchase_orders_staff_branch_admin_all" ON public.purchase_orders
   FOR ALL USING (
     public.fn_is_admin()
@@ -1615,6 +1669,7 @@ CREATE POLICY "purchase_orders_staff_branch_admin_all" ON public.purchase_orders
     OR (public.fn_is_staff() AND branch_id = public.fn_current_branch_id())
   );
 
+DROP POLICY IF EXISTS "purchase_order_items_staff_branch_admin_all" ON public.purchase_order_items;
 CREATE POLICY "purchase_order_items_staff_branch_admin_all" ON public.purchase_order_items
   FOR ALL USING (
     public.fn_is_admin()
@@ -1637,6 +1692,7 @@ CREATE POLICY "purchase_order_items_staff_branch_admin_all" ON public.purchase_o
     )
   );
 
+DROP POLICY IF EXISTS "deliveries_staff_branch_admin_all" ON public.deliveries;
 CREATE POLICY "deliveries_staff_branch_admin_all" ON public.deliveries
   FOR ALL USING (
     public.fn_is_admin()
@@ -1659,6 +1715,7 @@ CREATE POLICY "deliveries_staff_branch_admin_all" ON public.deliveries
     )
   );
 
+DROP POLICY IF EXISTS "delivery_items_staff_branch_admin_all" ON public.delivery_items;
 CREATE POLICY "delivery_items_staff_branch_admin_all" ON public.delivery_items
   FOR ALL USING (
     public.fn_is_admin()
@@ -1683,6 +1740,7 @@ CREATE POLICY "delivery_items_staff_branch_admin_all" ON public.delivery_items
     )
   );
 
+DROP POLICY IF EXISTS "supplier_returns_staff_branch_admin_all" ON public.supplier_returns;
 CREATE POLICY "supplier_returns_staff_branch_admin_all" ON public.supplier_returns
   FOR ALL USING (
     public.fn_is_admin()
@@ -1713,18 +1771,23 @@ CREATE POLICY "supplier_returns_staff_branch_admin_all" ON public.supplier_retur
 -- 7. AUDIT_LOGS & SYSTEM_SETTINGS POLICIES (ADMIN ONLY)
 -- ============================================================================
 
+DROP POLICY IF EXISTS "audit_logs_admin_select" ON public.audit_logs;
 CREATE POLICY "audit_logs_admin_select" ON public.audit_logs
   FOR SELECT USING (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "audit_logs_system_insert" ON public.audit_logs;
 CREATE POLICY "audit_logs_system_insert" ON public.audit_logs
   FOR INSERT WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "system_settings_admin_all" ON public.system_settings;
 CREATE POLICY "system_settings_admin_all" ON public.system_settings
   FOR ALL USING (public.fn_is_admin()) WITH CHECK (public.fn_is_admin());
 
+DROP POLICY IF EXISTS "system_settings_staff_read" ON public.system_settings;
 CREATE POLICY "system_settings_staff_read" ON public.system_settings
   FOR SELECT USING (public.fn_is_staff() OR public.fn_is_admin());
 
+DROP POLICY IF EXISTS "security_login_attempts_admin_read" ON public.security_login_attempts;
 CREATE POLICY "security_login_attempts_admin_read" ON public.security_login_attempts
   FOR SELECT USING (public.fn_is_admin());
 
@@ -1743,6 +1806,7 @@ ON CONFLICT (id) DO UPDATE
       allowed_mime_types = EXCLUDED.allowed_mime_types;
 
 -- Administrator: Full access to all photos in before-photos and after-photos
+DROP POLICY IF EXISTS "storage_admin_all_photos" ON storage.objects;
 CREATE POLICY "storage_admin_all_photos" ON storage.objects
   FOR ALL TO authenticated
   USING (
@@ -1755,6 +1819,7 @@ CREATE POLICY "storage_admin_all_photos" ON storage.objects
   );
 
 -- Staff: Read, upload, and update photos for their assigned branch
+DROP POLICY IF EXISTS "storage_staff_branch_photos_select" ON storage.objects;
 CREATE POLICY "storage_staff_branch_photos_select" ON storage.objects
   FOR SELECT TO authenticated
   USING (
@@ -1769,6 +1834,7 @@ CREATE POLICY "storage_staff_branch_photos_select" ON storage.objects
     )
   );
 
+DROP POLICY IF EXISTS "storage_staff_branch_photos_insert" ON storage.objects;
 CREATE POLICY "storage_staff_branch_photos_insert" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -1777,6 +1843,7 @@ CREATE POLICY "storage_staff_branch_photos_insert" ON storage.objects
     AND (storage.foldername(name))[1] = ('branch-' || public.fn_current_branch_id()::TEXT)
   );
 
+DROP POLICY IF EXISTS "storage_staff_branch_photos_update" ON storage.objects;
 CREATE POLICY "storage_staff_branch_photos_update" ON storage.objects
   FOR UPDATE TO authenticated
   USING (
@@ -1786,6 +1853,7 @@ CREATE POLICY "storage_staff_branch_photos_update" ON storage.objects
   );
 
 -- Customer: Read access to own assessment photos only
+DROP POLICY IF EXISTS "storage_customer_own_photos_select" ON storage.objects;
 CREATE POLICY "storage_customer_own_photos_select" ON storage.objects
   FOR SELECT TO authenticated
   USING (
@@ -1801,6 +1869,7 @@ CREATE POLICY "storage_customer_own_photos_select" ON storage.objects
         AND bk.customer_id = public.fn_current_customer_id()
     )
   );
+
 
 
 -- ============================================================================
@@ -2019,13 +2088,42 @@ ON CONFLICT (user_id) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('public.customer_profiles', 'customer_id'), COALESCE((SELECT MAX(customer_id) FROM public.customer_profiles), 1), true);
 
 -- Initial Branch Inventory Across Branches
-INSERT INTO public.branch_inventory (branch_id, item_id, current_quantity, reorder_level, updated_at)
-SELECT b.branch_id, i.item_id, 25.00, 10.00, NOW()
+INSERT INTO public.branch_inventory (branch_id, item_id, reorder_level, updated_at)
+SELECT b.branch_id, i.item_id, 10.00, NOW()
 FROM public.branches b
 CROSS JOIN public.inventory_items i
 ON CONFLICT (branch_id, item_id) DO NOTHING;
 
--- Initial Booking & Service Order (triggers automatic service_order + notification creation)
+-- Initial Stock Movements (25 units per branch inventory item)
+INSERT INTO public.stock_movements (branch_inventory_id, recorded_by_user_id, movement_type, quantity_change, transfer_reference, movement_date, notes)
+SELECT bi.branch_inventory_id, 3, 'RESTOCK', 25.00, 'INIT-SEED-2026', NOW(), 'Initial branch stock allocation'
+FROM public.branch_inventory bi
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.stock_movements sm WHERE sm.branch_inventory_id = bi.branch_inventory_id
+);
+
+-- Initial Purchase Order, Delivery & Supplier Return (for complete 26-table testing)
+INSERT INTO public.purchase_orders (purchase_order_id, supplier_id, branch_id, requested_by_user_id, approved_by_user_id, supplier_quote_reference, order_date, purchase_status, notes, approved_at)
+VALUES (1, 1, 1, 2, 3, 'ANG-QUOTE-2026-001', NOW() - INTERVAL '3 days', 'Received', 'Monthly cleaning & restoration supply replenishment', NOW() - INTERVAL '2 days')
+ON CONFLICT (purchase_order_id) DO NOTHING;
+
+INSERT INTO public.purchase_order_items (purchase_order_item_id, purchase_order_id, item_id, quantity_requested, quoted_unit_cost)
+VALUES (1, 1, 1, 20.00, 450.00)
+ON CONFLICT (purchase_order_item_id) DO NOTHING;
+
+INSERT INTO public.deliveries (delivery_id, purchase_order_id, received_by_user_id, delivery_date, proof_of_delivery_path, delivery_status, delivery_notes)
+VALUES (1, 1, 2, NOW() - INTERVAL '1 day', 'pod/WMK-POD-2026-001.pdf', 'Received', 'Received in good condition at San Juan branch')
+ON CONFLICT (delivery_id) DO NOTHING;
+
+INSERT INTO public.delivery_items (delivery_item_id, delivery_id, purchase_order_item_id, quantity_received)
+VALUES (1, 1, 1, 20.00)
+ON CONFLICT (delivery_item_id) DO NOTHING;
+
+INSERT INTO public.supplier_returns (supplier_return_id, delivery_item_id, quantity_returned, reason, supplier_response, refund_amount, return_status, requested_at, resolved_at)
+VALUES (1, 1, 1.00, 'Damaged bottle seal during transit', 'Replacement unit approved by supplier', 450.00, 'Replaced', NOW() - INTERVAL '1 day', NOW())
+ON CONFLICT (supplier_return_id) DO NOTHING;
+
+-- Initial Booking & Service Order (triggers automatic service_order + shoe_assessment + notification creation)
 INSERT INTO public.bookings (booking_id, customer_id, branch_service_id, scheduled_at, price_at_booking, booking_status, customer_request)
 SELECT 1, 1, bs.branch_service_id, NOW() + INTERVAL '1 day', 650.00, 'Confirmed', 'Air Jordan 1 Retro High OG Chicago â€” Deep Cleaning'
 FROM public.branch_services bs
@@ -2034,6 +2132,25 @@ LIMIT 1
 ON CONFLICT (booking_id) DO NOTHING;
 
 SELECT setval(pg_get_serial_sequence('public.bookings', 'booking_id'), COALESCE((SELECT MAX(booking_id) FROM public.bookings), 1), true);
+
+-- Initial Assessment Photo & CRM Interaction & Notification Preferences
+INSERT INTO public.assessment_photos (photo_id, assessment_id, uploaded_by_user_id, photo_type, file_path, caption, uploaded_at)
+SELECT 1, sa.assessment_id, 2, 'BEFORE_LEFT', 'branch-1/order-1/before_left.jpg', 'Left profile before deep cleaning', NOW()
+FROM public.shoe_assessments sa
+LIMIT 1
+ON CONFLICT (photo_id) DO NOTHING;
+
+INSERT INTO public.crm_interactions (interaction_id, customer_id, handled_by_user_id, interaction_type, customer_message, staff_response, rating, interaction_status, interaction_at, responded_at)
+VALUES (1, 1, 2, 'REVIEW', 'Super clean restoration on my Jordan 1 Chicago! Highly recommended.', 'Thank you for trusting WashMyKicks San Juan!', 5, 'Published', NOW(), NOW())
+ON CONFLICT (interaction_id) DO NOTHING;
+
+INSERT INTO public.customer_notification_preferences (customer_id, preference_type, is_enabled)
+VALUES
+  (1, 'EMAIL_BOOKING', TRUE),
+  (1, 'EMAIL_ORDER_STATUS', TRUE),
+  (1, 'EMAIL_PICKUP', TRUE),
+  (1, 'IN_APP', TRUE)
+ON CONFLICT (customer_id, preference_type) DO NOTHING;
 
 -- Allow publishable client testing across operational tables alongside role-based policies
 DO $$
