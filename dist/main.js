@@ -7357,6 +7357,13 @@
     return Component;
   };
 
+  // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/archive.js
+  var Archive = createLucideIcon("Archive", [
+    ["rect", { width: "20", height: "5", x: "2", y: "3", rx: "1", key: "1wp1u1" }],
+    ["path", { d: "M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8", key: "1s80jp" }],
+    ["path", { d: "M10 12h4", key: "a56b0p" }]
+  ]);
+
   // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/arrow-left.js
   var ArrowLeft = createLucideIcon("ArrowLeft", [
     ["path", { d: "m12 19-7-7 7-7", key: "1l729n" }],
@@ -7485,6 +7492,13 @@
     ["line", { x1: "12", x2: "12", y1: "22", y2: "18", key: "15g9kq" }]
   ]);
 
+  // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/download.js
+  var Download = createLucideIcon("Download", [
+    ["path", { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", key: "ih7n3h" }],
+    ["polyline", { points: "7 10 12 15 17 10", key: "2ggqvy" }],
+    ["line", { x1: "12", x2: "12", y1: "15", y2: "3", key: "1vk2je" }]
+  ]);
+
   // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/external-link.js
   var ExternalLink = createLucideIcon("ExternalLink", [
     ["path", { d: "M15 3h6v6", key: "1q9fwt" }],
@@ -7565,6 +7579,12 @@
     ["line", { x1: "21", x2: "9", y1: "12", y2: "12", key: "1uyos4" }]
   ]);
 
+  // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/mail.js
+  var Mail = createLucideIcon("Mail", [
+    ["rect", { width: "20", height: "16", x: "2", y: "4", rx: "2", key: "18n3k1" }],
+    ["path", { d: "m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7", key: "1ocrg3" }]
+  ]);
+
   // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/map-pin.js
   var MapPin = createLucideIcon("MapPin", [
     [
@@ -7621,6 +7641,12 @@
   var Plus = createLucideIcon("Plus", [
     ["path", { d: "M5 12h14", key: "1ays0h" }],
     ["path", { d: "M12 5v14", key: "s699le" }]
+  ]);
+
+  // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/rotate-ccw.js
+  var RotateCcw = createLucideIcon("RotateCcw", [
+    ["path", { d: "M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8", key: "1357e3" }],
+    ["path", { d: "M3 3v5h5", key: "1xhq8a" }]
   ]);
 
   // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/search.js
@@ -7746,13 +7772,29 @@
   var BRANCH_LOCATIONS = [
     {
       id: 1,
+      name: "Wash My Kicks \u2013 Pasig City",
+      shortName: "Pasig City (Flagship)",
+      address: "West Capitol Dr., Brgy. Kapitolyo, Pasig City",
+      city: "Pasig City, Metro Manila",
+      lat: 14.5714,
+      lng: 121.0615,
+      phone: "+63 917 801 1001",
+      openHour: 10,
+      closeHour: 20,
+      hoursLabel: "Mon \u2013 Sun \xB7 10:00 AM \u2013 8:00 PM",
+      services: ["Basic Cleaning", "Deep Cleaning", "Restoration", "Shoe Repair", "Shoe Protection"],
+      landmark: "Flagship Store \xB7 Minutes from Ortigas Center, Capitol Commons, and Shaw Blvd.",
+      turnaroundNote: "WashMyKicks Flagship Store \u2014 Full sneaker care, suede revival, and custom repainting specialists."
+    },
+    {
+      id: 2,
       name: "Wash My Kicks \u2013 San Juan City",
       shortName: "San Juan City",
       address: "300 Col. Bonny Serrano Ave., San Juan City",
       city: "San Juan City, Metro Manila",
       lat: 14.6084,
       lng: 121.0435,
-      phone: "+63 917 801 1001",
+      phone: "+63 917 801 1002",
       openHour: 10,
       closeHour: 20,
       hoursLabel: "Mon \u2013 Sun \xB7 10:00 AM \u2013 8:00 PM",
@@ -7761,36 +7803,20 @@
       turnaroundNote: "Express 24-hour Shoe Protection & full Restoration lab available on-site."
     },
     {
-      id: 2,
+      id: 3,
       name: "Wash My Kicks \u2013 Quezon City",
       shortName: "Quezon City",
       address: "Tomas Morato Ave. cor. Scout Lozano, Quezon City",
       city: "Quezon City, Metro Manila",
       lat: 14.6328,
       lng: 121.0349,
-      phone: "+63 917 801 1002",
+      phone: "+63 917 801 1003",
       openHour: 10,
       closeHour: 20,
       hoursLabel: "Mon \u2013 Sun \xB7 10:00 AM \u2013 8:00 PM",
       services: ["Basic Cleaning", "Deep Cleaning", "Restoration", "Shoe Repair", "Shoe Protection"],
       landmark: "Tomas Morato commercial strip, accessible from Timog & Quezon Ave.",
       turnaroundNote: "High-capacity deep cleaning & UV midsole de-yellowing chamber."
-    },
-    {
-      id: 3,
-      name: "Wash My Kicks \u2013 Pasig City",
-      shortName: "Pasig City",
-      address: "West Capitol Dr., Brgy. Kapitolyo, Pasig City",
-      city: "Pasig City, Metro Manila",
-      lat: 14.5714,
-      lng: 121.0615,
-      phone: "+63 917 801 1003",
-      openHour: 10,
-      closeHour: 20,
-      hoursLabel: "Mon \u2013 Sun \xB7 10:00 AM \u2013 8:00 PM",
-      services: ["Basic Cleaning", "Deep Cleaning", "Restoration", "Shoe Repair", "Shoe Protection"],
-      landmark: "Minutes from Ortigas Center, Capitol Commons, and Shaw Blvd.",
-      turnaroundNote: "Full sneaker care, suede revival, and custom repainting specialists."
     },
     {
       id: 4,
@@ -8043,11 +8069,13 @@
         ).addTo(map);
         tileLayersRef.current.push(sat, roads, labels);
       } else {
-        const standard = L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-          maxZoom: 19,
-          subdomains: "abcd",
-          attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
-        }).addTo(map);
+        const standard = L.tileLayer(
+          "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+          {
+            maxZoom: 19,
+            attribution: "Tiles &copy; Esri &mdash; Standard Street View"
+          }
+        ).addTo(map);
         tileLayersRef.current.push(standard);
       }
     }, [mapMode, mapReady]);
@@ -13137,19 +13165,19 @@ Suggested solution: ${env.workaround}`;
     _encodeJsonUserBroadcastPush(message) {
       var _a, _b;
       const userPayload = (_b = (_a = message.payload) === null || _a === void 0 ? void 0 : _a.payload) !== null && _b !== void 0 ? _b : {};
-      const encoder = new TextEncoder();
-      const encodedUserPayload = encoder.encode(JSON.stringify(userPayload)).buffer;
+      const encoder2 = new TextEncoder();
+      const encodedUserPayload = encoder2.encode(JSON.stringify(userPayload)).buffer;
       return this._encodeUserBroadcastPush(message, this.JSON_ENCODING, encodedUserPayload);
     }
     _encodeUserBroadcastPush(message, encodingType, encodedPayload) {
       var _a, _b;
-      const encoder = new TextEncoder();
-      const topic = encoder.encode(message.topic);
-      const ref = encoder.encode((_a = message.ref) !== null && _a !== void 0 ? _a : "");
-      const joinRef = encoder.encode((_b = message.join_ref) !== null && _b !== void 0 ? _b : "");
-      const userEvent = encoder.encode(message.payload.event);
+      const encoder2 = new TextEncoder();
+      const topic = encoder2.encode(message.topic);
+      const ref = encoder2.encode((_a = message.ref) !== null && _a !== void 0 ? _a : "");
+      const joinRef = encoder2.encode((_b = message.join_ref) !== null && _b !== void 0 ? _b : "");
+      const userEvent = encoder2.encode(message.payload.event);
       const rest = this.allowedMetadataKeys ? this._pick(message.payload, this.allowedMetadataKeys) : {};
-      const metadata = encoder.encode(Object.keys(rest).length === 0 ? "" : JSON.stringify(rest));
+      const metadata = encoder2.encode(Object.keys(rest).length === 0 ? "" : JSON.stringify(rest));
       if (joinRef.length > 255) {
         throw new Error(`joinRef length ${joinRef.length} exceeds maximum of 255`);
       }
@@ -14459,11 +14487,11 @@ Suggested solution: ${env.workaround}`;
     /** @private */
     binaryEncode(message) {
       let { join_ref, ref, event, topic, payload } = message;
-      let encoder = new TextEncoder();
-      let joinRefBytes = encoder.encode(join_ref);
-      let refBytes = encoder.encode(ref);
-      let topicBytes = encoder.encode(topic);
-      let eventBytes = encoder.encode(event);
+      let encoder2 = new TextEncoder();
+      let joinRefBytes = encoder2.encode(join_ref);
+      let refBytes = encoder2.encode(ref);
+      let topicBytes = encoder2.encode(topic);
+      let eventBytes = encoder2.encode(event);
       this.assertFieldSize(joinRefBytes.byteLength, "join_ref");
       this.assertFieldSize(refBytes.byteLength, "ref");
       this.assertFieldSize(topicBytes.byteLength, "topic");
@@ -21122,8 +21150,8 @@ Suggested solution: ${env.workaround}`;
     return Array.from(array, dec2hex).join("");
   }
   async function sha256(randomString) {
-    const encoder = new TextEncoder();
-    const encodedData = encoder.encode(randomString);
+    const encoder2 = new TextEncoder();
+    const encodedData = encoder2.encode(randomString);
     const hash = await crypto.subtle.digest("SHA-256", encodedData);
     const bytes = new Uint8Array(hash);
     return Array.from(bytes).map((c) => String.fromCharCode(c)).join("");
@@ -29838,6 +29866,174 @@ ${suffix}`;
     return data;
   }
 
+  // src/lib/excelExport.ts
+  var encoder = new TextEncoder();
+  var CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 3988292384 ^ c >>> 1 : c >>> 1;
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  function crc32(bytes) {
+    let c = 4294967295;
+    for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 255] ^ c >>> 8;
+    return (c ^ 4294967295) >>> 0;
+  }
+  function zipStore(files) {
+    const parts = [];
+    const central = [];
+    let offset = 0;
+    const now = /* @__PURE__ */ new Date();
+    const dosTime = now.getHours() << 11 | now.getMinutes() << 5 | Math.floor(now.getSeconds() / 2);
+    const dosDate = now.getFullYear() - 1980 << 9 | now.getMonth() + 1 << 5 | now.getDate();
+    for (const file of files) {
+      const name = encoder.encode(file.name);
+      const crc = crc32(file.data);
+      const size = file.data.length;
+      const local = new Uint8Array(30 + name.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 67324752, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(6, 2048, true);
+      lv.setUint16(8, 0, true);
+      lv.setUint16(10, dosTime, true);
+      lv.setUint16(12, dosDate, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, size, true);
+      lv.setUint32(22, size, true);
+      lv.setUint16(26, name.length, true);
+      lv.setUint16(28, 0, true);
+      local.set(name, 30);
+      parts.push(local, file.data);
+      const cen = new Uint8Array(46 + name.length);
+      const cv = new DataView(cen.buffer);
+      cv.setUint32(0, 33639248, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 2048, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, dosTime, true);
+      cv.setUint16(14, dosDate, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, size, true);
+      cv.setUint32(24, size, true);
+      cv.setUint16(28, name.length, true);
+      cv.setUint32(42, offset, true);
+      cen.set(name, 46);
+      central.push(cen);
+      offset += local.length + size;
+    }
+    const centralSize = central.reduce((sum, c) => sum + c.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 101010256, true);
+    ev.setUint16(8, files.length, true);
+    ev.setUint16(10, files.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, offset, true);
+    const all = [...parts, ...central, end];
+    const out = new Uint8Array(all.reduce((sum, p) => sum + p.length, 0));
+    let pos = 0;
+    for (const p of all) {
+      out.set(p, pos);
+      pos += p.length;
+    }
+    return out;
+  }
+  function escapeXml(value) {
+    return value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function columnLetter(index) {
+    let n = index + 1;
+    let letters = "";
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      letters = String.fromCharCode(65 + rem) + letters;
+      n = Math.floor((n - 1) / 26);
+    }
+    return letters;
+  }
+  function safeSheetName(name, used) {
+    let base = name.replace(/[\[\]:*?/\\]/g, " ").trim().slice(0, 31) || "Sheet";
+    let candidate = base;
+    let i = 2;
+    while (used.has(candidate.toLowerCase())) {
+      const suffix = ` (${i++})`;
+      candidate = base.slice(0, 31 - suffix.length) + suffix;
+    }
+    used.add(candidate.toLowerCase());
+    return candidate;
+  }
+  function cellXml(value, ref, styleId) {
+    const s = styleId ? ` s="${styleId}"` : "";
+    if (value === null || value === void 0 || value === "") return `<c r="${ref}"${s}/>`;
+    if (typeof value === "number" && Number.isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
+    if (typeof value === "boolean") return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`;
+    return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escapeXml(String(value))}</t></is></c>`;
+  }
+  function sheetXml(sheet) {
+    const allRows = [sheet.headers, ...sheet.rows];
+    const widths = sheet.headers.map(
+      (_, col) => Math.min(
+        60,
+        Math.max(10, ...allRows.map((row) => String(row[col] ?? "").length + 2))
+      )
+    );
+    const cols = widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("");
+    const rows = allRows.map((row, r) => {
+      const cells = sheet.headers.map((_, c) => cellXml(row[c], `${columnLetter(c)}${r + 1}`, r === 0 ? 1 : 0)).join("");
+      return `<row r="${r + 1}">${cells}</row>`;
+    }).join("");
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${rows}</sheetData></worksheet>`;
+  }
+  var STYLES_XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF111111"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+  function buildXlsx(sheets) {
+    const used = /* @__PURE__ */ new Set();
+    const names = sheets.map((s) => safeSheetName(s.name, used));
+    const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' + sheets.map(
+      (_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`
+    ).join("") + "</Types>";
+    const rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+    const workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + names.map((n, i) => `<sheet name="${escapeXml(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("") + "</sheets></workbook>";
+    const workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + sheets.map(
+      (_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`
+    ).join("") + `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+    return zipStore([
+      { name: "[Content_Types].xml", data: encoder.encode(contentTypes) },
+      { name: "_rels/.rels", data: encoder.encode(rootRels) },
+      { name: "xl/workbook.xml", data: encoder.encode(workbook) },
+      { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(workbookRels) },
+      { name: "xl/styles.xml", data: encoder.encode(STYLES_XML) },
+      ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: encoder.encode(sheetXml(s)) }))
+    ]);
+  }
+  function downloadExcel(fileName, sheets) {
+    const bytes = buildXlsx(sheets);
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName.endsWith(".xlsx") ? fileName : `${fileName}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+  function pesoToNumber(value) {
+    if (typeof value === "number") return value;
+    const n = Number(String(value ?? "").replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  function exportDateStamp(d = /* @__PURE__ */ new Date()) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
   // src/components/OperationsModules.tsx
   var import_react4 = __toESM(require_react(), 1);
   var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
@@ -30950,21 +31146,54 @@ ${suffix}`;
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: roleLabel === "STAFF" ? "BRANCH OPERATIONS" : "ADMINISTRATION" }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { style: { margin: "6px 0 4px" }, children: "Inventory management" }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { style: { margin: 0, fontSize: 13, color: "#6b7280" }, children: "Stock visibility across San Juan, Quezon City, Pasig, Pateros, Montalban, Morong, and Bacoor." })
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { style: { margin: 0, fontSize: 13, color: "#6b7280" }, children: "Stock visibility across Pasig (Flagship), San Juan, Quezon City, Pateros, Montalban, Morong, and Bacoor." })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-          "button",
-          {
-            type: "button",
-            className: "primary",
-            style: { padding: "12px 20px", borderRadius: 10 },
-            onClick: () => openModal("add"),
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Plus, { size: 16 }),
-              " Add stock"
-            ]
-          }
-        )
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: "outline",
+              style: { padding: "12px 16px", borderRadius: 10, display: "inline-flex", alignItems: "center", gap: 6 },
+              onClick: () => {
+                const fileName = `WashMyKicks_Inventory_${exportDateStamp()}.xlsx`;
+                downloadExcel(fileName, [
+                  {
+                    name: "Branch Inventory",
+                    headers: ["Item ID", "Item Name", "Category", "Branch", "Current Stock", "Target Level", "Status"],
+                    rows: filtered.map((item) => [
+                      item.id,
+                      item.name,
+                      item.category,
+                      item.branch,
+                      item.stock,
+                      item.target,
+                      getInventoryStatus(item.stock, item.target)
+                    ])
+                  }
+                ]);
+                onNotify(`Exported ${filtered.length} inventory rows to ${fileName}.`);
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Download, { size: 15 }),
+                " Export Excel (.xlsx)"
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+            "button",
+            {
+              type: "button",
+              className: "primary",
+              style: { padding: "12px 20px", borderRadius: 10 },
+              onClick: () => openModal("add"),
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Plus, { size: 16 }),
+                " Add stock"
+              ]
+            }
+          )
+        ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-inv-kpi-grid", children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("article", { className: "wmk-inv-kpi-card", children: [
@@ -31194,27 +31423,27 @@ ${suffix}`;
   // src/main.tsx
   var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
   var services = [
-    { id: "01", title: "Basic Cleaning", copy: "Exterior clean, midsole care, and freshening.", price: "\u20B1350", numericPrice: 350, duration: "2\u20133 days" },
-    { id: "02", title: "Deep Cleaning", copy: "Full upper, sole, insole, and lace deep clean.", price: "\u20B1650", numericPrice: 650, duration: "3\u20135 days" },
-    { id: "03", title: "Restoration", copy: "Color revival, de-yellowing, and repainting.", price: "From \u20B11,200", numericPrice: 1200, duration: "7\u201314 days" },
-    { id: "04", title: "Shoe Repair", copy: "Sole reglue, stitching, and damage repair.", price: "From \u20B1800", numericPrice: 800, duration: "5\u201310 days" },
-    { id: "05", title: "Shoe Protection", copy: "Water and stain-repellent premium coating.", price: "\u20B1280", numericPrice: 280, duration: "1 day" }
+    { id: "01", title: "Basic Cleaning", copy: "Exterior clean, midsole care, and freshening.", price: "\u20B1350", numericPrice: 350, duration: "2\u20133 days", archived: false },
+    { id: "02", title: "Deep Cleaning", copy: "Full upper, sole, insole, and lace deep clean.", price: "\u20B1650", numericPrice: 650, duration: "3\u20135 days", archived: false },
+    { id: "03", title: "Restoration", copy: "Color revival, de-yellowing, and repainting.", price: "From \u20B11,200", numericPrice: 1200, duration: "7\u201314 days", archived: false },
+    { id: "04", title: "Shoe Repair", copy: "Sole reglue, stitching, and damage repair.", price: "From \u20B1800", numericPrice: 800, duration: "5\u201310 days", archived: false },
+    { id: "05", title: "Shoe Protection", copy: "Water and stain-repellent premium coating.", price: "\u20B1280", numericPrice: 280, duration: "1 day", archived: false }
   ];
   var staffBranches = [
+    "Wash My Kicks \u2013 Pasig City",
     "Wash My Kicks \u2013 San Juan City",
     "Wash My Kicks \u2013 Quezon City",
-    "Wash My Kicks \u2013 Pasig City",
     "Wash My Kicks \u2013 Pateros",
     "Wash My Kicks \u2013 Montalban Rizal",
     "Wash My Kicks \u2013 Morong Rizal",
     "Wash My Kicks \u2013 Bacoor Cavite"
   ];
   var wizardBranches = [
-    { id: 1, name: "Wash My Kicks \u2013 San Juan City", address: "300 Col. Bonny Serrano Ave., San Juan City", comingSoon: false },
-    { id: 2, name: "Wash My Kicks \u2013 Quezon City", address: "Quezon City, Philippines", comingSoon: false },
-    { id: 3, name: "Wash My Kicks \u2013 Pasig City", address: "Pasig City, Philippines", comingSoon: false },
+    { id: 1, name: "Wash My Kicks \u2013 Pasig City", address: "West Capitol Dr., Brgy. Kapitolyo, Pasig City (Flagship Store)", comingSoon: false },
+    { id: 2, name: "Wash My Kicks \u2013 San Juan City", address: "300 Col. Bonny Serrano Ave., San Juan City", comingSoon: false },
+    { id: 3, name: "Wash My Kicks \u2013 Quezon City", address: "Tomas Morato Ave. cor. Scout Lozano, Quezon City", comingSoon: false },
     { id: 4, name: "Wash My Kicks \u2013 Pateros", address: "402 G. De Borja St., Brgy. Aguho, Pateros", comingSoon: false },
-    { id: 5, name: "Wash My Kicks \u2013 Montalban, Rizal", address: "Montalban, Rizal", comingSoon: false },
+    { id: 5, name: "Wash My Kicks \u2013 Montalban, Rizal", address: "E. Rodriguez Hwy, Montalban, Rizal", comingSoon: false },
     { id: 6, name: "Wash My Kicks \u2013 Morong, Rizal", address: "2nd Floor A5R Commercial Space Rental, Manila East Road, Morong, Rizal", comingSoon: false },
     { id: 7, name: "Wash My Kicks \u2013 Bacoor, Cavite", address: "Cerritos Trails Molino 3, Bacoor, Cavite", comingSoon: false },
     { id: 8, name: "Wash My Kicks \u2013 8th Branch", address: "Location to be announced", comingSoon: true }
@@ -31494,8 +31723,10 @@ ${suffix}`;
   }
   function Home({
     setPage,
-    onBookBranch
+    onBookBranch,
+    servicesCatalog = services
   }) {
+    const activeServices = servicesCatalog.filter((s) => !s.archived);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "hero", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "hero-copy", children: [
@@ -31554,7 +31785,7 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "services-grid", children: services.slice(0, 4).map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceCard, { service: s, onClick: () => setPage("book") }, s.id)) })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "services-grid", children: activeServices.slice(0, 4).map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceCard, { service: s, onClick: () => setPage("book") }, s.id)) })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "standard", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "standard-image", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "RESTORED" }) }),
@@ -31619,10 +31850,14 @@ ${suffix}`;
       children
     ] });
   }
-  function Services({ setPage }) {
+  function Services({
+    setPage,
+    servicesCatalog = services
+  }) {
+    const activeServices = servicesCatalog.filter((s) => !s.archived);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "OUR SERVICES", title: "Care for every kind of kick.", children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Transparent pricing, expert hands, and progress updates from drop-off to pickup." }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "services-grid full", children: services.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceCard, { service: s, onClick: () => setPage("login") }, s.id)) })
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "services-grid full", children: activeServices.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceCard, { service: s, onClick: () => setPage("login") }, s.id)) })
     ] });
   }
   function Track({ orders, setPage }) {
@@ -32092,9 +32327,12 @@ ${suffix}`;
   function CustomerBookAppointmentWizard({
     initialBranchId = 1,
     preselectedFromMap = false,
+    existingOrders = initialOrders,
+    servicesCatalog = services,
     onCompleteBooking,
     onCancel
   }) {
+    const activeServices = servicesCatalog.filter((s) => !s.archived);
     const [step, setStep] = (0, import_react5.useState)(1);
     const [selectedBranchId, setSelectedBranchId] = (0, import_react5.useState)(initialBranchId);
     const [selectedServiceId, setSelectedServiceId] = (0, import_react5.useState)("02");
@@ -32103,6 +32341,12 @@ ${suffix}`;
     const [selectedDay, setSelectedDay] = (0, import_react5.useState)(28);
     const [selectedTime, setSelectedTime] = (0, import_react5.useState)("10:30 AM");
     const [shoeModel, setShoeModel] = (0, import_react5.useState)("Air Jordan 1 Retro High");
+    const [customerEmail, setCustomerEmail] = (0, import_react5.useState)("juan.delacruz@email.com");
+    const [generatedOtp, setGeneratedOtp] = (0, import_react5.useState)("");
+    const [enteredOtp, setEnteredOtp] = (0, import_react5.useState)("");
+    const [otpVerified, setOtpVerified] = (0, import_react5.useState)(false);
+    const [otpNotice, setOtpNotice] = (0, import_react5.useState)("");
+    const [remoteSlotCounts, setRemoteSlotCounts] = (0, import_react5.useState)({});
     const monthNames = [
       "January",
       "February",
@@ -32126,6 +32370,7 @@ ${suffix}`;
       (_, idx) => daysInPrevMonth - firstDayOfWeek + idx + 1
     );
     const activeSelectedDay = Math.min(selectedDay, daysInMonth);
+    const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`;
     const handlePrevMonth = () => {
       if (calendarMonth === 0) {
         setCalendarMonth(11);
@@ -32146,7 +32391,24 @@ ${suffix}`;
       setSelectedBranchId(initialBranchId);
     }, [initialBranchId]);
     const selectedBranch = wizardBranches.find((b) => b.id === selectedBranchId) || wizardBranches[0];
-    const selectedService = services.find((s) => s.id === selectedServiceId) || services[1];
+    const selectedService = activeServices.find((s) => s.id === selectedServiceId) || activeServices[0] || services[1];
+    (0, import_react5.useEffect)(() => {
+      if (step !== 4) return;
+      const q = new URLSearchParams({
+        branch: selectedBranch.name,
+        date: formattedDate
+      });
+      fetch(`/api/available-slots?${q.toString()}`).then((r) => r.ok ? r.json() : null).then((data) => {
+        if (data?.slots && Array.isArray(data.slots)) {
+          const map = {};
+          for (const item of data.slots) {
+            map[item.slot] = Number(item.booked) || 0;
+          }
+          setRemoteSlotCounts(map);
+        }
+      }).catch(() => {
+      });
+    }, [step, selectedBranch.name, formattedDate]);
     const steps = [
       { num: 1, label: "Branch" },
       { num: 2, label: "Service" },
@@ -32164,8 +32426,60 @@ ${suffix}`;
       "05:30 PM",
       "06:30 PM"
     ];
+    const MAX_SLOT_CAPACITY = 2;
+    const getSlotAvailability = (slot) => {
+      const localCount = existingOrders.filter(
+        (o) => o.branch === selectedBranch.name && o.date === formattedDate && o.time === slot
+      ).length;
+      const remoteCount = remoteSlotCounts[slot] || 0;
+      const booked = Math.max(localCount, remoteCount);
+      const remaining = Math.max(0, MAX_SLOT_CAPACITY - booked);
+      return {
+        booked,
+        remaining,
+        isFull: remaining === 0
+      };
+    };
+    const handleSendBookingOtp = () => {
+      const code = String(Math.floor(1e5 + Math.random() * 9e5));
+      setGeneratedOtp(code);
+      setEnteredOtp("");
+      setOtpVerified(false);
+      setOtpNotice(`Verification code ${code} sent to ${customerEmail}.`);
+      void dispatchTransactionalEmail({
+        to: customerEmail,
+        eventType: "EMAIL_VERIFICATION",
+        reference: code,
+        customerName: "Juan Dela Cruz",
+        serviceName: selectedService.title,
+        branchName: selectedBranch.name,
+        scheduledAt: `${formattedDate} \xB7 ${selectedTime}`
+      });
+    };
+    const handleVerifyOtp = (codeToCheck) => {
+      const candidate = (codeToCheck ?? enteredOtp).trim();
+      if (generatedOtp && candidate === generatedOtp) {
+        setOtpVerified(true);
+        setOtpNotice("\u2713 Email verification code confirmed!");
+        return true;
+      }
+      setOtpNotice("Invalid verification code. Please check the 6-digit code and try again.");
+      return false;
+    };
     const handleConfirm = () => {
-      const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`;
+      if (!otpVerified) {
+        if (generatedOtp && enteredOtp.trim() === generatedOtp) {
+          setOtpVerified(true);
+        } else {
+          if (!generatedOtp) {
+            handleSendBookingOtp();
+            setOtpNotice((prev) => `${prev} Please enter or auto-fill the 6-digit code to complete booking.`);
+          } else {
+            setOtpNotice("Please verify the 6-digit email verification code before confirming your booking.");
+          }
+          return;
+        }
+      }
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
       void createBookingRecord({
@@ -32173,8 +32487,8 @@ ${suffix}`;
         branchServiceId: selectedBranch.id,
         scheduledAt: scheduledIso,
         priceAtBooking: numericPrice,
-        customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${selectedTime})`,
-        customerEmail: "juan.delacruz@email.com",
+        customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Verified OTP: ${generatedOtp || "OK"}]`,
+        customerEmail: customerEmail || "juan.delacruz@email.com",
         customerName: "Juan Dela Cruz",
         serviceName: selectedService.title,
         branchName: selectedBranch.name
@@ -32182,7 +32496,7 @@ ${suffix}`;
       const newOrder = {
         id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
         customer: "Juan Dela Cruz",
-        email: "juan.delacruz@email.com",
+        email: customerEmail || "juan.delacruz@email.com",
         shoe: shoeModel || "Sneaker Pair",
         service: selectedService.title,
         branch: selectedBranch.name,
@@ -32311,7 +32625,7 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Select your service" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "What does your pair need?" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", children: services.map((s) => {
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", children: activeServices.map((s) => {
           const isSelected = selectedServiceId === s.id;
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "button",
@@ -32398,18 +32712,39 @@ ${suffix}`;
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", style: { marginBottom: 20 }, children: timeSlots.map((slot) => {
-          const isSelected = selectedTime === slot;
+          const { remaining, isFull } = getSlotAvailability(slot);
+          const isSelected = selectedTime === slot && !isFull;
           return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "button",
             {
               type: "button",
+              disabled: isFull,
               className: `choice-card ${isSelected ? "selected" : ""}`,
-              onClick: () => setSelectedTime(slot),
+              style: isFull ? { opacity: 0.55, cursor: "not-allowed", background: "#f9fafb" } : void 0,
+              onClick: () => {
+                if (!isFull) setSelectedTime(slot);
+              },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Clock3, { size: 18, color: "#dc2626" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Clock3, { size: 18, color: isFull ? "#9ca3af" : "#dc2626" }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: slot }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Available drop-off slot" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: isFull ? "Slot full \u2014 no remaining capacity" : `${remaining} of ${MAX_SLOT_CAPACITY} drop-off slots available` }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "span",
+                    {
+                      style: {
+                        display: "inline-block",
+                        marginTop: 4,
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        background: isFull ? "#fee2e2" : remaining === 1 ? "#fef3c7" : "#dcfce7",
+                        color: isFull ? "#991b1b" : remaining === 1 ? "#b45309" : "#166534"
+                      },
+                      children: isFull ? "FULL \xB7 BOOKED" : remaining === 1 ? "1 SLOT LEFT" : "AVAILABLE"
+                    }
+                  )
                 ] }),
                 isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16, className: "choice-check" })
               ]
@@ -32500,10 +32835,137 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedService.price.replace("From ", "") })
           ] })
         ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "div",
+          {
+            style: {
+              maxWidth: 540,
+              margin: "18px auto 0",
+              padding: "16px 18px",
+              borderRadius: 12,
+              border: otpVerified ? "1px solid #86efac" : "1px solid #e5e7eb",
+              background: otpVerified ? "#f0fdf4" : "#f9fafb"
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Mail, { size: 16, color: otpVerified ? "#16a34a" : "#dc2626" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { fontSize: 13 }, children: "Booking Email Verification (OTP)" })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "span",
+                  {
+                    style: {
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: "3px 9px",
+                      borderRadius: 999,
+                      background: otpVerified ? "#dcfce7" : "#fee2e2",
+                      color: otpVerified ? "#166534" : "#991b1b"
+                    },
+                    children: otpVerified ? "\u2713 VERIFIED" : "VERIFICATION REQUIRED"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "input",
+                  {
+                    type: "email",
+                    value: customerEmail,
+                    onChange: (e) => setCustomerEmail(e.target.value),
+                    placeholder: "Enter your email for booking verification",
+                    style: {
+                      flex: 1,
+                      minWidth: 200,
+                      padding: "9px 12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 8,
+                      fontSize: 12.5,
+                      background: "#fff"
+                    }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "button",
+                  {
+                    type: "button",
+                    className: "outline",
+                    style: { padding: "9px 14px", fontSize: 12 },
+                    onClick: handleSendBookingOtp,
+                    children: generatedOtp ? "Resend Code" : "Send Verification Code"
+                  }
+                )
+              ] }),
+              generatedOtp && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "input",
+                  {
+                    type: "text",
+                    maxLength: 6,
+                    value: enteredOtp,
+                    onChange: (e) => setEnteredOtp(e.target.value),
+                    placeholder: "Enter 6-digit code",
+                    style: {
+                      width: 160,
+                      padding: "9px 12px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      letterSpacing: 3,
+                      background: "#fff"
+                    }
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "button",
+                  {
+                    type: "button",
+                    className: "primary",
+                    style: { padding: "9px 14px", fontSize: 12 },
+                    onClick: () => handleVerifyOtp(),
+                    children: "Verify Code"
+                  }
+                ),
+                !otpVerified && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: "outline",
+                    style: { padding: "9px 12px", fontSize: 11.5 },
+                    onClick: () => {
+                      setEnteredOtp(generatedOtp);
+                      handleVerifyOtp(generatedOtp);
+                    },
+                    children: [
+                      "Auto-fill (",
+                      generatedOtp,
+                      ")"
+                    ]
+                  }
+                )
+              ] }),
+              otpNotice && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "div",
+                {
+                  style: {
+                    marginTop: 8,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: otpVerified ? "#166534" : "#b91c1c"
+                  },
+                  children: otpNotice
+                }
+              )
+            ]
+          }
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: () => setStep(4), children: "\u2190 Back" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: handleConfirm, children: [
-            "Confirm appointment ",
+            otpVerified ? "Confirm appointment" : "Verify & Confirm appointment",
+            " ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15 })
           ] })
         ] })
@@ -32516,6 +32978,7 @@ ${suffix}`;
     setOrders,
     reviews,
     setReviews,
+    servicesCatalog = services,
     setPage,
     onLogout,
     initialTab = "Dashboard",
@@ -32786,6 +33249,8 @@ ${suffix}`;
             {
               initialBranchId: preselectedBranchId,
               preselectedFromMap,
+              existingOrders: orders,
+              servicesCatalog,
               onCancel: () => setTab("Dashboard"),
               onCompleteBooking: (newOrder) => {
                 setOrders((prev) => [newOrder, ...prev]);
@@ -33508,9 +33973,48 @@ ${suffix}`;
             ] })
           ] }),
           tab === "Job Orders" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BRANCH QUEUE" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Job Orders" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Select a job order to update service progress or proceed to shoe assessment & documentation." }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BRANCH QUEUE" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Job Orders" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Select a job order to update service progress or proceed to shoe assessment & documentation." })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "button",
+                {
+                  type: "button",
+                  className: "outline",
+                  style: { display: "inline-flex", alignItems: "center", gap: 6 },
+                  onClick: () => {
+                    const fileName = `WashMyKicks_Staff_JobOrders_${exportDateStamp()}.xlsx`;
+                    downloadExcel(fileName, [
+                      {
+                        name: "Job Orders",
+                        headers: ["Job Order ID", "Customer", "Email", "Shoe Pair", "Service", "Branch", "Date", "Time", "Price (PHP)", "Assessed", "Status"],
+                        rows: orders.map((o) => [
+                          o.id,
+                          o.customer,
+                          o.email,
+                          o.shoe,
+                          o.service,
+                          o.branch,
+                          o.date,
+                          o.time,
+                          pesoToNumber(o.price),
+                          o.assessed ? "Yes" : "Pending",
+                          o.status
+                        ])
+                      }
+                    ]);
+                    showToast(`Exported ${orders.length} job orders to ${fileName}.`);
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 15 }),
+                    " Export Job Orders (.xlsx)"
+                  ]
+                }
+              )
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Job Order" }),
@@ -33642,9 +34146,36 @@ ${suffix}`;
             }
           ),
           tab === "Customers" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BRANCH DIRECTORY" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Customers" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Customers with active or recent shoe orders at your branch." }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BRANCH DIRECTORY" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Customers" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Customers with active or recent shoe orders at your branch." })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "button",
+                {
+                  type: "button",
+                  className: "outline",
+                  style: { display: "inline-flex", alignItems: "center", gap: 6 },
+                  onClick: () => {
+                    const fileName = `WashMyKicks_Branch_Customers_${exportDateStamp()}.xlsx`;
+                    downloadExcel(fileName, [
+                      {
+                        name: "Branch Customers",
+                        headers: ["Customer Name", "Email", "Active Pair", "Service", "Branch", "Order Status"],
+                        rows: orders.map((o) => [o.customer, o.email, o.shoe, o.service, o.branch, o.status])
+                      }
+                    ]);
+                    showToast(`Exported ${orders.length} customer records to ${fileName}.`);
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 15 }),
+                    " Export Customers (.xlsx)"
+                  ]
+                }
+              )
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Customer Name" }),
@@ -33691,19 +34222,27 @@ ${suffix}`;
     setOrders,
     inventory,
     setInventory,
+    servicesCatalog,
+    setServicesCatalog,
     onLogout
   }) {
     const [tab, setTab] = (0, import_react5.useState)("Dashboard");
     const [toast, setToast] = (0, import_react5.useState)("");
+    const [editingServiceId, setEditingServiceId] = (0, import_react5.useState)(null);
+    const [newSvcTitle, setNewSvcTitle] = (0, import_react5.useState)("");
+    const [newSvcCopy, setNewSvcCopy] = (0, import_react5.useState)("");
+    const [newSvcPrice, setNewSvcPrice] = (0, import_react5.useState)("\u20B1500");
+    const [newSvcDuration, setNewSvcDuration] = (0, import_react5.useState)("2\u20134 days");
     const [usersList, setUsersList] = (0, import_react5.useState)([
-      { id: "USR-01", name: "Juan Dela Cruz", email: "juan.delacruz@email.com", role: "Customer", branch: "San Juan City", active: true },
-      { id: "USR-02", name: "Carlo Mendoza", email: "carlo.mendoza@washmykicks.com", role: "Staff", branch: "San Juan City", active: true },
+      { id: "USR-01", name: "Juan Dela Cruz", email: "juan.delacruz@email.com", role: "Customer", branch: "Pasig City (Flagship)", active: true },
+      { id: "USR-02", name: "Carlo Mendoza", email: "carlo.mendoza@washmykicks.com", role: "Staff", branch: "Pasig City (Flagship)", active: true },
       { id: "USR-03", name: "Marco Santos", email: "marco.santos@washmykicks.com", role: "Staff", branch: "Quezon City", active: true },
       { id: "USR-04", name: "Mika Cruz", email: "admin@washmykicks.com", role: "Administrator", branch: "HQ / All Branches", active: true }
     ]);
     const sidebarItems = [
       { key: "Dashboard", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LayoutDashboard, { size: 17 }) },
       { key: "Branches", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Building2, { size: 17 }) },
+      { key: "Services", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 17 }) },
       { key: "Inventory", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 17 }) },
       { key: "CRM", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Users, { size: 17 }) },
       { key: "Job Orders", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ClipboardCheck, { size: 17 }) },
@@ -34123,6 +34662,221 @@ ${suffix}`;
               ] }, b.id)) })
             ] }) })
           ] }),
+          tab === "Services" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "SHOE SERVICE CATALOG MANAGEMENT" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Services Catalog" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Add, edit pricing & turnaround duration, or archive and restore services across all WashMyKicks branches." }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginBottom: 18 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { margin: "0 0 12px", fontSize: 15 }, children: "Add New Sneaker Care Service" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "form",
+                {
+                  onSubmit: (e) => {
+                    e.preventDefault();
+                    if (!newSvcTitle.trim()) return;
+                    const nextNum = String(servicesCatalog.length + 1).padStart(2, "0");
+                    const numPrice = pesoToNumber(newSvcPrice) || 500;
+                    setServicesCatalog((prev) => [
+                      ...prev,
+                      {
+                        id: nextNum,
+                        title: newSvcTitle.trim(),
+                        copy: newSvcCopy.trim() || "Specialized sneaker care treatment.",
+                        price: newSvcPrice.trim() || "\u20B1500",
+                        numericPrice: numPrice,
+                        duration: newSvcDuration.trim() || "2\u20134 days",
+                        archived: false
+                      }
+                    ]);
+                    showToast(`Added "${newSvcTitle.trim()}" to the active services catalog.`);
+                    setNewSvcTitle("");
+                    setNewSvcCopy("");
+                  },
+                  style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, alignItems: "end" },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 11.5, fontWeight: 700, marginBottom: 4 }, children: "Service Name" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                        "input",
+                        {
+                          type: "text",
+                          value: newSvcTitle,
+                          onChange: (e) => setNewSvcTitle(e.target.value),
+                          placeholder: "e.g. Suede & Nubuck Revival",
+                          style: { width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 12.5 }
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 11.5, fontWeight: 700, marginBottom: 4 }, children: "Description" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                        "input",
+                        {
+                          type: "text",
+                          value: newSvcCopy,
+                          onChange: (e) => setNewSvcCopy(e.target.value),
+                          placeholder: "Service details...",
+                          style: { width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 12.5 }
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 11.5, fontWeight: 700, marginBottom: 4 }, children: "Price" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                        "input",
+                        {
+                          type: "text",
+                          value: newSvcPrice,
+                          onChange: (e) => setNewSvcPrice(e.target.value),
+                          placeholder: "\u20B1750",
+                          style: { width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 12.5 }
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 11.5, fontWeight: 700, marginBottom: 4 }, children: "Turnaround" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                        "input",
+                        {
+                          type: "text",
+                          value: newSvcDuration,
+                          onChange: (e) => setNewSvcDuration(e.target.value),
+                          placeholder: "3\u20135 days",
+                          style: { width: "100%", padding: "9px 11px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 12.5 }
+                        }
+                      )
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "submit", className: "primary", style: { padding: "10px 14px", fontSize: 12.5 }, children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Plus, { size: 15 }),
+                      " Add Service"
+                    ] })
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Code" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Service Title" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Description" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Price" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Duration" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Catalog Status" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Actions" })
+              ] }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: servicesCatalog.map((svc) => {
+                const isEditing = editingServiceId === svc.id;
+                return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { style: svc.archived ? { opacity: 0.65, background: "#f9fafb" } : void 0, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    "#",
+                    svc.id
+                  ] }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: isEditing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "text",
+                      value: svc.title,
+                      onChange: (e) => {
+                        const v = e.target.value;
+                        setServicesCatalog(
+                          (prev) => prev.map((x) => x.id === svc.id ? { ...x, title: v } : x)
+                        );
+                      },
+                      style: { padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }
+                    }
+                  ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: svc.title }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: isEditing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "text",
+                      value: svc.copy,
+                      onChange: (e) => {
+                        const v = e.target.value;
+                        setServicesCatalog(
+                          (prev) => prev.map((x) => x.id === svc.id ? { ...x, copy: v } : x)
+                        );
+                      },
+                      style: { padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, width: "100%" }
+                    }
+                  ) : svc.copy }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: isEditing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "text",
+                      value: svc.price,
+                      onChange: (e) => {
+                        const v = e.target.value;
+                        setServicesCatalog(
+                          (prev) => prev.map(
+                            (x) => x.id === svc.id ? { ...x, price: v, numericPrice: pesoToNumber(v) || x.numericPrice } : x
+                          )
+                        );
+                      },
+                      style: { padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, width: 95 }
+                    }
+                  ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: svc.price }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: isEditing ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "text",
+                      value: svc.duration,
+                      onChange: (e) => {
+                        const v = e.target.value;
+                        setServicesCatalog(
+                          (prev) => prev.map((x) => x.id === svc.id ? { ...x, duration: v } : x)
+                        );
+                      },
+                      style: { padding: "5px 8px", border: "1px solid #d1d5db", borderRadius: 6, width: 95 }
+                    }
+                  ) : svc.duration }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `status-pill ${svc.archived ? "gray" : "green"}`, children: svc.archived ? "Archived (Hidden)" : "Active" }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("td", { style: { display: "flex", gap: 6, flexWrap: "wrap" }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "outline",
+                        style: { padding: "5px 10px", fontSize: 11.5 },
+                        onClick: () => {
+                          if (isEditing) {
+                            setEditingServiceId(null);
+                            showToast(`Saved changes to ${svc.title}.`);
+                          } else {
+                            setEditingServiceId(svc.id);
+                          }
+                        },
+                        children: isEditing ? "Save" : "Edit"
+                      }
+                    ),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: svc.archived ? "primary" : "outline",
+                        style: { padding: "5px 10px", fontSize: 11.5, display: "inline-flex", alignItems: "center", gap: 4 },
+                        onClick: () => {
+                          const nextArchived = !svc.archived;
+                          setServicesCatalog(
+                            (prev) => prev.map((x) => x.id === svc.id ? { ...x, archived: nextArchived } : x)
+                          );
+                          showToast(
+                            nextArchived ? `Archived "${svc.title}" (hidden from booking wizard).` : `Restored "${svc.title}" to active booking catalog.`
+                          );
+                        },
+                        children: svc.archived ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RotateCcw, { size: 12 }),
+                          " Restore"
+                        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Archive, { size: 12 }),
+                          " Archive"
+                        ] })
+                      }
+                    )
+                  ] })
+                ] }, svc.id);
+              }) })
+            ] }) })
+          ] }),
           tab === "Inventory" && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             InventoryManagementModule,
             {
@@ -34135,9 +34889,42 @@ ${suffix}`;
             }
           ),
           tab === "CRM" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER RELATIONSHIP MANAGEMENT" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "CRM" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Customer profiles, lifetime sneaker care value, and retention insights." }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER RELATIONSHIP MANAGEMENT" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "CRM" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Customer profiles, lifetime sneaker care value, and retention insights." })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "button",
+                {
+                  type: "button",
+                  className: "outline",
+                  style: { display: "inline-flex", alignItems: "center", gap: 6 },
+                  onClick: () => {
+                    const crmRows = [
+                      ["Juan Dela Cruz", "juan.delacruz@email.com", "Pasig City (Flagship)", 12, "VIP Sneakerhead"],
+                      ["Angela Mercado", "angela.m@email.com", "San Juan City", 7, "Gold Member"],
+                      ["Jiro Reyes", "jiro.reyes@email.com", "Quezon City", 5, "Silver Member"],
+                      ["Kaye Santos", "kaye.s@email.com", "Pasig City (Flagship)", 9, "Gold Member"]
+                    ];
+                    const fileName = `WashMyKicks_CRM_Customers_${exportDateStamp()}.xlsx`;
+                    downloadExcel(fileName, [
+                      {
+                        name: "CRM Customers",
+                        headers: ["Customer Name", "Email", "Preferred Branch", "Completed Pairs", "Loyalty Tier"],
+                        rows: crmRows
+                      }
+                    ]);
+                    showToast(`Exported ${crmRows.length} CRM customer profiles to ${fileName}.`);
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 15 }),
+                    " Export Customers (.xlsx)"
+                  ]
+                }
+              )
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Customer" }),
@@ -34164,9 +34951,49 @@ ${suffix}`;
             ] }) })
           ] }),
           tab === "Job Orders" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ALL-BRANCH JOB ORDERS" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Job Orders" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Complete visibility and specialist assignment across all branches." }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ALL-BRANCH JOB ORDERS" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Job Orders" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Complete visibility and specialist assignment across all branches." })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                "button",
+                {
+                  type: "button",
+                  className: "outline",
+                  style: { display: "inline-flex", alignItems: "center", gap: 6 },
+                  onClick: () => {
+                    const fileName = `WashMyKicks_All_JobOrders_${exportDateStamp()}.xlsx`;
+                    downloadExcel(fileName, [
+                      {
+                        name: "All Job Orders",
+                        headers: ["Job Order ID", "Customer", "Email", "Sneaker Pair", "Service", "Branch", "Date", "Time", "Price (PHP)", "Specialist", "Assessed", "Status"],
+                        rows: orders.map((o) => [
+                          o.id,
+                          o.customer,
+                          o.email,
+                          o.shoe,
+                          o.service,
+                          o.branch,
+                          o.date,
+                          o.time,
+                          pesoToNumber(o.price),
+                          o.specialist,
+                          o.assessed ? "Yes" : "Pending",
+                          o.status
+                        ])
+                      }
+                    ]);
+                    showToast(`Exported ${orders.length} job orders to ${fileName}.`);
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 15 }),
+                    " Export Job Orders (.xlsx)"
+                  ]
+                }
+              )
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Job Order" }),
@@ -34246,13 +35073,74 @@ ${suffix}`;
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Based on verified reviews" })
                 ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                 "button",
                 {
                   type: "button",
                   className: "primary",
-                  onClick: () => showToast("Exported WashMyKicks_March2026_Executive_Report.csv"),
-                  children: "Export Full Financial & Operations Report (CSV)"
+                  style: { display: "inline-flex", alignItems: "center", gap: 8 },
+                  onClick: () => {
+                    const fileName = `WashMyKicks_Executive_Report_${exportDateStamp()}.xlsx`;
+                    downloadExcel(fileName, [
+                      {
+                        name: "Executive Summary",
+                        headers: ["Metric", "Value", "Notes"],
+                        rows: [
+                          ["Gross Monthly Revenue (PHP)", 784820, "+18.4% MoM"],
+                          ["Average Ticket Value (PHP)", 685, "Driven by Deep Cleaning & Restoration"],
+                          ["On-Time Turnaround", "98.2%", "Across all 7 branches"],
+                          ["Customer CSAT", "4.92 / 5.0", "Based on verified reviews"]
+                        ]
+                      },
+                      {
+                        name: "Job Orders",
+                        headers: ["Job Order ID", "Customer", "Email", "Sneaker Pair", "Service", "Branch", "Date", "Time", "Price (PHP)", "Specialist", "Status"],
+                        rows: orders.map((o) => [
+                          o.id,
+                          o.customer,
+                          o.email,
+                          o.shoe,
+                          o.service,
+                          o.branch,
+                          o.date,
+                          o.time,
+                          pesoToNumber(o.price),
+                          o.specialist,
+                          o.status
+                        ])
+                      },
+                      {
+                        name: "Services Catalog",
+                        headers: ["Code", "Service Name", "Description", "Price (PHP)", "Turnaround", "Status"],
+                        rows: servicesCatalog.map((s) => [
+                          s.id,
+                          s.title,
+                          s.copy,
+                          s.numericPrice,
+                          s.duration,
+                          s.archived ? "Archived" : "Active"
+                        ])
+                      },
+                      {
+                        name: "Branch Inventory",
+                        headers: ["Item ID", "Item Name", "Category", "Branch", "Current Stock", "Target Level", "Status"],
+                        rows: inventory.map((i) => [
+                          i.id,
+                          i.name,
+                          i.category,
+                          i.branch,
+                          i.stock,
+                          i.target,
+                          getInventoryStatus(i.stock, i.target)
+                        ])
+                      }
+                    ]);
+                    showToast(`Exported multi-sheet Excel workbook ${fileName}`);
+                  },
+                  children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 16 }),
+                    " Export Full Financial & Operations Report (.xlsx)"
+                  ]
                 }
               )
             ] })
@@ -34384,6 +35272,8 @@ ${suffix}`;
   function PublicShoeBookingModule({
     initialBranchId,
     preselectedFromMap,
+    existingOrders = initialOrders,
+    servicesCatalog = services,
     onCompleteBooking,
     setPage
   }) {
@@ -34422,6 +35312,8 @@ ${suffix}`;
       {
         initialBranchId,
         preselectedFromMap,
+        existingOrders,
+        servicesCatalog,
         onCancel: () => setPage("home"),
         onCompleteBooking: (order) => {
           onCompleteBooking(order);
@@ -34446,6 +35338,7 @@ ${suffix}`;
     const [orders, setOrders] = (0, import_react5.useState)(initialOrders);
     const [reviews, setReviews] = (0, import_react5.useState)(initialReviews);
     const [inventory, setInventory] = (0, import_react5.useState)(INITIAL_INVENTORY_RECORDS);
+    const [servicesCatalog, setServicesCatalog] = (0, import_react5.useState)(services);
     const handleBookBranchFromMap = (_branchName, branchId) => {
       setPreselectedBranchId(branchId);
       setPreselectedFromMap(true);
@@ -34494,6 +35387,7 @@ ${suffix}`;
           setOrders,
           reviews,
           setReviews,
+          servicesCatalog,
           setPage,
           onLogout: handleLogout,
           initialTab: customerInitialTab,
@@ -34524,15 +35418,19 @@ ${suffix}`;
           setOrders,
           inventory,
           setInventory,
+          servicesCatalog,
+          setServicesCatalog,
           onLogout: handleLogout
         }
       );
     }
-    const content = page === "home" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Home, { setPage, onBookBranch: handleBookBranchFromMap }) : page === "services" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Services, { setPage }) : page === "track" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Track, { orders, setPage }) : page === "branches" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Branches, { onBookBranch: handleBookBranchFromMap }) : page === "book" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+    const content = page === "home" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Home, { setPage, onBookBranch: handleBookBranchFromMap, servicesCatalog }) : page === "services" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Services, { setPage, servicesCatalog }) : page === "track" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Track, { orders, setPage }) : page === "branches" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Branches, { onBookBranch: handleBookBranchFromMap }) : page === "book" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
       PublicShoeBookingModule,
       {
         initialBranchId: preselectedBranchId,
         preselectedFromMap,
+        existingOrders: orders,
+        servicesCatalog,
         onCompleteBooking: (newOrder) => setOrders((prev) => [newOrder, ...prev]),
         setPage
       }
@@ -34597,6 +35495,7 @@ lucide-react/dist/esm/shared/src/utils.js:
 lucide-react/dist/esm/defaultAttributes.js:
 lucide-react/dist/esm/Icon.js:
 lucide-react/dist/esm/createLucideIcon.js:
+lucide-react/dist/esm/icons/archive.js:
 lucide-react/dist/esm/icons/arrow-left.js:
 lucide-react/dist/esm/icons/arrow-right.js:
 lucide-react/dist/esm/icons/bell.js:
@@ -34613,6 +35512,7 @@ lucide-react/dist/esm/icons/clipboard-check.js:
 lucide-react/dist/esm/icons/clock-3.js:
 lucide-react/dist/esm/icons/compass.js:
 lucide-react/dist/esm/icons/crosshair.js:
+lucide-react/dist/esm/icons/download.js:
 lucide-react/dist/esm/icons/external-link.js:
 lucide-react/dist/esm/icons/file-text.js:
 lucide-react/dist/esm/icons/history.js:
@@ -34621,6 +35521,7 @@ lucide-react/dist/esm/icons/layers.js:
 lucide-react/dist/esm/icons/layout-dashboard.js:
 lucide-react/dist/esm/icons/locate-fixed.js:
 lucide-react/dist/esm/icons/log-out.js:
+lucide-react/dist/esm/icons/mail.js:
 lucide-react/dist/esm/icons/map-pin.js:
 lucide-react/dist/esm/icons/menu.js:
 lucide-react/dist/esm/icons/minus.js:
@@ -34628,6 +35529,7 @@ lucide-react/dist/esm/icons/navigation.js:
 lucide-react/dist/esm/icons/package.js:
 lucide-react/dist/esm/icons/phone.js:
 lucide-react/dist/esm/icons/plus.js:
+lucide-react/dist/esm/icons/rotate-ccw.js:
 lucide-react/dist/esm/icons/search.js:
 lucide-react/dist/esm/icons/settings.js:
 lucide-react/dist/esm/icons/shield-alert.js:

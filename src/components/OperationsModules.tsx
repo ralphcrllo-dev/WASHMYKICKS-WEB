@@ -3,6 +3,7 @@ import {
   Bell,
   Camera,
   Check,
+  Download,
   Package,
   Plus,
   Search,
@@ -10,6 +11,7 @@ import {
   Upload,
   X,
 } from 'lucide-react'
+import { downloadExcel, exportDateStamp } from '../lib/excelExport'
 
 /* ============================================================================
    SHARED TYPES & INITIAL DATA FOR DOCUMENTATION & INVENTORY
@@ -1298,18 +1300,47 @@ export function InventoryManagementModule({
           <span className="eyebrow">{roleLabel === 'STAFF' ? 'BRANCH OPERATIONS' : 'ADMINISTRATION'}</span>
           <h1 style={{ margin: '6px 0 4px' }}>Inventory management</h1>
           <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>
-            Stock visibility across San Juan, Quezon City, Pasig, Pateros, Montalban, Morong, and Bacoor.
+            Stock visibility across Pasig (Flagship), San Juan, Quezon City, Pateros, Montalban, Morong, and Bacoor.
           </p>
         </div>
 
-        <button
-          type="button"
-          className="primary"
-          style={{ padding: '12px 20px', borderRadius: 10 }}
-          onClick={() => openModal('add')}
-        >
-          <Plus size={16} /> Add stock
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="outline"
+            style={{ padding: '12px 16px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            onClick={() => {
+              const fileName = `WashMyKicks_Inventory_${exportDateStamp()}.xlsx`
+              downloadExcel(fileName, [
+                {
+                  name: 'Branch Inventory',
+                  headers: ['Item ID', 'Item Name', 'Category', 'Branch', 'Current Stock', 'Target Level', 'Status'],
+                  rows: filtered.map((item) => [
+                    item.id,
+                    item.name,
+                    item.category,
+                    item.branch,
+                    item.stock,
+                    item.target,
+                    getInventoryStatus(item.stock, item.target),
+                  ]),
+                },
+              ])
+              onNotify(`Exported ${filtered.length} inventory rows to ${fileName}.`)
+            }}
+          >
+            <Download size={15} /> Export Excel (.xlsx)
+          </button>
+
+          <button
+            type="button"
+            className="primary"
+            style={{ padding: '12px 20px', borderRadius: 10 }}
+            onClick={() => openModal('add')}
+          >
+            <Plus size={16} /> Add stock
+          </button>
+        </div>
       </div>
 
       {/* 4 KPI Summary Cards matching Screenshot 4 */}

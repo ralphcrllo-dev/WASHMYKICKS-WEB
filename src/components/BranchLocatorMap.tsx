@@ -40,13 +40,29 @@ export type BranchLocation = {
 export const BRANCH_LOCATIONS: BranchLocation[] = [
   {
     id: 1,
+    name: 'Wash My Kicks – Pasig City',
+    shortName: 'Pasig City (Flagship)',
+    address: 'West Capitol Dr., Brgy. Kapitolyo, Pasig City',
+    city: 'Pasig City, Metro Manila',
+    lat: 14.5714,
+    lng: 121.0615,
+    phone: '+63 917 801 1001',
+    openHour: 10,
+    closeHour: 20,
+    hoursLabel: 'Mon – Sun · 10:00 AM – 8:00 PM',
+    services: ['Basic Cleaning', 'Deep Cleaning', 'Restoration', 'Shoe Repair', 'Shoe Protection'],
+    landmark: 'Flagship Store · Minutes from Ortigas Center, Capitol Commons, and Shaw Blvd.',
+    turnaroundNote: 'WashMyKicks Flagship Store — Full sneaker care, suede revival, and custom repainting specialists.',
+  },
+  {
+    id: 2,
     name: 'Wash My Kicks – San Juan City',
     shortName: 'San Juan City',
     address: '300 Col. Bonny Serrano Ave., San Juan City',
     city: 'San Juan City, Metro Manila',
     lat: 14.6084,
     lng: 121.0435,
-    phone: '+63 917 801 1001',
+    phone: '+63 917 801 1002',
     openHour: 10,
     closeHour: 20,
     hoursLabel: 'Mon – Sun · 10:00 AM – 8:00 PM',
@@ -55,36 +71,20 @@ export const BRANCH_LOCATIONS: BranchLocation[] = [
     turnaroundNote: 'Express 24-hour Shoe Protection & full Restoration lab available on-site.',
   },
   {
-    id: 2,
+    id: 3,
     name: 'Wash My Kicks – Quezon City',
     shortName: 'Quezon City',
     address: 'Tomas Morato Ave. cor. Scout Lozano, Quezon City',
     city: 'Quezon City, Metro Manila',
     lat: 14.6328,
     lng: 121.0349,
-    phone: '+63 917 801 1002',
+    phone: '+63 917 801 1003',
     openHour: 10,
     closeHour: 20,
     hoursLabel: 'Mon – Sun · 10:00 AM – 8:00 PM',
     services: ['Basic Cleaning', 'Deep Cleaning', 'Restoration', 'Shoe Repair', 'Shoe Protection'],
     landmark: 'Tomas Morato commercial strip, accessible from Timog & Quezon Ave.',
     turnaroundNote: 'High-capacity deep cleaning & UV midsole de-yellowing chamber.',
-  },
-  {
-    id: 3,
-    name: 'Wash My Kicks – Pasig City',
-    shortName: 'Pasig City',
-    address: 'West Capitol Dr., Brgy. Kapitolyo, Pasig City',
-    city: 'Pasig City, Metro Manila',
-    lat: 14.5714,
-    lng: 121.0615,
-    phone: '+63 917 801 1003',
-    openHour: 10,
-    closeHour: 20,
-    hoursLabel: 'Mon – Sun · 10:00 AM – 8:00 PM',
-    services: ['Basic Cleaning', 'Deep Cleaning', 'Restoration', 'Shoe Repair', 'Shoe Protection'],
-    landmark: 'Minutes from Ortigas Center, Capitol Commons, and Shaw Blvd.',
-    turnaroundNote: 'Full sneaker care, suede revival, and custom repainting specialists.',
   },
   {
     id: 4,
@@ -393,11 +393,13 @@ export function BranchLocatorMap({
       ).addTo(map)
       tileLayersRef.current.push(sat, roads, labels)
     } else {
-      const standard = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd',
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      }).addTo(map)
+      const standard = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 19,
+          attribution: 'Tiles &copy; Esri &mdash; Standard Street View',
+        }
+      ).addTo(map)
       tileLayersRef.current.push(standard)
     }
   }, [mapMode, mapReady])

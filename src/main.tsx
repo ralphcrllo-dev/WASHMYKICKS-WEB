@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BranchLocatorMap } from './components/BranchLocatorMap'
 import {
   createBookingRecord,
+  dispatchTransactionalEmail,
   registerCustomerAccount,
   requestPasswordResetEmail,
   signInWithRole,
@@ -13,6 +14,7 @@ import {
   uploadAssessmentPhotoToStorage,
   upsertShoeAssessmentRecord,
 } from './lib/api'
+import { downloadExcel, exportDateStamp, pesoToNumber } from './lib/excelExport'
 import {
   BeforeAfterDocumentationModule,
   INITIAL_INVENTORY_RECORDS,
@@ -29,6 +31,7 @@ import {
   getInventoryStatus,
 } from './components/OperationsModules'
 import {
+  Archive,
   ArrowLeft,
   ArrowRight,
   BarChart3,
@@ -42,13 +45,17 @@ import {
   ChevronRight,
   ClipboardCheck,
   Clock3,
+  Download,
   FileText,
   History,
   LayoutDashboard,
   LogOut,
+  Mail,
   MapPin,
   Menu,
   Package,
+  Plus,
+  RotateCcw,
   Search,
   Settings as SettingsIcon,
   Shield,
@@ -69,27 +76,28 @@ import './styles.css'
 
 type Role = 'customer' | 'staff' | 'admin'
 
-type Service = {
+export type Service = {
   id: string
   title: string
   copy: string
   price: string
   numericPrice: number
   duration: string
+  archived?: boolean
 }
 
 const services: Service[] = [
-  { id: '01', title: 'Basic Cleaning', copy: 'Exterior clean, midsole care, and freshening.', price: '₱350', numericPrice: 350, duration: '2–3 days' },
-  { id: '02', title: 'Deep Cleaning', copy: 'Full upper, sole, insole, and lace deep clean.', price: '₱650', numericPrice: 650, duration: '3–5 days' },
-  { id: '03', title: 'Restoration', copy: 'Color revival, de-yellowing, and repainting.', price: 'From ₱1,200', numericPrice: 1200, duration: '7–14 days' },
-  { id: '04', title: 'Shoe Repair', copy: 'Sole reglue, stitching, and damage repair.', price: 'From ₱800', numericPrice: 800, duration: '5–10 days' },
-  { id: '05', title: 'Shoe Protection', copy: 'Water and stain-repellent premium coating.', price: '₱280', numericPrice: 280, duration: '1 day' },
+  { id: '01', title: 'Basic Cleaning', copy: 'Exterior clean, midsole care, and freshening.', price: '₱350', numericPrice: 350, duration: '2–3 days', archived: false },
+  { id: '02', title: 'Deep Cleaning', copy: 'Full upper, sole, insole, and lace deep clean.', price: '₱650', numericPrice: 650, duration: '3–5 days', archived: false },
+  { id: '03', title: 'Restoration', copy: 'Color revival, de-yellowing, and repainting.', price: 'From ₱1,200', numericPrice: 1200, duration: '7–14 days', archived: false },
+  { id: '04', title: 'Shoe Repair', copy: 'Sole reglue, stitching, and damage repair.', price: 'From ₱800', numericPrice: 800, duration: '5–10 days', archived: false },
+  { id: '05', title: 'Shoe Protection', copy: 'Water and stain-repellent premium coating.', price: '₱280', numericPrice: 280, duration: '1 day', archived: false },
 ]
 
 const staffBranches = [
+  'Wash My Kicks – Pasig City',
   'Wash My Kicks – San Juan City',
   'Wash My Kicks – Quezon City',
-  'Wash My Kicks – Pasig City',
   'Wash My Kicks – Pateros',
   'Wash My Kicks – Montalban Rizal',
   'Wash My Kicks – Morong Rizal',
@@ -97,11 +105,11 @@ const staffBranches = [
 ]
 
 const wizardBranches = [
-  { id: 1, name: 'Wash My Kicks – San Juan City', address: '300 Col. Bonny Serrano Ave., San Juan City', comingSoon: false },
-  { id: 2, name: 'Wash My Kicks – Quezon City', address: 'Quezon City, Philippines', comingSoon: false },
-  { id: 3, name: 'Wash My Kicks – Pasig City', address: 'Pasig City, Philippines', comingSoon: false },
+  { id: 1, name: 'Wash My Kicks – Pasig City', address: 'West Capitol Dr., Brgy. Kapitolyo, Pasig City (Flagship Store)', comingSoon: false },
+  { id: 2, name: 'Wash My Kicks – San Juan City', address: '300 Col. Bonny Serrano Ave., San Juan City', comingSoon: false },
+  { id: 3, name: 'Wash My Kicks – Quezon City', address: 'Tomas Morato Ave. cor. Scout Lozano, Quezon City', comingSoon: false },
   { id: 4, name: 'Wash My Kicks – Pateros', address: '402 G. De Borja St., Brgy. Aguho, Pateros', comingSoon: false },
-  { id: 5, name: 'Wash My Kicks – Montalban, Rizal', address: 'Montalban, Rizal', comingSoon: false },
+  { id: 5, name: 'Wash My Kicks – Montalban, Rizal', address: 'E. Rodriguez Hwy, Montalban, Rizal', comingSoon: false },
   { id: 6, name: 'Wash My Kicks – Morong, Rizal', address: '2nd Floor A5R Commercial Space Rental, Manila East Road, Morong, Rizal', comingSoon: false },
   { id: 7, name: 'Wash My Kicks – Bacoor, Cavite', address: 'Cerritos Trails Molino 3, Bacoor, Cavite', comingSoon: false },
   { id: 8, name: 'Wash My Kicks – 8th Branch', address: 'Location to be announced', comingSoon: true },
@@ -463,10 +471,13 @@ function Footer({ setPage }: { setPage: (page: string) => void }) {
 function Home({
   setPage,
   onBookBranch,
+  servicesCatalog = services,
 }: {
   setPage: (page: string) => void
   onBookBranch: (branchName: string, branchId: number) => void
+  servicesCatalog?: Service[]
 }) {
+  const activeServices = servicesCatalog.filter((s) => !s.archived)
   return (
     <>
       <section className="hero">
@@ -519,7 +530,7 @@ function Home({
           </button>
         </div>
         <div className="services-grid">
-          {services.slice(0, 4).map((s) => (
+          {activeServices.slice(0, 4).map((s) => (
             <ServiceCard key={s.id} service={s} onClick={() => setPage('book')} />
           ))}
         </div>
@@ -597,12 +608,19 @@ function Listing({ title, eyebrow, children }: { title: string; eyebrow: string;
   )
 }
 
-function Services({ setPage }: { setPage: (p: string) => void }) {
+function Services({
+  setPage,
+  servicesCatalog = services,
+}: {
+  setPage: (p: string) => void
+  servicesCatalog?: Service[]
+}) {
+  const activeServices = servicesCatalog.filter((s) => !s.archived)
   return (
     <Listing eyebrow="OUR SERVICES" title="Care for every kind of kick.">
       <p className="lead">Transparent pricing, expert hands, and progress updates from drop-off to pickup.</p>
       <div className="services-grid full">
-        {services.map((s) => (
+        {activeServices.map((s) => (
           <ServiceCard service={s} key={s.id} onClick={() => setPage('login')} />
         ))}
       </div>
@@ -1121,14 +1139,19 @@ function RoleLogin({
 function CustomerBookAppointmentWizard({
   initialBranchId = 1,
   preselectedFromMap = false,
+  existingOrders = initialOrders,
+  servicesCatalog = services,
   onCompleteBooking,
   onCancel,
 }: {
   initialBranchId?: number
   preselectedFromMap?: boolean
+  existingOrders?: JobOrder[]
+  servicesCatalog?: Service[]
   onCompleteBooking: (newOrder: JobOrder) => void
   onCancel: () => void
 }) {
+  const activeServices = servicesCatalog.filter((s) => !s.archived)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [selectedBranchId, setSelectedBranchId] = useState<number>(initialBranchId)
   const [selectedServiceId, setSelectedServiceId] = useState<string>('02') // Deep Cleaning default like screenshot
@@ -1137,6 +1160,14 @@ function CustomerBookAppointmentWizard({
   const [selectedDay, setSelectedDay] = useState<number>(28)
   const [selectedTime, setSelectedTime] = useState<string>('10:30 AM')
   const [shoeModel, setShoeModel] = useState<string>('Air Jordan 1 Retro High')
+
+  // Booking Email Verification (OTP) state
+  const [customerEmail, setCustomerEmail] = useState<string>('juan.delacruz@email.com')
+  const [generatedOtp, setGeneratedOtp] = useState<string>('')
+  const [enteredOtp, setEnteredOtp] = useState<string>('')
+  const [otpVerified, setOtpVerified] = useState<boolean>(false)
+  const [otpNotice, setOtpNotice] = useState<string>('')
+  const [remoteSlotCounts, setRemoteSlotCounts] = useState<Record<string, number>>({})
 
   const monthNames = [
     'January',
@@ -1161,6 +1192,7 @@ function CustomerBookAppointmentWizard({
     (_, idx) => daysInPrevMonth - firstDayOfWeek + idx + 1
   )
   const activeSelectedDay = Math.min(selectedDay, daysInMonth)
+  const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`
 
   const handlePrevMonth = () => {
     if (calendarMonth === 0) {
@@ -1185,7 +1217,29 @@ function CustomerBookAppointmentWizard({
   }, [initialBranchId])
 
   const selectedBranch = wizardBranches.find((b) => b.id === selectedBranchId) || wizardBranches[0]
-  const selectedService = services.find((s) => s.id === selectedServiceId) || services[1]
+  const selectedService =
+    activeServices.find((s) => s.id === selectedServiceId) || activeServices[0] || services[1]
+
+  // Fetch live slot availability from /api/available-slots when entering Step 4
+  useEffect(() => {
+    if (step !== 4) return
+    const q = new URLSearchParams({
+      branch: selectedBranch.name,
+      date: formattedDate,
+    })
+    fetch(`/api/available-slots?${q.toString()}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.slots && Array.isArray(data.slots)) {
+          const map: Record<string, number> = {}
+          for (const item of data.slots) {
+            map[item.slot] = Number(item.booked) || 0
+          }
+          setRemoteSlotCounts(map)
+        }
+      })
+      .catch(() => {})
+  }, [step, selectedBranch.name, formattedDate])
 
   const steps = [
     { num: 1, label: 'Branch' },
@@ -1206,8 +1260,65 @@ function CustomerBookAppointmentWizard({
     '06:30 PM',
   ]
 
+  const MAX_SLOT_CAPACITY = 2
+
+  const getSlotAvailability = (slot: string) => {
+    const localCount = existingOrders.filter(
+      (o) => o.branch === selectedBranch.name && o.date === formattedDate && o.time === slot
+    ).length
+    const remoteCount = remoteSlotCounts[slot] || 0
+    const booked = Math.max(localCount, remoteCount)
+    const remaining = Math.max(0, MAX_SLOT_CAPACITY - booked)
+    return {
+      booked,
+      remaining,
+      isFull: remaining === 0,
+    }
+  }
+
+  const handleSendBookingOtp = () => {
+    const code = String(Math.floor(100000 + Math.random() * 900000))
+    setGeneratedOtp(code)
+    setEnteredOtp('')
+    setOtpVerified(false)
+    setOtpNotice(`Verification code ${code} sent to ${customerEmail}.`)
+    void dispatchTransactionalEmail({
+      to: customerEmail,
+      eventType: 'EMAIL_VERIFICATION',
+      reference: code,
+      customerName: 'Juan Dela Cruz',
+      serviceName: selectedService.title,
+      branchName: selectedBranch.name,
+      scheduledAt: `${formattedDate} · ${selectedTime}`,
+    })
+  }
+
+  const handleVerifyOtp = (codeToCheck?: string) => {
+    const candidate = (codeToCheck ?? enteredOtp).trim()
+    if (generatedOtp && candidate === generatedOtp) {
+      setOtpVerified(true)
+      setOtpNotice('✓ Email verification code confirmed!')
+      return true
+    }
+    setOtpNotice('Invalid verification code. Please check the 6-digit code and try again.')
+    return false
+  }
+
   const handleConfirm = () => {
-    const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`
+    if (!otpVerified) {
+      if (generatedOtp && enteredOtp.trim() === generatedOtp) {
+        setOtpVerified(true)
+      } else {
+        if (!generatedOtp) {
+          handleSendBookingOtp()
+          setOtpNotice((prev) => `${prev} Please enter or auto-fill the 6-digit code to complete booking.`)
+        } else {
+          setOtpNotice('Please verify the 6-digit email verification code before confirming your booking.')
+        }
+        return
+      }
+    }
+
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
     const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
 
@@ -1216,8 +1327,8 @@ function CustomerBookAppointmentWizard({
       branchServiceId: selectedBranch.id,
       scheduledAt: scheduledIso,
       priceAtBooking: numericPrice,
-      customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${selectedTime})`,
-      customerEmail: 'juan.delacruz@email.com',
+      customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Verified OTP: ${generatedOtp || 'OK'}]`,
+      customerEmail: customerEmail || 'juan.delacruz@email.com',
       customerName: 'Juan Dela Cruz',
       serviceName: selectedService.title,
       branchName: selectedBranch.name,
@@ -1226,7 +1337,7 @@ function CustomerBookAppointmentWizard({
     const newOrder: JobOrder = {
       id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
       customer: 'Juan Dela Cruz',
-      email: 'juan.delacruz@email.com',
+      email: customerEmail || 'juan.delacruz@email.com',
       shoe: shoeModel || 'Sneaker Pair',
       service: selectedService.title,
       branch: selectedBranch.name,
@@ -1366,7 +1477,7 @@ function CustomerBookAppointmentWizard({
           </div>
 
           <div className="wizard-grid-2">
-            {services.map((s) => {
+            {activeServices.map((s) => {
               const isSelected = selectedServiceId === s.id
               return (
                 <button
@@ -1471,18 +1582,41 @@ function CustomerBookAppointmentWizard({
 
           <div className="wizard-grid-2" style={{ marginBottom: 20 }}>
             {timeSlots.map((slot) => {
-              const isSelected = selectedTime === slot
+              const { remaining, isFull } = getSlotAvailability(slot)
+              const isSelected = selectedTime === slot && !isFull
               return (
                 <button
                   key={slot}
                   type="button"
+                  disabled={isFull}
                   className={`choice-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedTime(slot)}
+                  style={isFull ? { opacity: 0.55, cursor: 'not-allowed', background: '#f9fafb' } : undefined}
+                  onClick={() => {
+                    if (!isFull) setSelectedTime(slot)
+                  }}
                 >
-                  <Clock3 size={18} color="#dc2626" />
+                  <Clock3 size={18} color={isFull ? '#9ca3af' : '#dc2626'} />
                   <span className="choice-body">
                     <b>{slot}</b>
-                    <small>Available drop-off slot</small>
+                    <small>
+                      {isFull
+                        ? 'Slot full — no remaining capacity'
+                        : `${remaining} of ${MAX_SLOT_CAPACITY} drop-off slots available`}
+                    </small>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        marginTop: 4,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        background: isFull ? '#fee2e2' : remaining === 1 ? '#fef3c7' : '#dcfce7',
+                        color: isFull ? '#991b1b' : remaining === 1 ? '#b45309' : '#166534',
+                      }}
+                    >
+                      {isFull ? 'FULL · BOOKED' : remaining === 1 ? '1 SLOT LEFT' : 'AVAILABLE'}
+                    </span>
                   </span>
                   {isSelected && <Check size={16} className="choice-check" />}
                 </button>
@@ -1583,12 +1717,125 @@ function CustomerBookAppointmentWizard({
             </div>
           </div>
 
+          {/* FEATURE 1: BOOKING EMAIL VERIFICATION CODE (OTP) */}
+          <div
+            style={{
+              maxWidth: 540,
+              margin: '18px auto 0',
+              padding: '16px 18px',
+              borderRadius: 12,
+              border: otpVerified ? '1px solid #86efac' : '1px solid #e5e7eb',
+              background: otpVerified ? '#f0fdf4' : '#f9fafb',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Mail size={16} color={otpVerified ? '#16a34a' : '#dc2626'} />
+                <b style={{ fontSize: 13 }}>Booking Email Verification (OTP)</b>
+              </div>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  padding: '3px 9px',
+                  borderRadius: 999,
+                  background: otpVerified ? '#dcfce7' : '#fee2e2',
+                  color: otpVerified ? '#166534' : '#991b1b',
+                }}
+              >
+                {otpVerified ? '✓ VERIFIED' : 'VERIFICATION REQUIRED'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              <input
+                type="email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="Enter your email for booking verification"
+                style={{
+                  flex: 1,
+                  minWidth: 200,
+                  padding: '9px 12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 8,
+                  fontSize: 12.5,
+                  background: '#fff',
+                }}
+              />
+              <button
+                type="button"
+                className="outline"
+                style={{ padding: '9px 14px', fontSize: 12 }}
+                onClick={handleSendBookingOtp}
+              >
+                {generatedOtp ? 'Resend Code' : 'Send Verification Code'}
+              </button>
+            </div>
+
+            {generatedOtp && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={enteredOtp}
+                  onChange={(e) => setEnteredOtp(e.target.value)}
+                  placeholder="Enter 6-digit code"
+                  style={{
+                    width: 160,
+                    padding: '9px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    letterSpacing: 3,
+                    background: '#fff',
+                  }}
+                />
+                <button
+                  type="button"
+                  className="primary"
+                  style={{ padding: '9px 14px', fontSize: 12 }}
+                  onClick={() => handleVerifyOtp()}
+                >
+                  Verify Code
+                </button>
+                {!otpVerified && (
+                  <button
+                    type="button"
+                    className="outline"
+                    style={{ padding: '9px 12px', fontSize: 11.5 }}
+                    onClick={() => {
+                      setEnteredOtp(generatedOtp)
+                      handleVerifyOtp(generatedOtp)
+                    }}
+                  >
+                    Auto-fill ({generatedOtp})
+                  </button>
+                )}
+              </div>
+            )}
+
+            {otpNotice && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: otpVerified ? '#166534' : '#b91c1c',
+                }}
+              >
+                {otpNotice}
+              </div>
+            )}
+          </div>
+
           <div className="wizard-footer">
             <button type="button" className="wizard-back" onClick={() => setStep(4)}>
               ← Back
             </button>
             <button type="button" className="primary" onClick={handleConfirm}>
-              Confirm appointment <ChevronRight size={15} />
+              {otpVerified ? 'Confirm appointment' : 'Verify & Confirm appointment'} <ChevronRight size={15} />
             </button>
           </div>
         </div>
@@ -1607,6 +1854,7 @@ function CustomerDashboard({
   setOrders,
   reviews,
   setReviews,
+  servicesCatalog = services,
   setPage,
   onLogout,
   initialTab = 'Dashboard',
@@ -1618,6 +1866,7 @@ function CustomerDashboard({
   setOrders: React.Dispatch<React.SetStateAction<JobOrder[]>>
   reviews: ReviewItem[]
   setReviews: React.Dispatch<React.SetStateAction<ReviewItem[]>>
+  servicesCatalog?: Service[]
   setPage: (p: string) => void
   onLogout: () => void
   initialTab?: 'Dashboard' | 'Book Appointment' | 'Track Shoes' | 'Notifications' | 'Service History' | 'Reviews' | 'Profile'
@@ -1933,6 +2182,8 @@ function CustomerDashboard({
             <CustomerBookAppointmentWizard
               initialBranchId={preselectedBranchId}
               preselectedFromMap={preselectedFromMap}
+              existingOrders={orders}
+              servicesCatalog={servicesCatalog}
               onCancel={() => setTab('Dashboard')}
               onCompleteBooking={(newOrder) => {
                 setOrders((prev) => [newOrder, ...prev])
@@ -2742,9 +2993,43 @@ function StaffDashboard({
           {/* STAFF TAB: JOB ORDERS */}
           {tab === 'Job Orders' && (
             <>
-              <span className="eyebrow">BRANCH QUEUE</span>
-              <h1>Job Orders</h1>
-              <p>Select a job order to update service progress or proceed to shoe assessment &amp; documentation.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div>
+                  <span className="eyebrow">BRANCH QUEUE</span>
+                  <h1>Job Orders</h1>
+                  <p>Select a job order to update service progress or proceed to shoe assessment &amp; documentation.</p>
+                </div>
+                <button
+                  type="button"
+                  className="outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const fileName = `WashMyKicks_Staff_JobOrders_${exportDateStamp()}.xlsx`
+                    downloadExcel(fileName, [
+                      {
+                        name: 'Job Orders',
+                        headers: ['Job Order ID', 'Customer', 'Email', 'Shoe Pair', 'Service', 'Branch', 'Date', 'Time', 'Price (PHP)', 'Assessed', 'Status'],
+                        rows: orders.map((o) => [
+                          o.id,
+                          o.customer,
+                          o.email,
+                          o.shoe,
+                          o.service,
+                          o.branch,
+                          o.date,
+                          o.time,
+                          pesoToNumber(o.price),
+                          o.assessed ? 'Yes' : 'Pending',
+                          o.status,
+                        ]),
+                      },
+                    ])
+                    showToast(`Exported ${orders.length} job orders to ${fileName}.`)
+                  }}
+                >
+                  <Download size={15} /> Export Job Orders (.xlsx)
+                </button>
+              </div>
 
               <div className="dash-panel">
                 <table className="data-table">
@@ -2893,9 +3178,31 @@ function StaffDashboard({
           {/* STAFF TAB: CUSTOMERS */}
           {tab === 'Customers' && (
             <>
-              <span className="eyebrow">BRANCH DIRECTORY</span>
-              <h1>Customers</h1>
-              <p>Customers with active or recent shoe orders at your branch.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div>
+                  <span className="eyebrow">BRANCH DIRECTORY</span>
+                  <h1>Customers</h1>
+                  <p>Customers with active or recent shoe orders at your branch.</p>
+                </div>
+                <button
+                  type="button"
+                  className="outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const fileName = `WashMyKicks_Branch_Customers_${exportDateStamp()}.xlsx`
+                    downloadExcel(fileName, [
+                      {
+                        name: 'Branch Customers',
+                        headers: ['Customer Name', 'Email', 'Active Pair', 'Service', 'Branch', 'Order Status'],
+                        rows: orders.map((o) => [o.customer, o.email, o.shoe, o.service, o.branch, o.status]),
+                      },
+                    ])
+                    showToast(`Exported ${orders.length} customer records to ${fileName}.`)
+                  }}
+                >
+                  <Download size={15} /> Export Customers (.xlsx)
+                </button>
+              </div>
 
               <div className="dash-panel">
                 <table className="data-table">
@@ -2973,6 +3280,8 @@ function AdminDashboard({
   setOrders,
   inventory,
   setInventory,
+  servicesCatalog,
+  setServicesCatalog,
   onLogout,
 }: {
   userMeta: { name: string; email: string }
@@ -2980,11 +3289,14 @@ function AdminDashboard({
   setOrders: React.Dispatch<React.SetStateAction<JobOrder[]>>
   inventory: InventoryRecord[]
   setInventory: React.Dispatch<React.SetStateAction<InventoryRecord[]>>
+  servicesCatalog: Service[]
+  setServicesCatalog: React.Dispatch<React.SetStateAction<Service[]>>
   onLogout: () => void
 }) {
   const [tab, setTab] = useState<
     | 'Dashboard'
     | 'Branches'
+    | 'Services'
     | 'Inventory'
     | 'CRM'
     | 'Job Orders'
@@ -2994,10 +3306,15 @@ function AdminDashboard({
     | 'Settings'
   >('Dashboard')
   const [toast, setToast] = useState('')
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [newSvcTitle, setNewSvcTitle] = useState('')
+  const [newSvcCopy, setNewSvcCopy] = useState('')
+  const [newSvcPrice, setNewSvcPrice] = useState('₱500')
+  const [newSvcDuration, setNewSvcDuration] = useState('2–4 days')
 
   const [usersList, setUsersList] = useState([
-    { id: 'USR-01', name: 'Juan Dela Cruz', email: 'juan.delacruz@email.com', role: 'Customer', branch: 'San Juan City', active: true },
-    { id: 'USR-02', name: 'Carlo Mendoza', email: 'carlo.mendoza@washmykicks.com', role: 'Staff', branch: 'San Juan City', active: true },
+    { id: 'USR-01', name: 'Juan Dela Cruz', email: 'juan.delacruz@email.com', role: 'Customer', branch: 'Pasig City (Flagship)', active: true },
+    { id: 'USR-02', name: 'Carlo Mendoza', email: 'carlo.mendoza@washmykicks.com', role: 'Staff', branch: 'Pasig City (Flagship)', active: true },
     { id: 'USR-03', name: 'Marco Santos', email: 'marco.santos@washmykicks.com', role: 'Staff', branch: 'Quezon City', active: true },
     { id: 'USR-04', name: 'Mika Cruz', email: 'admin@washmykicks.com', role: 'Administrator', branch: 'HQ / All Branches', active: true },
   ])
@@ -3005,6 +3322,7 @@ function AdminDashboard({
   const sidebarItems: { key: typeof tab; icon: React.ReactNode }[] = [
     { key: 'Dashboard', icon: <LayoutDashboard size={17} /> },
     { key: 'Branches', icon: <Building2 size={17} /> },
+    { key: 'Services', icon: <Sparkles size={17} /> },
     { key: 'Inventory', icon: <Package size={17} /> },
     { key: 'CRM', icon: <Users size={17} /> },
     { key: 'Job Orders', icon: <ClipboardCheck size={17} /> },
@@ -3497,6 +3815,233 @@ function AdminDashboard({
             </>
           )}
 
+          {/* ADMIN TAB: SERVICES CATALOG (EDIT, ARCHIVE & RESTORE) */}
+          {tab === 'Services' && (
+            <>
+              <span className="eyebrow">SHOE SERVICE CATALOG MANAGEMENT</span>
+              <h1>Services Catalog</h1>
+              <p>Add, edit pricing &amp; turnaround duration, or archive and restore services across all WashMyKicks branches.</p>
+
+              <div className="dash-panel" style={{ marginBottom: 18 }}>
+                <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>Add New Sneaker Care Service</h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    if (!newSvcTitle.trim()) return
+                    const nextNum = String(servicesCatalog.length + 1).padStart(2, '0')
+                    const numPrice = pesoToNumber(newSvcPrice) || 500
+                    setServicesCatalog((prev) => [
+                      ...prev,
+                      {
+                        id: nextNum,
+                        title: newSvcTitle.trim(),
+                        copy: newSvcCopy.trim() || 'Specialized sneaker care treatment.',
+                        price: newSvcPrice.trim() || '₱500',
+                        numericPrice: numPrice,
+                        duration: newSvcDuration.trim() || '2–4 days',
+                        archived: false,
+                      },
+                    ])
+                    showToast(`Added "${newSvcTitle.trim()}" to the active services catalog.`)
+                    setNewSvcTitle('')
+                    setNewSvcCopy('')
+                  }}
+                  style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, alignItems: 'end' }}
+                >
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Service Name</label>
+                    <input
+                      type="text"
+                      value={newSvcTitle}
+                      onChange={(e) => setNewSvcTitle(e.target.value)}
+                      placeholder="e.g. Suede & Nubuck Revival"
+                      style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 12.5 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Description</label>
+                    <input
+                      type="text"
+                      value={newSvcCopy}
+                      onChange={(e) => setNewSvcCopy(e.target.value)}
+                      placeholder="Service details..."
+                      style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 12.5 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Price</label>
+                    <input
+                      type="text"
+                      value={newSvcPrice}
+                      onChange={(e) => setNewSvcPrice(e.target.value)}
+                      placeholder="₱750"
+                      style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 12.5 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11.5, fontWeight: 700, marginBottom: 4 }}>Turnaround</label>
+                    <input
+                      type="text"
+                      value={newSvcDuration}
+                      onChange={(e) => setNewSvcDuration(e.target.value)}
+                      placeholder="3–5 days"
+                      style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 12.5 }}
+                    />
+                  </div>
+                  <button type="submit" className="primary" style={{ padding: '10px 14px', fontSize: 12.5 }}>
+                    <Plus size={15} /> Add Service
+                  </button>
+                </form>
+              </div>
+
+              <div className="dash-panel">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Service Title</th>
+                      <th>Description</th>
+                      <th>Price</th>
+                      <th>Duration</th>
+                      <th>Catalog Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {servicesCatalog.map((svc) => {
+                      const isEditing = editingServiceId === svc.id
+                      return (
+                        <tr key={svc.id} style={svc.archived ? { opacity: 0.65, background: '#f9fafb' } : undefined}>
+                          <td>
+                            <b>#{svc.id}</b>
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={svc.title}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setServicesCatalog((prev) =>
+                                    prev.map((x) => (x.id === svc.id ? { ...x, title: v } : x))
+                                  )
+                                }}
+                                style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, width: '100%' }}
+                              />
+                            ) : (
+                              <b>{svc.title}</b>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={svc.copy}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setServicesCatalog((prev) =>
+                                    prev.map((x) => (x.id === svc.id ? { ...x, copy: v } : x))
+                                  )
+                                }}
+                                style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, width: '100%' }}
+                              />
+                            ) : (
+                              svc.copy
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={svc.price}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setServicesCatalog((prev) =>
+                                    prev.map((x) =>
+                                      x.id === svc.id ? { ...x, price: v, numericPrice: pesoToNumber(v) || x.numericPrice } : x
+                                    )
+                                  )
+                                }}
+                                style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, width: 95 }}
+                              />
+                            ) : (
+                              <b>{svc.price}</b>
+                            )}
+                          </td>
+                          <td>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                value={svc.duration}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  setServicesCatalog((prev) =>
+                                    prev.map((x) => (x.id === svc.id ? { ...x, duration: v } : x))
+                                  )
+                                }}
+                                style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, width: 95 }}
+                              />
+                            ) : (
+                              svc.duration
+                            )}
+                          </td>
+                          <td>
+                            <span className={`status-pill ${svc.archived ? 'gray' : 'green'}`}>
+                              {svc.archived ? 'Archived (Hidden)' : 'Active'}
+                            </span>
+                          </td>
+                          <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="outline"
+                              style={{ padding: '5px 10px', fontSize: 11.5 }}
+                              onClick={() => {
+                                if (isEditing) {
+                                  setEditingServiceId(null)
+                                  showToast(`Saved changes to ${svc.title}.`)
+                                } else {
+                                  setEditingServiceId(svc.id)
+                                }
+                              }}
+                            >
+                              {isEditing ? 'Save' : 'Edit'}
+                            </button>
+                            <button
+                              type="button"
+                              className={svc.archived ? 'primary' : 'outline'}
+                              style={{ padding: '5px 10px', fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              onClick={() => {
+                                const nextArchived = !svc.archived
+                                setServicesCatalog((prev) =>
+                                  prev.map((x) => (x.id === svc.id ? { ...x, archived: nextArchived } : x))
+                                )
+                                showToast(
+                                  nextArchived
+                                    ? `Archived "${svc.title}" (hidden from booking wizard).`
+                                    : `Restored "${svc.title}" to active booking catalog.`
+                                )
+                              }}
+                            >
+                              {svc.archived ? (
+                                <>
+                                  <RotateCcw size={12} /> Restore
+                                </>
+                              ) : (
+                                <>
+                                  <Archive size={12} /> Archive
+                                </>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
           {/* ADMIN TAB: INVENTORY */}
           {tab === 'Inventory' && (
             <InventoryManagementModule
@@ -3512,9 +4057,37 @@ function AdminDashboard({
           {/* ADMIN TAB: CRM */}
           {tab === 'CRM' && (
             <>
-              <span className="eyebrow">CUSTOMER RELATIONSHIP MANAGEMENT</span>
-              <h1>CRM</h1>
-              <p>Customer profiles, lifetime sneaker care value, and retention insights.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div>
+                  <span className="eyebrow">CUSTOMER RELATIONSHIP MANAGEMENT</span>
+                  <h1>CRM</h1>
+                  <p>Customer profiles, lifetime sneaker care value, and retention insights.</p>
+                </div>
+                <button
+                  type="button"
+                  className="outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const crmRows = [
+                      ['Juan Dela Cruz', 'juan.delacruz@email.com', 'Pasig City (Flagship)', 12, 'VIP Sneakerhead'],
+                      ['Angela Mercado', 'angela.m@email.com', 'San Juan City', 7, 'Gold Member'],
+                      ['Jiro Reyes', 'jiro.reyes@email.com', 'Quezon City', 5, 'Silver Member'],
+                      ['Kaye Santos', 'kaye.s@email.com', 'Pasig City (Flagship)', 9, 'Gold Member'],
+                    ]
+                    const fileName = `WashMyKicks_CRM_Customers_${exportDateStamp()}.xlsx`
+                    downloadExcel(fileName, [
+                      {
+                        name: 'CRM Customers',
+                        headers: ['Customer Name', 'Email', 'Preferred Branch', 'Completed Pairs', 'Loyalty Tier'],
+                        rows: crmRows,
+                      },
+                    ])
+                    showToast(`Exported ${crmRows.length} CRM customer profiles to ${fileName}.`)
+                  }}
+                >
+                  <Download size={15} /> Export Customers (.xlsx)
+                </button>
+              </div>
 
               <div className="dash-panel">
                 <table className="data-table">
@@ -3555,9 +4128,44 @@ function AdminDashboard({
           {/* ADMIN TAB: JOB ORDERS */}
           {tab === 'Job Orders' && (
             <>
-              <span className="eyebrow">ALL-BRANCH JOB ORDERS</span>
-              <h1>Job Orders</h1>
-              <p>Complete visibility and specialist assignment across all branches.</p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                <div>
+                  <span className="eyebrow">ALL-BRANCH JOB ORDERS</span>
+                  <h1>Job Orders</h1>
+                  <p>Complete visibility and specialist assignment across all branches.</p>
+                </div>
+                <button
+                  type="button"
+                  className="outline"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const fileName = `WashMyKicks_All_JobOrders_${exportDateStamp()}.xlsx`
+                    downloadExcel(fileName, [
+                      {
+                        name: 'All Job Orders',
+                        headers: ['Job Order ID', 'Customer', 'Email', 'Sneaker Pair', 'Service', 'Branch', 'Date', 'Time', 'Price (PHP)', 'Specialist', 'Assessed', 'Status'],
+                        rows: orders.map((o) => [
+                          o.id,
+                          o.customer,
+                          o.email,
+                          o.shoe,
+                          o.service,
+                          o.branch,
+                          o.date,
+                          o.time,
+                          pesoToNumber(o.price),
+                          o.specialist,
+                          o.assessed ? 'Yes' : 'Pending',
+                          o.status,
+                        ]),
+                      },
+                    ])
+                    showToast(`Exported ${orders.length} job orders to ${fileName}.`)
+                  }}
+                >
+                  <Download size={15} /> Export Job Orders (.xlsx)
+                </button>
+              </div>
 
               <div className="dash-panel">
                 <table className="data-table">
@@ -3655,9 +4263,67 @@ function AdminDashboard({
                 <button
                   type="button"
                   className="primary"
-                  onClick={() => showToast('Exported WashMyKicks_March2026_Executive_Report.csv')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                  onClick={() => {
+                    const fileName = `WashMyKicks_Executive_Report_${exportDateStamp()}.xlsx`
+                    downloadExcel(fileName, [
+                      {
+                        name: 'Executive Summary',
+                        headers: ['Metric', 'Value', 'Notes'],
+                        rows: [
+                          ['Gross Monthly Revenue (PHP)', 784820, '+18.4% MoM'],
+                          ['Average Ticket Value (PHP)', 685, 'Driven by Deep Cleaning & Restoration'],
+                          ['On-Time Turnaround', '98.2%', 'Across all 7 branches'],
+                          ['Customer CSAT', '4.92 / 5.0', 'Based on verified reviews'],
+                        ],
+                      },
+                      {
+                        name: 'Job Orders',
+                        headers: ['Job Order ID', 'Customer', 'Email', 'Sneaker Pair', 'Service', 'Branch', 'Date', 'Time', 'Price (PHP)', 'Specialist', 'Status'],
+                        rows: orders.map((o) => [
+                          o.id,
+                          o.customer,
+                          o.email,
+                          o.shoe,
+                          o.service,
+                          o.branch,
+                          o.date,
+                          o.time,
+                          pesoToNumber(o.price),
+                          o.specialist,
+                          o.status,
+                        ]),
+                      },
+                      {
+                        name: 'Services Catalog',
+                        headers: ['Code', 'Service Name', 'Description', 'Price (PHP)', 'Turnaround', 'Status'],
+                        rows: servicesCatalog.map((s) => [
+                          s.id,
+                          s.title,
+                          s.copy,
+                          s.numericPrice,
+                          s.duration,
+                          s.archived ? 'Archived' : 'Active',
+                        ]),
+                      },
+                      {
+                        name: 'Branch Inventory',
+                        headers: ['Item ID', 'Item Name', 'Category', 'Branch', 'Current Stock', 'Target Level', 'Status'],
+                        rows: inventory.map((i) => [
+                          i.id,
+                          i.name,
+                          i.category,
+                          i.branch,
+                          i.stock,
+                          i.target,
+                          getInventoryStatus(i.stock, i.target),
+                        ]),
+                      },
+                    ])
+                    showToast(`Exported multi-sheet Excel workbook ${fileName}`)
+                  }}
                 >
-                  Export Full Financial & Operations Report (CSV)
+                  <Download size={16} /> Export Full Financial &amp; Operations Report (.xlsx)
                 </button>
               </div>
             </>
@@ -3847,11 +4513,15 @@ function AdminDashboard({
 function PublicShoeBookingModule({
   initialBranchId,
   preselectedFromMap,
+  existingOrders = initialOrders,
+  servicesCatalog = services,
   onCompleteBooking,
   setPage,
 }: {
   initialBranchId: number
   preselectedFromMap: boolean
+  existingOrders?: JobOrder[]
+  servicesCatalog?: Service[]
   onCompleteBooking: (newOrder: JobOrder) => void
   setPage: (p: string) => void
 }) {
@@ -3888,6 +4558,8 @@ function PublicShoeBookingModule({
       <CustomerBookAppointmentWizard
         initialBranchId={initialBranchId}
         preselectedFromMap={preselectedFromMap}
+        existingOrders={existingOrders}
+        servicesCatalog={servicesCatalog}
         onCancel={() => setPage('home')}
         onCompleteBooking={(order) => {
           onCompleteBooking(order)
@@ -3927,6 +4599,7 @@ function App() {
   const [orders, setOrders] = useState<JobOrder[]>(initialOrders)
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
   const [inventory, setInventory] = useState<InventoryRecord[]>(INITIAL_INVENTORY_RECORDS)
+  const [servicesCatalog, setServicesCatalog] = useState<Service[]>(services)
 
   const handleBookBranchFromMap = (_branchName: string, branchId: number) => {
     setPreselectedBranchId(branchId)
@@ -3984,6 +4657,7 @@ function App() {
         setOrders={setOrders}
         reviews={reviews}
         setReviews={setReviews}
+        servicesCatalog={servicesCatalog}
         setPage={setPage}
         onLogout={handleLogout}
         initialTab={customerInitialTab}
@@ -4014,6 +4688,8 @@ function App() {
         setOrders={setOrders}
         inventory={inventory}
         setInventory={setInventory}
+        servicesCatalog={servicesCatalog}
+        setServicesCatalog={setServicesCatalog}
         onLogout={handleLogout}
       />
     )
@@ -4022,9 +4698,9 @@ function App() {
   // Public Pages & Account Selection Screen
   const content =
     page === 'home' ? (
-      <Home setPage={setPage} onBookBranch={handleBookBranchFromMap} />
+      <Home setPage={setPage} onBookBranch={handleBookBranchFromMap} servicesCatalog={servicesCatalog} />
     ) : page === 'services' ? (
-      <Services setPage={setPage} />
+      <Services setPage={setPage} servicesCatalog={servicesCatalog} />
     ) : page === 'track' ? (
       <Track orders={orders} setPage={setPage} />
     ) : page === 'branches' ? (
@@ -4033,6 +4709,8 @@ function App() {
       <PublicShoeBookingModule
         initialBranchId={preselectedBranchId}
         preselectedFromMap={preselectedFromMap}
+        existingOrders={orders}
+        servicesCatalog={servicesCatalog}
         onCompleteBooking={(newOrder) => setOrders((prev) => [newOrder, ...prev])}
         setPage={setPage}
       />

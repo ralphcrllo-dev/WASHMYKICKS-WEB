@@ -105,14 +105,17 @@ function buildEmailContent(body: {
       }
     case 'EMAIL_VERIFICATION':
       return {
-        subject: 'WashMyKicks — Verify Your Email Address',
+        subject: `WashMyKicks — Verification Code (${ref})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · EMAIL VERIFICATION</div>
-            <h2 style="margin:8px 0 12px;color:#111827;">Welcome to WashMyKicks, ${name}!</h2>
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · BOOKING & EMAIL VERIFICATION</div>
+            <h2 style="margin:8px 0 12px;color:#111827;">Hi ${name}, verify your WashMyKicks booking</h2>
             <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-              Please verify your email address to activate full Customer Portal access for booking appointments and tracking shoe orders.
+              Enter the verification code below to confirm your appointment for <b>${svc}</b> at <b>${branch}</b>:
             </p>
+            <div style="margin:18px 0;padding:16px;text-align:center;background:#111827;color:#ffffff;border-radius:10px;font-size:26px;font-weight:800;letter-spacing:6px;">
+              ${ref}
+            </div>
           </div>
         `,
       }
