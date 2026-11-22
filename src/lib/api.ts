@@ -946,24 +946,69 @@ export async function fetchLiveProductionData() {
     }
   } catch {}
 
-  let liveUsers: any[] = []
+  const demoSeedEmails = new Set([
+    'mika.cruz@washmykicks.ph',
+    'carlo.mendoza@washmykicks.ph',
+    'marco.santos@washmykicks.ph',
+    'paolo.rivera@washmykicks.ph',
+    'lara.gomez@washmykicks.ph',
+    'juan.delacruz@email.com',
+    'angela.m@email.com',
+    'jiro.reyes@email.com',
+    'kaye.s@email.com',
+  ])
+
+  const userMap = new Map<
+    string,
+    { id: string; name: string; email: string; role: string; branch: string; active: boolean }
+  >()
+
+  // 1. Include all accounts created on this browser/device
+  const accs = loadProvisionedAccounts()
+  accs.forEach((a, i) => {
+    const emailKey = a.email.trim().toLowerCase()
+    if (!demoSeedEmails.has(emailKey)) {
+      userMap.set(emailKey, {
+        id: `USR-${String(i + 1).padStart(2, '0')}`,
+        name: `${a.firstName} ${a.lastName}`.trim() || a.username,
+        email: a.email,
+        role: a.role,
+        branch: a.branchName || (a.role === 'CUSTOMER' ? 'Pasig City' : 'All Branches'),
+        active: a.accountStatus === 'ACTIVE',
+      })
+    }
+  })
+
+  // 2. Merge live rows from Supabase public.user_accounts
   try {
     const { data: usrRows } = await supabase
       .from('user_accounts')
-      .select('user_id, username, email, account_status, roles(role_name), branches(branch_name)')
-      .order('user_id', { ascending: true })
+      .select('user_id, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)')
+      .order('user_id', { ascending: false })
 
     if (Array.isArray(usrRows)) {
-      liveUsers = usrRows.map((u: any) => ({
-        id: `USR-${String(u.user_id).padStart(2, '0')}`,
-        name: String(u.username || u.email || 'User'),
-        email: String(u.email || ''),
-        role: String(u.roles?.role_name || 'CUSTOMER'),
-        branch: String(u.branches?.branch_name || 'All Branches'),
-        active: u.account_status === 'ACTIVE',
-      }))
+      usrRows.forEach((u: any) => {
+        const emailKey = String(u.email || '').trim().toLowerCase()
+        if (!emailKey || demoSeedEmails.has(emailKey)) return
+        const profile = Array.isArray(u.customer_profiles) ? u.customer_profiles[0] : u.customer_profiles
+        const fullName = profile
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+          : ''
+        if (!userMap.has(emailKey)) {
+          userMap.set(emailKey, {
+            id: `USR-${String(u.user_id).padStart(2, '0')}`,
+            name: fullName || String(u.username || u.email || 'User'),
+            email: String(u.email || ''),
+            role: String(u.roles?.role_name || 'CUSTOMER'),
+            branch: String(u.branches?.branch_name || 'All Branches'),
+            active: u.account_status === 'ACTIVE' || u.account_status === 'PENDING_VERIFICATION',
+          })
+        }
+      })
     }
   } catch {}
+
+  const liveUsers = Array.from(userMap.values())
 
   let liveAudits: ErdAuditLog[] = []
   try {
@@ -982,18 +1027,6 @@ export async function fetchLiveProductionData() {
       const savedInv = JSON.parse(localStorage.getItem(INVENTORY_VAULT_KEY) || '[]')
       if (Array.isArray(savedInv)) liveInventory = savedInv
     } catch {}
-  }
-
-  if (liveUsers.length === 0) {
-    const accs = loadProvisionedAccounts()
-    liveUsers = accs.map((a, i) => ({
-      id: `USR-${String(i + 1).padStart(2, '0')}`,
-      name: `${a.firstName} ${a.lastName}`.trim() || a.username,
-      email: a.email,
-      role: a.role,
-      branch: a.branchName || 'All Branches',
-      active: a.accountStatus === 'ACTIVE',
-    }))
   }
 
   return {
