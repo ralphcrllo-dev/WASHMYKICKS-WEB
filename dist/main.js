@@ -30948,6 +30948,58 @@ ${suffix}`;
     "Damaged laces",
     "Creasing"
   ];
+  function parseCustomerShoeFields(order) {
+    if (!order) {
+      return { brand: "", model: "", colorway: "" };
+    }
+    const rawFull = (order.shoe || "").trim();
+    const [mainPartRaw, colorwayPartRaw] = rawFull.split("\xB7").map((s) => s.trim());
+    const colorway = colorwayPartRaw || "";
+    if (order.shoeBrand || order.shoeModel) {
+      return {
+        brand: (order.shoeBrand || "").trim(),
+        model: (order.shoeModel || mainPartRaw).trim(),
+        colorway
+      };
+    }
+    if (!mainPartRaw) {
+      return { brand: "", model: "", colorway };
+    }
+    const multiWordBrands = [
+      "Air Jordan",
+      "New Balance",
+      "Under Armour",
+      "On Running",
+      "Onitsuka Tiger",
+      "Alexander McQueen",
+      "Common Projects",
+      "Golden Goose",
+      "Louis Vuitton"
+    ];
+    for (const mb of multiWordBrands) {
+      if (mainPartRaw.toLowerCase().startsWith(mb.toLowerCase())) {
+        const rest = mainPartRaw.slice(mb.length).trim();
+        return {
+          brand: mb,
+          model: rest || mb,
+          colorway
+        };
+      }
+    }
+    const tokens = mainPartRaw.split(/\s+/);
+    if (tokens.length === 1) {
+      return {
+        brand: tokens[0],
+        model: tokens[0],
+        colorway
+      };
+    }
+    return {
+      brand: tokens[0],
+      model: tokens.slice(1).join(" "),
+      colorway
+    };
+  }
   function StaffShoeAssessmentModule({
     orders,
     selectedOrderId,
@@ -30957,10 +31009,11 @@ ${suffix}`;
     onUploadIntakePhoto
   }) {
     const activeOrder = orders.find((o) => o.id === selectedOrderId) || orders[0];
-    const [brand, setBrand] = (0, import_react4.useState)("Nike");
-    const [model, setModel] = (0, import_react4.useState)("Air Max 97");
+    const initialParsed = parseCustomerShoeFields(activeOrder);
+    const [brand, setBrand] = (0, import_react4.useState)(initialParsed.brand);
+    const [model, setModel] = (0, import_react4.useState)(initialParsed.model);
     const [material, setMaterial] = (0, import_react4.useState)("Mesh / Synthetic leather");
-    const [colorway, setColorway] = (0, import_react4.useState)("Silver Bullet");
+    const [colorway, setColorway] = (0, import_react4.useState)(initialParsed.colorway);
     const [checked, setChecked] = (0, import_react4.useState)([
       "Heavy surface stains",
       "Yellowed midsole",
@@ -30969,6 +31022,12 @@ ${suffix}`;
     const [damageNotes, setDamageNotes] = (0, import_react4.useState)(
       "Heavy dirt buildup on mesh panels. Mild yellowing along midsole. No structural tears."
     );
+    (0, import_react4.useEffect)(() => {
+      const parsed = parseCustomerShoeFields(activeOrder);
+      setBrand(parsed.brand);
+      setModel(parsed.model);
+      setColorway(parsed.colorway);
+    }, [activeOrder?.id, activeOrder?.shoe, activeOrder?.shoeBrand, activeOrder?.shoeModel]);
     const angleInputRef = (0, import_react4.useRef)(null);
     const soleInputRef = (0, import_react4.useRef)(null);
     const toggleItem = (item) => {
@@ -31055,11 +31114,18 @@ ${suffix}`;
             className: "wmk-doc-main-card",
             onSubmit: (e) => {
               e.preventDefault();
+              const cleanBrand = brand.trim();
+              const cleanModel = model.trim();
+              const cleanColorway = colorway.trim();
+              const baseShoe = [cleanBrand, cleanModel].filter(Boolean).join(" ") || activeOrder.shoe;
+              const fullShoeLabel = cleanColorway ? `${baseShoe} \xB7 ${cleanColorway}` : baseShoe;
               onCompleteAssessment(
                 activeOrder.id,
                 damageNotes,
                 checked,
-                `${brand} ${model} \xB7 ${colorway}`
+                fullShoeLabel,
+                cleanBrand,
+                cleanModel
               );
             },
             children: [
@@ -31128,7 +31194,21 @@ ${suffix}`;
                   {
                     type: "button",
                     className: "outline",
-                    onClick: () => onSaveDraft(`Draft saved for ${activeOrder.id}.`),
+                    onClick: () => {
+                      const cleanBrand = brand.trim();
+                      const cleanModel = model.trim();
+                      const cleanColorway = colorway.trim();
+                      const baseShoe = [cleanBrand, cleanModel].filter(Boolean).join(" ") || activeOrder.shoe;
+                      const fullShoeLabel = cleanColorway ? `${baseShoe} \xB7 ${cleanColorway}` : baseShoe;
+                      onSaveDraft(`Draft saved for ${activeOrder.id} (${fullShoeLabel}).`, {
+                        orderId: activeOrder.id,
+                        shoeLabel: fullShoeLabel,
+                        shoeBrand: cleanBrand,
+                        shoeModel: cleanModel,
+                        notes: damageNotes,
+                        conditions: checked
+                      });
+                    },
                     children: "Save draft"
                   }
                 ),
@@ -32517,6 +32597,7 @@ ${suffix}`;
     const [calendarMonth, setCalendarMonth] = (0, import_react5.useState)(todayMonth);
     const [selectedDay, setSelectedDay] = (0, import_react5.useState)(todayDate);
     const [selectedTime, setSelectedTime] = (0, import_react5.useState)("10:30 AM");
+    const [shoeBrand, setShoeBrand] = (0, import_react5.useState)("Nike");
     const [shoeModel, setShoeModel] = (0, import_react5.useState)("Air Jordan 1 Retro High");
     const [customerEmail, setCustomerEmail] = (0, import_react5.useState)("juan.delacruz@email.com");
     const [otpSent, setOtpSent] = (0, import_react5.useState)(false);
@@ -32760,12 +32841,15 @@ ${suffix}`;
       const derivedName = getCustomerNameFromEmail(customerEmail);
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
+      const cleanBrand = shoeBrand.trim();
+      const cleanModel = shoeModel.trim();
+      const combinedShoe = cleanBrand && cleanModel && !cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase()) ? `${cleanBrand} ${cleanModel}` : cleanModel || cleanBrand || "Sneaker Pair";
       void createBookingRecord({
         customerId: 1,
         branchServiceId: selectedBranch.id,
         scheduledAt: scheduledIso,
         priceAtBooking: numericPrice,
-        customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
+        customerRequest: `${combinedShoe} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
         customerEmail: customerEmail || "juan.delacruz@email.com",
         customerName: derivedName,
         serviceName: selectedService.title,
@@ -32775,7 +32859,9 @@ ${suffix}`;
         id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
         customer: derivedName,
         email: customerEmail || "juan.delacruz@email.com",
-        shoe: shoeModel || "Sneaker Pair",
+        shoe: combinedShoe,
+        shoeBrand: cleanBrand,
+        shoeModel: cleanModel,
         service: selectedService.title,
         branch: selectedBranch.name,
         date: formattedDate,
@@ -33047,24 +33133,45 @@ ${suffix}`;
             slot
           );
         }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { maxWidth: 480, margin: "0 auto" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Sneaker Brand & Model" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            "input",
-            {
-              type: "text",
-              value: shoeModel,
-              onChange: (e) => setShoeModel(e.target.value),
-              placeholder: "e.g. Air Jordan 1 Retro High",
-              style: {
-                width: "100%",
-                padding: "12px 14px",
-                border: "1px solid #d1d5db",
-                borderRadius: 10,
-                fontSize: 13
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-grid-2", style: { maxWidth: 640, margin: "0 auto" }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Shoe Brand" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              "input",
+              {
+                type: "text",
+                value: shoeBrand,
+                onChange: (e) => setShoeBrand(e.target.value),
+                placeholder: "e.g. Nike, Jordan, Adidas, New Balance",
+                style: {
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 10,
+                  fontSize: 13
+                }
               }
-            }
-          )
+            )
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Shoe Model" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              "input",
+              {
+                type: "text",
+                value: shoeModel,
+                onChange: (e) => setShoeModel(e.target.value),
+                placeholder: "e.g. Air Jordan 1 Retro High, Dunk Low, Samba",
+                style: {
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 10,
+                  fontSize: 13
+                }
+              }
+            )
+          ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: () => setStep(3), children: "\u2190 Back" }),
@@ -33117,7 +33224,7 @@ ${suffix}`;
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
                 "Selected appointment date \xB7 ",
-                shoeModel
+                [shoeBrand.trim(), shoeModel.trim()].filter(Boolean).join(" ") || "Sneaker Pair"
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "confirm-change", onClick: () => setStep(3), children: "Change" })
@@ -34393,9 +34500,25 @@ ${suffix}`;
               orders,
               selectedOrderId,
               onSelectOrder: setSelectedOrderId,
-              onSaveDraft: showToast,
+              onSaveDraft: (msg, draftUpdate) => {
+                if (draftUpdate) {
+                  setOrders(
+                    (prev) => prev.map(
+                      (o) => o.id === draftUpdate.orderId ? {
+                        ...o,
+                        shoe: draftUpdate.shoeLabel || o.shoe,
+                        shoeBrand: draftUpdate.shoeBrand || o.shoeBrand,
+                        shoeModel: draftUpdate.shoeModel || o.shoeModel,
+                        assessmentNotes: draftUpdate.notes,
+                        conditionTags: draftUpdate.conditions
+                      } : o
+                    )
+                  );
+                }
+                showToast(msg);
+              },
               onUploadIntakePhoto: (orderId, angle, url) => handleUploadAnglePhoto(orderId, angle, "before", url),
-              onCompleteAssessment: (orderId, notes, conditions, shoeLabel) => {
+              onCompleteAssessment: (orderId, notes, conditions, shoeLabel, shoeBrand, shoeModel) => {
                 void upsertShoeAssessmentRecord({
                   orderId: Number(orderId.replace(/\D/g, "")) || 46,
                   shoeCondition: conditions.join(", "),
@@ -34409,6 +34532,8 @@ ${suffix}`;
                     (o) => o.id === orderId ? {
                       ...o,
                       shoe: shoeLabel || o.shoe,
+                      shoeBrand: shoeBrand ?? o.shoeBrand,
+                      shoeModel: shoeModel ?? o.shoeModel,
                       assessed: true,
                       status: "In Progress",
                       stageIndex: 3,

@@ -124,6 +124,8 @@ export type JobOrder = {
   customer: string
   email: string
   shoe: string
+  shoeBrand?: string
+  shoeModel?: string
   service: string
   branch: string
   date: string
@@ -1065,6 +1067,7 @@ function CustomerBookAppointmentWizard({
   const [calendarMonth, setCalendarMonth] = useState<number>(todayMonth)
   const [selectedDay, setSelectedDay] = useState<number>(todayDate)
   const [selectedTime, setSelectedTime] = useState<string>('10:30 AM')
+  const [shoeBrand, setShoeBrand] = useState<string>('Nike')
   const [shoeModel, setShoeModel] = useState<string>('Air Jordan 1 Retro High')
 
   // Booking Email Verification (OTP) state
@@ -1347,12 +1350,19 @@ function CustomerBookAppointmentWizard({
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
     const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
 
+    const cleanBrand = shoeBrand.trim()
+    const cleanModel = shoeModel.trim()
+    const combinedShoe =
+      cleanBrand && cleanModel && !cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase())
+        ? `${cleanBrand} ${cleanModel}`
+        : cleanModel || cleanBrand || 'Sneaker Pair'
+
     void createBookingRecord({
       customerId: 1,
       branchServiceId: selectedBranch.id,
       scheduledAt: scheduledIso,
       priceAtBooking: numericPrice,
-      customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
+      customerRequest: `${combinedShoe} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
       customerEmail: customerEmail || 'juan.delacruz@email.com',
       customerName: derivedName,
       serviceName: selectedService.title,
@@ -1363,7 +1373,9 @@ function CustomerBookAppointmentWizard({
       id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
       customer: derivedName,
       email: customerEmail || 'juan.delacruz@email.com',
-      shoe: shoeModel || 'Sneaker Pair',
+      shoe: combinedShoe,
+      shoeBrand: cleanBrand,
+      shoeModel: cleanModel,
       service: selectedService.title,
       branch: selectedBranch.name,
       date: formattedDate,
@@ -1667,23 +1679,43 @@ function CustomerBookAppointmentWizard({
             })}
           </div>
 
-          <div style={{ maxWidth: 480, margin: '0 auto' }}>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-              Sneaker Brand & Model
-            </label>
-            <input
-              type="text"
-              value={shoeModel}
-              onChange={(e) => setShoeModel(e.target.value)}
-              placeholder="e.g. Air Jordan 1 Retro High"
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                border: '1px solid #d1d5db',
-                borderRadius: 10,
-                fontSize: 13,
-              }}
-            />
+          <div className="wizard-grid-2" style={{ maxWidth: 640, margin: '0 auto' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                Shoe Brand
+              </label>
+              <input
+                type="text"
+                value={shoeBrand}
+                onChange={(e) => setShoeBrand(e.target.value)}
+                placeholder="e.g. Nike, Jordan, Adidas, New Balance"
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 10,
+                  fontSize: 13,
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                Shoe Model
+              </label>
+              <input
+                type="text"
+                value={shoeModel}
+                onChange={(e) => setShoeModel(e.target.value)}
+                placeholder="e.g. Air Jordan 1 Retro High, Dunk Low, Samba"
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 10,
+                  fontSize: 13,
+                }}
+              />
+            </div>
           </div>
 
           <div className="wizard-footer">
@@ -1744,7 +1776,9 @@ function CustomerBookAppointmentWizard({
                 <b>
                   {currentMonthName} {activeSelectedDay}, {calendarYear} · {selectedTime}
                 </b>
-                <small>Selected appointment date · {shoeModel}</small>
+                <small>
+                  Selected appointment date · {[shoeBrand.trim(), shoeModel.trim()].filter(Boolean).join(' ') || 'Sneaker Pair'}
+                </small>
               </div>
               <button type="button" className="confirm-change" onClick={() => setStep(3)}>
                 Change
@@ -3215,11 +3249,29 @@ function StaffDashboard({
               orders={orders}
               selectedOrderId={selectedOrderId}
               onSelectOrder={setSelectedOrderId}
-              onSaveDraft={showToast}
+              onSaveDraft={(msg, draftUpdate) => {
+                if (draftUpdate) {
+                  setOrders((prev) =>
+                    prev.map((o) =>
+                      o.id === draftUpdate.orderId
+                        ? {
+                            ...o,
+                            shoe: draftUpdate.shoeLabel || o.shoe,
+                            shoeBrand: draftUpdate.shoeBrand || o.shoeBrand,
+                            shoeModel: draftUpdate.shoeModel || o.shoeModel,
+                            assessmentNotes: draftUpdate.notes,
+                            conditionTags: draftUpdate.conditions,
+                          }
+                        : o
+                    )
+                  )
+                }
+                showToast(msg)
+              }}
               onUploadIntakePhoto={(orderId, angle, url) =>
                 handleUploadAnglePhoto(orderId, angle, 'before', url)
               }
-              onCompleteAssessment={(orderId, notes, conditions, shoeLabel) => {
+              onCompleteAssessment={(orderId, notes, conditions, shoeLabel, shoeBrand, shoeModel) => {
                 void upsertShoeAssessmentRecord({
                   orderId: Number(orderId.replace(/\D/g, '')) || 46,
                   shoeCondition: conditions.join(', '),
@@ -3234,6 +3286,8 @@ function StaffDashboard({
                       ? {
                           ...o,
                           shoe: shoeLabel || o.shoe,
+                          shoeBrand: shoeBrand ?? o.shoeBrand,
+                          shoeModel: shoeModel ?? o.shoeModel,
                           assessed: true,
                           status: 'In Progress',
                           stageIndex: 3,

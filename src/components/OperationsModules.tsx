@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Bell,
   Camera,
@@ -307,7 +307,10 @@ export type DocOrderSummary = {
   id: string
   customer: string
   shoe: string
+  shoeBrand?: string
+  shoeModel?: string
   service: string
+  branch?: string
   status: string
   docs: ShoeDocumentation
 }
@@ -710,6 +713,68 @@ const INTAKE_CONDITIONS = [
   'Creasing',
 ]
 
+function parseCustomerShoeFields(order?: DocOrderSummary): {
+  brand: string
+  model: string
+  colorway: string
+} {
+  if (!order) {
+    return { brand: '', model: '', colorway: '' }
+  }
+  const rawFull = (order.shoe || '').trim()
+  const [mainPartRaw, colorwayPartRaw] = rawFull.split('·').map((s) => s.trim())
+  const colorway = colorwayPartRaw || ''
+
+  if (order.shoeBrand || order.shoeModel) {
+    return {
+      brand: (order.shoeBrand || '').trim(),
+      model: (order.shoeModel || mainPartRaw).trim(),
+      colorway,
+    }
+  }
+
+  if (!mainPartRaw) {
+    return { brand: '', model: '', colorway }
+  }
+
+  const multiWordBrands = [
+    'Air Jordan',
+    'New Balance',
+    'Under Armour',
+    'On Running',
+    'Onitsuka Tiger',
+    'Alexander McQueen',
+    'Common Projects',
+    'Golden Goose',
+    'Louis Vuitton',
+  ]
+  for (const mb of multiWordBrands) {
+    if (mainPartRaw.toLowerCase().startsWith(mb.toLowerCase())) {
+      const rest = mainPartRaw.slice(mb.length).trim()
+      return {
+        brand: mb,
+        model: rest || mb,
+        colorway,
+      }
+    }
+  }
+
+  const tokens = mainPartRaw.split(/\s+/)
+  if (tokens.length === 1) {
+    return {
+      brand: tokens[0],
+      model: tokens[0],
+      colorway,
+    }
+  }
+
+  return {
+    brand: tokens[0],
+    model: tokens.slice(1).join(' '),
+    colorway,
+  }
+}
+
 export function StaffShoeAssessmentModule({
   orders,
   selectedOrderId,
@@ -721,16 +786,27 @@ export function StaffShoeAssessmentModule({
   orders: DocOrderSummary[]
   selectedOrderId: string
   onSelectOrder: (id: string) => void
-  onCompleteAssessment: (orderId: string, notes: string, conditions: string[], shoeLabel: string) => void
-  onSaveDraft: (msg: string) => void
+  onCompleteAssessment: (
+    orderId: string,
+    notes: string,
+    conditions: string[],
+    shoeLabel: string,
+    shoeBrand?: string,
+    shoeModel?: string
+  ) => void
+  onSaveDraft: (
+    msg: string,
+    draftUpdate?: { orderId: string; shoeLabel: string; shoeBrand: string; shoeModel: string; notes: string; conditions: string[] }
+  ) => void
   onUploadIntakePhoto: (orderId: string, angle: ShoeAngleKey, dataUrl: string) => void
 }) {
   const activeOrder = orders.find((o) => o.id === selectedOrderId) || orders[0]
+  const initialParsed = parseCustomerShoeFields(activeOrder)
 
-  const [brand, setBrand] = useState('Nike')
-  const [model, setModel] = useState('Air Max 97')
+  const [brand, setBrand] = useState(initialParsed.brand)
+  const [model, setModel] = useState(initialParsed.model)
   const [material, setMaterial] = useState('Mesh / Synthetic leather')
-  const [colorway, setColorway] = useState('Silver Bullet')
+  const [colorway, setColorway] = useState(initialParsed.colorway)
   const [checked, setChecked] = useState<string[]>([
     'Heavy surface stains',
     'Yellowed midsole',
@@ -739,6 +815,14 @@ export function StaffShoeAssessmentModule({
   const [damageNotes, setDamageNotes] = useState(
     'Heavy dirt buildup on mesh panels. Mild yellowing along midsole. No structural tears.'
   )
+
+  // Sync Shoe Brand & Model with what the customer inputted whenever the selected order changes
+  useEffect(() => {
+    const parsed = parseCustomerShoeFields(activeOrder)
+    setBrand(parsed.brand)
+    setModel(parsed.model)
+    setColorway(parsed.colorway)
+  }, [activeOrder?.id, activeOrder?.shoe, activeOrder?.shoeBrand, activeOrder?.shoeModel])
 
   const angleInputRef = useRef<HTMLInputElement | null>(null)
   const soleInputRef = useRef<HTMLInputElement | null>(null)
@@ -836,11 +920,18 @@ export function StaffShoeAssessmentModule({
           className="wmk-doc-main-card"
           onSubmit={(e) => {
             e.preventDefault()
+            const cleanBrand = brand.trim()
+            const cleanModel = model.trim()
+            const cleanColorway = colorway.trim()
+            const baseShoe = [cleanBrand, cleanModel].filter(Boolean).join(' ') || activeOrder.shoe
+            const fullShoeLabel = cleanColorway ? `${baseShoe} · ${cleanColorway}` : baseShoe
             onCompleteAssessment(
               activeOrder.id,
               damageNotes,
               checked,
-              `${brand} ${model} · ${colorway}`
+              fullShoeLabel,
+              cleanBrand,
+              cleanModel
             )
           }}
         >
@@ -913,7 +1004,21 @@ export function StaffShoeAssessmentModule({
             <button
               type="button"
               className="outline"
-              onClick={() => onSaveDraft(`Draft saved for ${activeOrder.id}.`)}
+              onClick={() => {
+                const cleanBrand = brand.trim()
+                const cleanModel = model.trim()
+                const cleanColorway = colorway.trim()
+                const baseShoe = [cleanBrand, cleanModel].filter(Boolean).join(' ') || activeOrder.shoe
+                const fullShoeLabel = cleanColorway ? `${baseShoe} · ${cleanColorway}` : baseShoe
+                onSaveDraft(`Draft saved for ${activeOrder.id} (${fullShoeLabel}).`, {
+                  orderId: activeOrder.id,
+                  shoeLabel: fullShoeLabel,
+                  shoeBrand: cleanBrand,
+                  shoeModel: cleanModel,
+                  notes: damageNotes,
+                  conditions: checked,
+                })
+              }}
             >
               Save draft
             </button>
