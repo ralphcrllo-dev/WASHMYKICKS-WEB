@@ -11,7 +11,23 @@ type NotificationEventType =
   | 'PASSWORD_RESET'
   | 'EMAIL_VERIFICATION'
 
+function deriveNameFromEmail(email?: string, fallbackName?: string): string {
+  const local = (email || '').split('@')[0] || ''
+  const cleaned = local
+    .replace(/[0-9]+/g, ' ')
+    .replace(/[._-]+/g, ' ')
+    .trim()
+  if (cleaned) {
+    return cleaned
+      .split(/\s+/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ')
+  }
+  return fallbackName || local || 'Valued Sneakerhead'
+}
+
 function buildEmailContent(body: {
+  to?: string
   eventType: NotificationEventType
   reference?: string
   customerName?: string
@@ -21,7 +37,7 @@ function buildEmailContent(body: {
   orderStatus?: string
   actionUrl?: string
 }) {
-  const name = body.customerName || 'Valued Sneakerhead'
+  const name = deriveNameFromEmail(body.to, body.customerName)
   const ref = body.reference || 'WMK-2026-0046'
   const svc = body.serviceName || 'Sneaker Care Service'
   const branch = body.branchName || 'WashMyKicks Branch'
@@ -159,7 +175,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     })
 
-    const { subject, html } = buildEmailContent({ eventType, ...rest })
+    const { subject, html } = buildEmailContent({ to, eventType, ...rest })
 
     await transporter.sendMail({
       from: `WashMyKicks Sneaker Care <${GMAIL_USER}>`,

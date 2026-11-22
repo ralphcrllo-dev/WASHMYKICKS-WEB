@@ -32452,12 +32452,21 @@ ${suffix}`;
         isFull: remaining === 0
       };
     };
+    const getCustomerNameFromEmail = (emailStr) => {
+      const local = (emailStr || "").split("@")[0] || "";
+      const cleaned = local.replace(/[0-9]+/g, " ").replace(/[._-]+/g, " ").trim();
+      if (cleaned) {
+        return cleaned.split(/\s+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
+      }
+      return local || "Valued Customer";
+    };
     const handleSendBookingOtp = async () => {
       const emailTarget = customerEmail.trim();
       if (!emailTarget || !emailTarget.includes("@")) {
         setOtpNotice("Please enter a valid email address first.");
         return;
       }
+      const derivedName = getCustomerNameFromEmail(emailTarget);
       setOtpSending(true);
       setEnteredOtp("");
       setOtpVerified(false);
@@ -32469,7 +32478,7 @@ ${suffix}`;
           body: JSON.stringify({
             action: "send",
             email: emailTarget,
-            customerName: "Juan Dela Cruz",
+            customerName: derivedName,
             serviceName: selectedService.title,
             branchName: selectedBranch.name,
             scheduledAt: `${formattedDate} \xB7 ${selectedTime}`
@@ -32575,6 +32584,7 @@ ${suffix}`;
         const ok = await handleVerifyOtp();
         if (!ok) return;
       }
+      const derivedName = getCustomerNameFromEmail(customerEmail);
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
       void createBookingRecord({
@@ -32584,13 +32594,13 @@ ${suffix}`;
         priceAtBooking: numericPrice,
         customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
         customerEmail: customerEmail || "juan.delacruz@email.com",
-        customerName: "Juan Dela Cruz",
+        customerName: derivedName,
         serviceName: selectedService.title,
         branchName: selectedBranch.name
       }).catch(() => null);
       const newOrder = {
         id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
-        customer: "Juan Dela Cruz",
+        customer: derivedName,
         email: customerEmail || "juan.delacruz@email.com",
         shoe: shoeModel || "Sneaker Pair",
         service: selectedService.title,

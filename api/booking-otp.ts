@@ -20,6 +20,21 @@ function computeOtpHmac(email: string, code: string, expiresAt: number): string 
     .digest('hex')
 }
 
+function deriveNameFromEmail(email: string, fallbackName?: string): string {
+  const local = (email || '').split('@')[0] || ''
+  const cleaned = local
+    .replace(/[0-9]+/g, ' ')
+    .replace(/[._-]+/g, ' ')
+    .trim()
+  if (cleaned) {
+    return cleaned
+      .split(/\s+/)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(' ')
+  }
+  return fallbackName || local || 'Valued Customer'
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
@@ -31,11 +46,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     code,
     token,
     expiresAt,
-    customerName = 'Valued Customer',
+    customerName,
     serviceName = 'Sneaker Care Service',
     branchName = 'WashMyKicks Branch',
     scheduledAt = '',
   } = req.body ?? {}
+
+  const recipientName = deriveNameFromEmail(String(email || ''), customerName)
 
   if (!email || typeof email !== 'string') {
     return res.status(400).json({ ok: false, error: 'A valid email address is required.' })
@@ -88,7 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       html: `
         <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
           <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · BOOKING SECURITY VERIFICATION</div>
-          <h2 style="margin:8px 0 12px;color:#111827;">Hi ${customerName}, verify your appointment</h2>
+          <h2 style="margin:8px 0 12px;color:#111827;">Hi ${recipientName}, verify your appointment</h2>
           <p style="color:#4b5563;font-size:14px;line-height:1.6;">
             Use the 6-digit verification code below to confirm your booking for <b>${serviceName}</b> at <b>${branchName}</b>${
               scheduledAt ? ` on <b>${scheduledAt}</b>` : ''

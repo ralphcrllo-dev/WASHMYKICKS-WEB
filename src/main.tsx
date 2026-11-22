@@ -1291,6 +1291,21 @@ function CustomerBookAppointmentWizard({
     }
   }
 
+  const getCustomerNameFromEmail = (emailStr: string): string => {
+    const local = (emailStr || '').split('@')[0] || ''
+    const cleaned = local
+      .replace(/[0-9]+/g, ' ')
+      .replace(/[._-]+/g, ' ')
+      .trim()
+    if (cleaned) {
+      return cleaned
+        .split(/\s+/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ')
+    }
+    return local || 'Valued Customer'
+  }
+
   const handleSendBookingOtp = async () => {
     const emailTarget = customerEmail.trim()
     if (!emailTarget || !emailTarget.includes('@')) {
@@ -1298,6 +1313,7 @@ function CustomerBookAppointmentWizard({
       return
     }
 
+    const derivedName = getCustomerNameFromEmail(emailTarget)
     setOtpSending(true)
     setEnteredOtp('')
     setOtpVerified(false)
@@ -1310,7 +1326,7 @@ function CustomerBookAppointmentWizard({
         body: JSON.stringify({
           action: 'send',
           email: emailTarget,
-          customerName: 'Juan Dela Cruz',
+          customerName: derivedName,
           serviceName: selectedService.title,
           branchName: selectedBranch.name,
           scheduledAt: `${formattedDate} · ${selectedTime}`,
@@ -1427,6 +1443,7 @@ function CustomerBookAppointmentWizard({
       if (!ok) return
     }
 
+    const derivedName = getCustomerNameFromEmail(customerEmail)
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
     const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
 
@@ -1437,14 +1454,14 @@ function CustomerBookAppointmentWizard({
       priceAtBooking: numericPrice,
       customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
       customerEmail: customerEmail || 'juan.delacruz@email.com',
-      customerName: 'Juan Dela Cruz',
+      customerName: derivedName,
       serviceName: selectedService.title,
       branchName: selectedBranch.name,
     }).catch(() => null)
 
     const newOrder: JobOrder = {
       id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
-      customer: 'Juan Dela Cruz',
+      customer: derivedName,
       email: customerEmail || 'juan.delacruz@email.com',
       shoe: shoeModel || 'Sneaker Pair',
       service: selectedService.title,
