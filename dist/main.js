@@ -31862,7 +31862,14 @@ ${suffix}`;
   };
   function Brand({ onClick }) {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "brand", type: "button", onClick, children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("img", { className: "brand-logo", src: "./washmykicks-logo.jpg", alt: "WashMyKicks shoe cleaning services" }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "img",
+        {
+          className: "brand-logo",
+          src: `${typeof window !== "undefined" && window.location.pathname.startsWith("/WASHMYKICKS-WEB") ? "/WASHMYKICKS-WEB" : ""}/washmykicks-logo.jpg`,
+          alt: "WashMyKicks shoe cleaning services"
+        }
+      ),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "WASHMYKICKS" }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "SNEAKER CARE SYSTEM" })
@@ -31941,10 +31948,10 @@ ${suffix}`;
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Portals" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("portals"), children: "Account Selection (/portals)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-customer"), children: "Customer Login (/login)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-staff"), children: "Staff Login (/staff/login)" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-admin"), children: "Administrator Login (/admin/login)" })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("portals"), children: "Account Selection" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-customer"), children: "Customer Login" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-staff"), children: "Staff Login" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-admin"), children: "Administrator Login" })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { onSubmit: (e) => e.preventDefault(), children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Service updates" }),
@@ -32235,7 +32242,7 @@ ${suffix}`;
       }
     ];
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "ROLE-BASED LOGIN SYSTEM", title: "Welcome to WashMyKicks", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Choose how you want to access the system, or visit each dedicated portal URL directly." }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Choose how you want to access the system." }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-grid", children: cards.map((card) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
         "article",
         {
@@ -32247,23 +32254,7 @@ ${suffix}`;
             if (e.key === "Enter" || e.key === " ") setPage(`login-${card.id}`);
           },
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-icon-box", style: { marginBottom: 0 }, children: card.icon }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                "code",
-                {
-                  style: {
-                    fontSize: 11.5,
-                    fontWeight: 700,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: "#111827",
-                    color: "#f9fafb"
-                  },
-                  children: card.routePath
-                }
-              )
-            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-icon-box", children: card.icon }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: card.tag }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: card.title }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: card.description }),
@@ -32479,25 +32470,9 @@ ${suffix}`;
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-form-wrap", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { className: "auth-form", onSubmit: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", style: { marginBottom: 0 }, onClick: () => setPage("portals"), children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
-            " All Portals (/portals)"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            "code",
-            {
-              style: {
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "3px 9px",
-                borderRadius: 999,
-                background: "#111827",
-                color: "#f9fafb"
-              },
-              children: isCustomer ? "/login" : isStaff ? "/staff/login" : "/admin/login"
-            }
-          )
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", onClick: () => setPage("portals"), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
+          " Back to Account Selection"
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "eyebrow", children: [
           roleLabel.toUpperCase(),

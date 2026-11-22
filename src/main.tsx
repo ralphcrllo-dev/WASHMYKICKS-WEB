@@ -201,7 +201,11 @@ export const RBAC_PERMISSIONS: Record<
 function Brand({ onClick }: { onClick?: () => void }) {
   return (
     <button className="brand" type="button" onClick={onClick}>
-      <img className="brand-logo" src="./washmykicks-logo.jpg" alt="WashMyKicks shoe cleaning services" />
+      <img
+        className="brand-logo"
+        src={`${typeof window !== 'undefined' && window.location.pathname.startsWith('/WASHMYKICKS-WEB') ? '/WASHMYKICKS-WEB' : ''}/washmykicks-logo.jpg`}
+        alt="WashMyKicks shoe cleaning services"
+      />
       <span>
         <b>WASHMYKICKS</b>
         <small>SNEAKER CARE SYSTEM</small>
@@ -301,10 +305,10 @@ function Footer({ setPage }: { setPage: (page: string) => void }) {
       </div>
       <div>
         <b>Portals</b>
-        <button onClick={() => setPage('portals')}>Account Selection (/portals)</button>
-        <button onClick={() => setPage('login-customer')}>Customer Login (/login)</button>
-        <button onClick={() => setPage('login-staff')}>Staff Login (/staff/login)</button>
-        <button onClick={() => setPage('login-admin')}>Administrator Login (/admin/login)</button>
+        <button onClick={() => setPage('portals')}>Account Selection</button>
+        <button onClick={() => setPage('login-customer')}>Customer Login</button>
+        <button onClick={() => setPage('login-staff')}>Staff Login</button>
+        <button onClick={() => setPage('login-admin')}>Administrator Login</button>
       </div>
       <form onSubmit={(e) => e.preventDefault()}>
         <b>Service updates</b>
@@ -649,7 +653,7 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
 
   return (
     <Listing eyebrow="ROLE-BASED LOGIN SYSTEM" title="Welcome to WashMyKicks">
-      <p className="lead">Choose how you want to access the system, or visit each dedicated portal URL directly.</p>
+      <p className="lead">Choose how you want to access the system.</p>
 
       <div className="portal-grid">
         {cards.map((card) => (
@@ -663,21 +667,7 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
               if (e.key === 'Enter' || e.key === ' ') setPage(`login-${card.id}`)
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div className="portal-icon-box" style={{ marginBottom: 0 }}>{card.icon}</div>
-              <code
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  padding: '4px 10px',
-                  borderRadius: 999,
-                  background: '#111827',
-                  color: '#f9fafb',
-                }}
-              >
-                {card.routePath}
-              </code>
-            </div>
+            <div className="portal-icon-box">{card.icon}</div>
             <span className="eyebrow">{card.tag}</span>
             <h2>{card.title}</h2>
             <p>{card.description}</p>
@@ -913,23 +903,9 @@ function RoleLogin({
 
       <div className="auth-form-wrap">
         <form className="auth-form" onSubmit={handleSubmit}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-            <button type="button" className="back-link" style={{ marginBottom: 0 }} onClick={() => setPage('portals')}>
-              <ArrowLeft size={14} /> All Portals (/portals)
-            </button>
-            <code
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: '3px 9px',
-                borderRadius: 999,
-                background: '#111827',
-                color: '#f9fafb',
-              }}
-            >
-              {isCustomer ? '/login' : isStaff ? '/staff/login' : '/admin/login'}
-            </code>
-          </div>
+          <button type="button" className="back-link" onClick={() => setPage('portals')}>
+            <ArrowLeft size={14} /> Back to Account Selection
+          </button>
 
           <span className="eyebrow">{roleLabel.toUpperCase()} PORTAL</span>
           <h1>{isCreatingAccount ? `Register ${roleLabel} Account` : `${roleLabel} Login`}</h1>
