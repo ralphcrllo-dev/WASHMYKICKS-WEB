@@ -33254,17 +33254,39 @@ ${suffix}`;
     const [reviewQuote, setReviewQuote] = (0, import_react5.useState)("");
     const [profileName, setProfileName] = (0, import_react5.useState)(userMeta.name);
     const [profileEmail, setProfileEmail] = (0, import_react5.useState)(userMeta.email);
-    const [profilePhone, setProfilePhone] = (0, import_react5.useState)("+63 917 555 0192");
+    const [profilePhone, setProfilePhone] = (0, import_react5.useState)("");
     const [profileBranch, setProfileBranch] = (0, import_react5.useState)(staffBranches[0]);
-    const customerOrders = orders;
+    const customerOrders = orders.filter(
+      (o) => !userMeta.email || o.email.trim().toLowerCase() === userMeta.email.trim().toLowerCase()
+    );
     const activeOrders = customerOrders.filter((o) => o.status !== "Completed");
     const completedOrders = customerOrders.filter((o) => o.status === "Completed");
     const trackedOrder = customerOrders.find((o) => o.id === selectedOrderId) || customerOrders[0];
+    const nextAppointment = activeOrders[0] || null;
+    const customerNotifications = customerOrders.map((o) => ({
+      id: o.id,
+      title: `${o.service} (${o.status}) \u2014 ${o.id}`,
+      body: `Your ${o.shoe} at ${o.branch} is currently in stage: ${o.status}. Scheduled drop-off: ${o.date} at ${o.time}.`,
+      time: o.date,
+      unread: o.status !== "Completed"
+    }));
+    const unreadNotifCount = customerNotifications.filter((n) => n.unread).length;
+    const avatarInitials = profileName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "CU";
+    const todayFormatted = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    });
     const sidebarItems = [
       { key: "Dashboard", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LayoutDashboard, { size: 17 }) },
       { key: "Book Appointment", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Calendar, { size: 17 }) },
       { key: "Track Shoes", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 17 }) },
-      { key: "Notifications", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }), badge: 3 },
+      {
+        key: "Notifications",
+        icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }),
+        badge: unreadNotifCount > 0 ? unreadNotifCount : void 0
+      },
       { key: "Service History", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(History, { size: 17 }) },
       { key: "Reviews", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Star, { size: 17 }) },
       { key: "Profile", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(User, { size: 17 }) }
@@ -33316,12 +33338,15 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "dash-bell-btn", onClick: () => setTab("Notifications"), children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: "3" })
+              unreadNotifCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: unreadNotifCount })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: "JD" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: avatarInitials }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user-info", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: profileName }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Customer \xB7 San Juan" })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
+                "Customer \xB7 ",
+                profileBranch.replace("Wash My Kicks \u2013 ", "")
+              ] })
             ] })
           ] })
         ] }),
@@ -33354,17 +33379,21 @@ ${suffix}`;
           tab === "Dashboard" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-breadcrumb", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Dashboard" }),
-              " > Good morning, ",
+              " > Welcome, ",
               profileName.split(" ")[0],
               "."
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER PORTAL" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
-              "Good morning, ",
+              "Welcome, ",
               profileName.split(" ")[0],
               "."
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "San Juan City branch \xB7 Tuesday, March 24" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { children: [
+              profileBranch.replace("Wash My Kicks \u2013 ", ""),
+              " branch \xB7 ",
+              todayFormatted
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-grid", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Track Shoes"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 18 }) }),
@@ -33374,15 +33403,15 @@ ${suffix}`;
                     activeOrders.length,
                     " orders"
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "1 in active care" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: activeOrders.length === 0 ? "No active orders yet" : `${activeOrders.length} in active care` })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Book Appointment"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon red", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Clock3, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Upcoming Appointments" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Mar 28" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "10:30 AM \xB7 San Juan" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: nextAppointment ? nextAppointment.date : "None" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: nextAppointment ? `${nextAppointment.time} \xB7 ${nextAppointment.branch.replace("Wash My Kicks \u2013 ", "")}` : "No scheduled drop-offs" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Service History"), style: { cursor: "pointer" }, children: [
@@ -33390,18 +33419,21 @@ ${suffix}`;
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Completed Services" }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-                    completedOrders.length + 11,
+                    completedOrders.length,
                     " pairs"
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "100% quality checked" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: completedOrders.length === 0 ? "No completed pairs yet" : "100% quality checked" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Notifications"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Recent Notifications" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "3 unread" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Needs attention" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    unreadNotifCount,
+                    " unread"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: unreadNotifCount === 0 ? "All caught up" : "Needs attention" })
                 ] })
               ] })
             ] }),
@@ -33471,32 +33503,29 @@ ${suffix}`;
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Order updates" }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wmk-link-btn", onClick: () => setTab("Notifications"), children: "View all" })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-list", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Track Shoes"), children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 15 }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Cleaning in progress" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-01842 \xB7 8 min ago" })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Book Appointment"), children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Camera, { size: 15 }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Intake photos uploaded" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-01842 \xB7 Today" })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Reviews"), children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 15 }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Order completed" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-01790 \xB7 Yesterday" })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                  ] })
-                ] })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-list", children: customerOrders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: "18px 12px", textAlign: "center", color: "#6b7280", fontSize: 12.5 }, children: "No order updates yet. Book an appointment to start tracking." }) : customerOrders.slice(0, 3).map((o) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "div",
+                  {
+                    className: "wmk-update-item",
+                    onClick: () => {
+                      setSelectedOrderId(o.id);
+                      setTab("Track Shoes");
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 15 }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.status }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                          o.id,
+                          " \xB7 ",
+                          o.date
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
+                    ]
+                  },
+                  o.id
+                )) })
               ] })
             ] })
           ] }),
@@ -33509,20 +33538,27 @@ ${suffix}`;
               servicesCatalog,
               onCancel: () => setTab("Dashboard"),
               onCompleteBooking: (newOrder) => {
-                setOrders((prev) => [newOrder, ...prev]);
-                setSelectedOrderId(newOrder.id);
+                const enrichedOrder = {
+                  ...newOrder,
+                  customer: profileName || newOrder.customer,
+                  email: userMeta.email || newOrder.email
+                };
+                setOrders((prev) => [enrichedOrder, ...prev]);
+                setSelectedOrderId(enrichedOrder.id);
                 void createBookingRecord({
                   customerId: 1,
                   branchServiceId: 1,
                   scheduledAt: (/* @__PURE__ */ new Date()).toISOString(),
-                  priceAtBooking: Number(newOrder.price.replace(/[^\d.]/g, "")) || 650,
-                  customerRequest: `${newOrder.shoe} \u2014 ${newOrder.service}`,
-                  customerEmail: newOrder.email,
-                  customerName: newOrder.customer,
-                  serviceName: newOrder.service,
-                  branchName: newOrder.branch
+                  priceAtBooking: Number(enrichedOrder.price.replace(/[^\d.]/g, "")) || 650,
+                  customerRequest: `${enrichedOrder.shoe} \u2014 ${enrichedOrder.service}`,
+                  customerEmail: enrichedOrder.email,
+                  customerName: enrichedOrder.customer,
+                  serviceName: enrichedOrder.service,
+                  branchName: enrichedOrder.branch
                 }).catch(() => null);
-                showToast(`Appointment confirmed! Job Order ${newOrder.id} created for ${newOrder.date} at ${newOrder.time}.`);
+                showToast(
+                  `Appointment confirmed! Job Order ${enrichedOrder.id} created for ${enrichedOrder.date} at ${enrichedOrder.time}.`
+                );
                 setTab("Track Shoes");
               }
             }
@@ -33624,26 +33660,7 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ALERTS & UPDATES" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Notifications" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Stay updated on assessments, cleaning milestones, and pickup readiness." }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", style: { display: "flex", flexDirection: "column", gap: 14 }, children: [
-              {
-                title: "Deep Cleaning in Progress \u2014 WMK-2026-01842",
-                body: "Specialist Carlo Mendoza completed midsole de-yellowing on your Air Jordan 1 Retro High.",
-                time: "25 minutes ago",
-                unread: true
-              },
-              {
-                title: "Shoe Assessment Approved \u2014 WMK-2026-01842",
-                body: "Initial inspection and before-service photos have been uploaded to your order record.",
-                time: "3 hours ago",
-                unread: true
-              },
-              {
-                title: "Appointment Reminder \u2014 San Juan City Branch",
-                body: "Your upcoming drop-off is scheduled for March 28, 2026 at 10:30 AM.",
-                time: "1 day ago",
-                unread: true
-              }
-            ].map((n, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", style: { display: "flex", flexDirection: "column", gap: 14 }, children: customerNotifications.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: 24, textAlign: "center", color: "#6b7280" }, children: "No notifications yet. Notifications will appear here automatically once you book an appointment." }) : customerNotifications.map((n) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
               "div",
               {
                 style: {
@@ -33662,10 +33679,21 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#6b7280", margin: 0 }, children: n.body }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { style: { fontSize: 11, color: "#9ca3af" }, children: n.time })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", onClick: () => setTab("Track Shoes"), children: "View Order" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "outline",
+                      onClick: () => {
+                        setSelectedOrderId(n.id);
+                        setTab("Track Shoes");
+                      },
+                      children: "View Order"
+                    }
+                  )
                 ]
               },
-              i
+              n.id
             )) })
           ] }),
           tab === "Service History" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
@@ -33911,6 +33939,17 @@ ${suffix}`;
     const [tab, setTab] = (0, import_react5.useState)("Dashboard");
     const [selectedOrderId, setSelectedOrderId] = (0, import_react5.useState)(orders[0]?.id || "WMK-2026-0046");
     const [toast, setToast] = (0, import_react5.useState)("");
+    const staffPendingCount = orders.filter((o) => o.status === "Pending Assessment").length;
+    const staffInProgressCount = orders.filter((o) => o.status === "In Progress" || o.status === "Quality Check").length;
+    const staffCompletedCount = orders.filter((o) => o.status === "Completed").length;
+    const staffUnreadCount = orders.filter((o) => o.status !== "Completed").length;
+    const staffInitials = userMeta.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "ST";
+    const staffTodayStr = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    });
     const sidebarItems = [
       { key: "Dashboard", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LayoutDashboard, { size: 17 }) },
       { key: "Job Orders", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ClipboardCheck, { size: 17 }) },
@@ -33919,7 +33958,11 @@ ${suffix}`;
       { key: "Assigned Services", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Briefcase, { size: 17 }) },
       { key: "Inventory", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 17 }) },
       { key: "Customers", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Users, { size: 17 }) },
-      { key: "Notifications", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }), badge: 3 }
+      {
+        key: "Notifications",
+        icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }),
+        badge: staffUnreadCount > 0 ? staffUnreadCount : void 0
+      }
     ];
     const showToast = (msg) => {
       setToast(msg);
@@ -34010,14 +34053,14 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "dash-bell-btn", onClick: () => setTab("Notifications"), children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: "3" })
+              staffUnreadCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: staffUnreadCount })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: "CM" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: staffInitials }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user-info", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: userMeta.name }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
                 "Staff \xB7 ",
-                (userMeta.branch || "Wash My Kicks \u2013 San Juan City").replace("Wash My Kicks \u2013 ", "")
+                (userMeta.branch || "Wash My Kicks \u2013 Pasig City").replace("Wash My Kicks \u2013 ", "")
               ] })
             ] })
           ] })
@@ -34045,51 +34088,64 @@ ${suffix}`;
           tab === "Dashboard" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-breadcrumb", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Dashboard" }),
-              " > Good morning, ",
+              " > Welcome, ",
               userMeta.name.split(" ")[0],
               "."
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
-              "Good morning, ",
+              "Welcome, ",
               userMeta.name.split(" ")[0],
               "."
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { children: [
-              (userMeta.branch || "Wash My Kicks \u2013 San Juan City").replace("Wash My Kicks \u2013 ", ""),
-              " branch \xB7 Tuesday, March 24"
+              (userMeta.branch || "Wash My Kicks \u2013 Pasig City").replace("Wash My Kicks \u2013 ", ""),
+              " branch \xB7 ",
+              staffTodayStr
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-grid", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Job Orders"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Assigned Orders" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "8 orders" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "2 high priority" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    orders.length,
+                    " orders"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: orders.length === 0 ? "No active orders yet" : "Live branch queue" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Assigned Services"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon red", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Clock3, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Orders In Progress" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "5 pairs" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "3 due this week" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    staffInProgressCount,
+                    " pairs"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: staffInProgressCount === 0 ? "No pairs in progress" : "Active service stage" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Job Orders"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon green", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Orders Completed" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "14 pairs" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "This month" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    staffCompletedCount,
+                    " pairs"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: staffCompletedCount === 0 ? "No completed pairs yet" : "Quality checked" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Shoe Assessment"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Pending Assessments" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "3 pairs" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Needs attention" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    staffPendingCount,
+                    " pairs"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: staffPendingCount === 0 ? "All assessed" : "Needs attention" })
                 ] })
               ] })
             ] }),
@@ -34498,6 +34554,17 @@ ${suffix}`;
     const lowStockCount = inventory.filter(
       (i) => getInventoryStatus(i.stock, i.target) !== "Healthy"
     ).length;
+    const adminInProgressCount = orders.filter((o) => o.status === "In Progress" || o.status === "Quality Check").length;
+    const adminCompletedCount = orders.filter((o) => o.status === "Completed").length;
+    const adminReadyCount = orders.filter((o) => o.status === "Ready for Pickup").length;
+    const adminRevenueTotal = orders.reduce((sum, o) => sum + pesoToNumber(o.price), 0);
+    const adminInitials = userMeta.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "AD";
+    const adminTodayStr = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric"
+    });
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "dashboard", children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: "sidebar dark-sidebar", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, {}),
@@ -34529,9 +34596,9 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "dash-bell-btn", onClick: () => setTab("Audit Trail"), children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: "3" })
+              orders.length + lowStockCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: orders.length + lowStockCount })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: "MC" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: adminInitials }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user-info", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: userMeta.name }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Administrator" })
@@ -34561,31 +34628,40 @@ ${suffix}`;
           tab === "Dashboard" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-breadcrumb", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Dashboard" }),
-              " > Good morning, ",
+              " > Welcome, ",
               userMeta.name.split(" ")[0],
               "."
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "EXECUTIVE COMMAND CENTER" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
-              "Good morning, ",
+              "Welcome, ",
               userMeta.name.split(" ")[0],
               "."
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "All 7 branches \xB7 Tuesday, March 24" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { children: [
+              "All 7 branches \xB7 ",
+              adminTodayStr
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-grid", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Job Orders"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Total Orders Today" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "46 orders" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "+14% vs yesterday" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Total Orders" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    orders.length,
+                    " orders"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Live database orders" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Job Orders"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon red", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Clock3, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Orders In Progress" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "128 pairs" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    adminInProgressCount,
+                    " pairs"
+                  ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Across 7 active branches" })
                 ] })
               ] }),
@@ -34593,15 +34669,21 @@ ${suffix}`;
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon green", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Completed Orders" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "64 pairs" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Completed today" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    adminCompletedCount,
+                    " pairs"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Quality checked" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Job Orders"), style: { cursor: "pointer" }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Ready for Pickup" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "23 pairs" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    adminReadyCount,
+                    " pairs"
+                  ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Awaiting customer claim" })
                 ] })
               ] }),
@@ -34609,8 +34691,8 @@ ${suffix}`;
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon dark", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Users, { size: 18 }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Active Customers" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "8,492" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "96% retention rate" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: usersList.length }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Registered accounts" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-card", onClick: () => setTab("Inventory"), style: { cursor: "pointer" }, children: [
@@ -34618,10 +34700,10 @@ ${suffix}`;
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Inventory Alerts" }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-                    17 + lowStockCount,
+                    lowStockCount,
                     " alerts"
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Needs attention" })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: lowStockCount === 0 ? "Stock healthy" : "Needs attention" })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
@@ -34634,8 +34716,11 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon green", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChartColumn, { size: 18 }) }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Revenue Summary" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "\u20B1784,820" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Month-to-date gross revenue across all branches" })
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                        "\u20B1",
+                        adminRevenueTotal.toLocaleString()
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Gross revenue from live orders across all branches" })
                     ] })
                   ]
                 }

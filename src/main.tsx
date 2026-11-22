@@ -1924,13 +1924,41 @@ function CustomerDashboard({
   // Profile form state
   const [profileName, setProfileName] = useState(userMeta.name)
   const [profileEmail, setProfileEmail] = useState(userMeta.email)
-  const [profilePhone, setProfilePhone] = useState('+63 917 555 0192')
+  const [profilePhone, setProfilePhone] = useState('')
   const [profileBranch, setProfileBranch] = useState(staffBranches[0])
 
-  const customerOrders = orders
+  const customerOrders = orders.filter(
+    (o) => !userMeta.email || o.email.trim().toLowerCase() === userMeta.email.trim().toLowerCase()
+  )
   const activeOrders = customerOrders.filter((o) => o.status !== 'Completed')
   const completedOrders = customerOrders.filter((o) => o.status === 'Completed')
   const trackedOrder = customerOrders.find((o) => o.id === selectedOrderId) || customerOrders[0]
+  const nextAppointment = activeOrders[0] || null
+
+  const customerNotifications = customerOrders.map((o) => ({
+    id: o.id,
+    title: `${o.service} (${o.status}) — ${o.id}`,
+    body: `Your ${o.shoe} at ${o.branch} is currently in stage: ${o.status}. Scheduled drop-off: ${o.date} at ${o.time}.`,
+    time: o.date,
+    unread: o.status !== 'Completed',
+  }))
+  const unreadNotifCount = customerNotifications.filter((n) => n.unread).length
+
+  const avatarInitials =
+    profileName
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() || '')
+      .join('') || 'CU'
+
+  const todayFormatted = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 
   const sidebarItems: {
     key: typeof tab
@@ -1940,7 +1968,11 @@ function CustomerDashboard({
     { key: 'Dashboard', icon: <LayoutDashboard size={17} /> },
     { key: 'Book Appointment', icon: <Calendar size={17} /> },
     { key: 'Track Shoes', icon: <Package size={17} /> },
-    { key: 'Notifications', icon: <Bell size={17} />, badge: 3 },
+    {
+      key: 'Notifications',
+      icon: <Bell size={17} />,
+      badge: unreadNotifCount > 0 ? unreadNotifCount : undefined,
+    },
     { key: 'Service History', icon: <History size={17} /> },
     { key: 'Reviews', icon: <Star size={17} /> },
     { key: 'Profile', icon: <User size={17} /> },
@@ -1991,12 +2023,12 @@ function CustomerDashboard({
           <div className="dash-user">
             <button type="button" className="dash-bell-btn" onClick={() => setTab('Notifications')}>
               <Bell size={17} />
-              <span className="badge-dot">3</span>
+              {unreadNotifCount > 0 && <span className="badge-dot">{unreadNotifCount}</span>}
             </button>
-            <div className="dash-avatar">JD</div>
+            <div className="dash-avatar">{avatarInitials}</div>
             <div className="dash-user-info">
               <b>{profileName}</b>
-              <small>Customer · San Juan</small>
+              <small>Customer · {profileBranch.replace('Wash My Kicks – ', '')}</small>
             </div>
           </div>
         </header>
@@ -2029,13 +2061,13 @@ function CustomerDashboard({
           {tab === 'Dashboard' && (
             <>
               <div className="wmk-breadcrumb">
-                <b>Dashboard</b> &gt; Good morning, {profileName.split(' ')[0]}.
+                <b>Dashboard</b> &gt; Welcome, {profileName.split(' ')[0]}.
               </div>
               <span className="eyebrow">CUSTOMER PORTAL</span>
-              <h1>Good morning, {profileName.split(' ')[0]}.</h1>
-              <p>San Juan City branch · Tuesday, March 24</p>
+              <h1>Welcome, {profileName.split(' ')[0]}.</h1>
+              <p>{profileBranch.replace('Wash My Kicks – ', '')} branch · {todayFormatted}</p>
 
-              {/* Row 1: 4 Icon KPI Stat Cards */}
+              {/* Row 1: 4 Icon KPI Stat Cards (100% Live From Customer Orders) */}
               <div className="wmk-inv-kpi-grid">
                 <div className="wmk-inv-kpi-card" onClick={() => setTab('Track Shoes')} style={{ cursor: 'pointer' }}>
                   <div className="wmk-inv-kpi-icon dark">
@@ -2044,7 +2076,7 @@ function CustomerDashboard({
                   <div className="wmk-inv-kpi-body">
                     <span>Current Orders</span>
                     <b>{activeOrders.length} orders</b>
-                    <small>1 in active care</small>
+                    <small>{activeOrders.length === 0 ? 'No active orders yet' : `${activeOrders.length} in active care`}</small>
                   </div>
                 </div>
 
@@ -2054,8 +2086,12 @@ function CustomerDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Upcoming Appointments</span>
-                    <b>Mar 28</b>
-                    <small>10:30 AM · San Juan</small>
+                    <b>{nextAppointment ? nextAppointment.date : 'None'}</b>
+                    <small>
+                      {nextAppointment
+                        ? `${nextAppointment.time} · ${nextAppointment.branch.replace('Wash My Kicks – ', '')}`
+                        : 'No scheduled drop-offs'}
+                    </small>
                   </div>
                 </div>
 
@@ -2065,8 +2101,8 @@ function CustomerDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Completed Services</span>
-                    <b>{completedOrders.length + 11} pairs</b>
-                    <small>100% quality checked</small>
+                    <b>{completedOrders.length} pairs</b>
+                    <small>{completedOrders.length === 0 ? 'No completed pairs yet' : '100% quality checked'}</small>
                   </div>
                 </div>
 
@@ -2076,8 +2112,8 @@ function CustomerDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Recent Notifications</span>
-                    <b>3 unread</b>
-                    <small>Needs attention</small>
+                    <b>{unreadNotifCount} unread</b>
+                    <small>{unreadNotifCount === 0 ? 'All caught up' : 'Needs attention'}</small>
                   </div>
                 </div>
               </div>
@@ -2170,38 +2206,33 @@ function CustomerDashboard({
                   </div>
 
                   <div className="wmk-update-list">
-                    <div className="wmk-update-item" onClick={() => setTab('Track Shoes')}>
-                      <div className="wmk-update-icon">
-                        <Sparkles size={15} />
+                    {customerOrders.length === 0 ? (
+                      <div style={{ padding: '18px 12px', textAlign: 'center', color: '#6b7280', fontSize: 12.5 }}>
+                        No order updates yet. Book an appointment to start tracking.
                       </div>
-                      <div className="wmk-update-body">
-                        <b>Cleaning in progress</b>
-                        <span>WMK-2026-01842 · 8 min ago</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
-
-                    <div className="wmk-update-item" onClick={() => setTab('Book Appointment')}>
-                      <div className="wmk-update-icon">
-                        <Camera size={15} />
-                      </div>
-                      <div className="wmk-update-body">
-                        <b>Intake photos uploaded</b>
-                        <span>WMK-2026-01842 · Today</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
-
-                    <div className="wmk-update-item" onClick={() => setTab('Reviews')}>
-                      <div className="wmk-update-icon">
-                        <Check size={15} />
-                      </div>
-                      <div className="wmk-update-body">
-                        <b>Order completed</b>
-                        <span>WMK-2026-01790 · Yesterday</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
+                    ) : (
+                      customerOrders.slice(0, 3).map((o) => (
+                        <div
+                          key={o.id}
+                          className="wmk-update-item"
+                          onClick={() => {
+                            setSelectedOrderId(o.id)
+                            setTab('Track Shoes')
+                          }}
+                        >
+                          <div className="wmk-update-icon">
+                            <Sparkles size={15} />
+                          </div>
+                          <div className="wmk-update-body">
+                            <b>{o.status}</b>
+                            <span>
+                              {o.id} · {o.date}
+                            </span>
+                          </div>
+                          <ChevronRight size={15} className="wmk-update-arrow" />
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -2217,20 +2248,27 @@ function CustomerDashboard({
               servicesCatalog={servicesCatalog}
               onCancel={() => setTab('Dashboard')}
               onCompleteBooking={(newOrder) => {
-                setOrders((prev) => [newOrder, ...prev])
-                setSelectedOrderId(newOrder.id)
+                const enrichedOrder: JobOrder = {
+                  ...newOrder,
+                  customer: profileName || newOrder.customer,
+                  email: userMeta.email || newOrder.email,
+                }
+                setOrders((prev) => [enrichedOrder, ...prev])
+                setSelectedOrderId(enrichedOrder.id)
                 void createBookingRecord({
                   customerId: 1,
                   branchServiceId: 1,
                   scheduledAt: new Date().toISOString(),
-                  priceAtBooking: Number(newOrder.price.replace(/[^\d.]/g, '')) || 650,
-                  customerRequest: `${newOrder.shoe} — ${newOrder.service}`,
-                  customerEmail: newOrder.email,
-                  customerName: newOrder.customer,
-                  serviceName: newOrder.service,
-                  branchName: newOrder.branch,
+                  priceAtBooking: Number(enrichedOrder.price.replace(/[^\d.]/g, '')) || 650,
+                  customerRequest: `${enrichedOrder.shoe} — ${enrichedOrder.service}`,
+                  customerEmail: enrichedOrder.email,
+                  customerName: enrichedOrder.customer,
+                  serviceName: enrichedOrder.service,
+                  branchName: enrichedOrder.branch,
                 }).catch(() => null)
-                showToast(`Appointment confirmed! Job Order ${newOrder.id} created for ${newOrder.date} at ${newOrder.time}.`)
+                showToast(
+                  `Appointment confirmed! Job Order ${enrichedOrder.id} created for ${enrichedOrder.date} at ${enrichedOrder.time}.`
+                )
                 setTab('Track Shoes')
               }}
             />
@@ -2354,49 +2392,43 @@ function CustomerDashboard({
               <p>Stay updated on assessments, cleaning milestones, and pickup readiness.</p>
 
               <div className="dash-panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  {
-                    title: 'Deep Cleaning in Progress — WMK-2026-01842',
-                    body: 'Specialist Carlo Mendoza completed midsole de-yellowing on your Air Jordan 1 Retro High.',
-                    time: '25 minutes ago',
-                    unread: true,
-                  },
-                  {
-                    title: 'Shoe Assessment Approved — WMK-2026-01842',
-                    body: 'Initial inspection and before-service photos have been uploaded to your order record.',
-                    time: '3 hours ago',
-                    unread: true,
-                  },
-                  {
-                    title: 'Appointment Reminder — San Juan City Branch',
-                    body: 'Your upcoming drop-off is scheduled for March 28, 2026 at 10:30 AM.',
-                    time: '1 day ago',
-                    unread: true,
-                  },
-                ].map((n, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: 16,
-                      borderRadius: 12,
-                      border: '1px solid #e5e7eb',
-                      background: n.unread ? '#fffbfb' : '#fff',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 16,
-                    }}
-                  >
-                    <div>
-                      <b style={{ fontSize: 13.5, display: 'block', marginBottom: 4 }}>{n.title}</b>
-                      <p style={{ fontSize: 12.5, color: '#6b7280', margin: 0 }}>{n.body}</p>
-                      <small style={{ fontSize: 11, color: '#9ca3af' }}>{n.time}</small>
-                    </div>
-                    <button type="button" className="outline" onClick={() => setTab('Track Shoes')}>
-                      View Order
-                    </button>
+                {customerNotifications.length === 0 ? (
+                  <div style={{ padding: 24, textAlign: 'center', color: '#6b7280' }}>
+                    No notifications yet. Notifications will appear here automatically once you book an appointment.
                   </div>
-                ))}
+                ) : (
+                  customerNotifications.map((n) => (
+                    <div
+                      key={n.id}
+                      style={{
+                        padding: 16,
+                        borderRadius: 12,
+                        border: '1px solid #e5e7eb',
+                        background: n.unread ? '#fffbfb' : '#fff',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 16,
+                      }}
+                    >
+                      <div>
+                        <b style={{ fontSize: 13.5, display: 'block', marginBottom: 4 }}>{n.title}</b>
+                        <p style={{ fontSize: 12.5, color: '#6b7280', margin: 0 }}>{n.body}</p>
+                        <small style={{ fontSize: 11, color: '#9ca3af' }}>{n.time}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="outline"
+                        onClick={() => {
+                          setSelectedOrderId(n.id)
+                          setTab('Track Shoes')
+                        }}
+                      >
+                        View Order
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </>
           )}
@@ -2687,6 +2719,25 @@ function StaffDashboard({
   const [selectedOrderId, setSelectedOrderId] = useState<string>(orders[0]?.id || 'WMK-2026-0046')
   const [toast, setToast] = useState('')
 
+  const staffPendingCount = orders.filter((o) => o.status === 'Pending Assessment').length
+  const staffInProgressCount = orders.filter((o) => o.status === 'In Progress' || o.status === 'Quality Check').length
+  const staffCompletedCount = orders.filter((o) => o.status === 'Completed').length
+  const staffUnreadCount = orders.filter((o) => o.status !== 'Completed').length
+  const staffInitials =
+    userMeta.name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() || '')
+      .join('') || 'ST'
+  const staffTodayStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
   const sidebarItems: { key: typeof tab; icon: React.ReactNode; badge?: number }[] = [
     { key: 'Dashboard', icon: <LayoutDashboard size={17} /> },
     { key: 'Job Orders', icon: <ClipboardCheck size={17} /> },
@@ -2695,7 +2746,11 @@ function StaffDashboard({
     { key: 'Assigned Services', icon: <Briefcase size={17} /> },
     { key: 'Inventory', icon: <Package size={17} /> },
     { key: 'Customers', icon: <Users size={17} /> },
-    { key: 'Notifications', icon: <Bell size={17} />, badge: 3 },
+    {
+      key: 'Notifications',
+      icon: <Bell size={17} />,
+      badge: staffUnreadCount > 0 ? staffUnreadCount : undefined,
+    },
   ]
 
   const showToast = (msg: string) => {
@@ -2797,12 +2852,12 @@ function StaffDashboard({
           <div className="dash-user">
             <button type="button" className="dash-bell-btn" onClick={() => setTab('Notifications')}>
               <Bell size={17} />
-              <span className="badge-dot">3</span>
+              {staffUnreadCount > 0 && <span className="badge-dot">{staffUnreadCount}</span>}
             </button>
-            <div className="dash-avatar">CM</div>
+            <div className="dash-avatar">{staffInitials}</div>
             <div className="dash-user-info">
               <b>{userMeta.name}</b>
-              <small>Staff · {(userMeta.branch || 'Wash My Kicks – San Juan City').replace('Wash My Kicks – ', '')}</small>
+              <small>Staff · {(userMeta.branch || 'Wash My Kicks – Pasig City').replace('Wash My Kicks – ', '')}</small>
             </div>
           </div>
         </header>
@@ -2829,11 +2884,11 @@ function StaffDashboard({
           {tab === 'Dashboard' && (
             <>
               <div className="wmk-breadcrumb">
-                <b>Dashboard</b> &gt; Good morning, {userMeta.name.split(' ')[0]}.
+                <b>Dashboard</b> &gt; Welcome, {userMeta.name.split(' ')[0]}.
               </div>
               <span className="eyebrow">BRANCH OPERATIONS</span>
-              <h1>Good morning, {userMeta.name.split(' ')[0]}.</h1>
-              <p>{(userMeta.branch || 'Wash My Kicks – San Juan City').replace('Wash My Kicks – ', '')} branch · Tuesday, March 24</p>
+              <h1>Welcome, {userMeta.name.split(' ')[0]}.</h1>
+              <p>{(userMeta.branch || 'Wash My Kicks – Pasig City').replace('Wash My Kicks – ', '')} branch · {staffTodayStr}</p>
 
               {/* Row 1: 4 Icon KPI Stat Cards */}
               <div className="wmk-inv-kpi-grid">
@@ -2843,8 +2898,8 @@ function StaffDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Assigned Orders</span>
-                    <b>8 orders</b>
-                    <small>2 high priority</small>
+                    <b>{orders.length} orders</b>
+                    <small>{orders.length === 0 ? 'No active orders yet' : 'Live branch queue'}</small>
                   </div>
                 </div>
 
@@ -2854,8 +2909,8 @@ function StaffDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Orders In Progress</span>
-                    <b>5 pairs</b>
-                    <small>3 due this week</small>
+                    <b>{staffInProgressCount} pairs</b>
+                    <small>{staffInProgressCount === 0 ? 'No pairs in progress' : 'Active service stage'}</small>
                   </div>
                 </div>
 
@@ -2865,8 +2920,8 @@ function StaffDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Orders Completed</span>
-                    <b>14 pairs</b>
-                    <small>This month</small>
+                    <b>{staffCompletedCount} pairs</b>
+                    <small>{staffCompletedCount === 0 ? 'No completed pairs yet' : 'Quality checked'}</small>
                   </div>
                 </div>
 
@@ -2876,8 +2931,8 @@ function StaffDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Pending Assessments</span>
-                    <b>3 pairs</b>
-                    <small>Needs attention</small>
+                    <b>{staffPendingCount} pairs</b>
+                    <small>{staffPendingCount === 0 ? 'All assessed' : 'Needs attention'}</small>
                   </div>
                 </div>
               </div>
@@ -3386,6 +3441,24 @@ function AdminDashboard({
   const lowStockCount = inventory.filter(
     (i) => getInventoryStatus(i.stock, i.target) !== 'Healthy'
   ).length
+  const adminInProgressCount = orders.filter((o) => o.status === 'In Progress' || o.status === 'Quality Check').length
+  const adminCompletedCount = orders.filter((o) => o.status === 'Completed').length
+  const adminReadyCount = orders.filter((o) => o.status === 'Ready for Pickup').length
+  const adminRevenueTotal = orders.reduce((sum, o) => sum + pesoToNumber(o.price), 0)
+  const adminInitials =
+    userMeta.name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() || '')
+      .join('') || 'AD'
+  const adminTodayStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
 
   return (
     <section className="dashboard">
@@ -3418,9 +3491,11 @@ function AdminDashboard({
           <div className="dash-user">
             <button type="button" className="dash-bell-btn" onClick={() => setTab('Audit Trail')}>
               <Bell size={17} />
-              <span className="badge-dot">3</span>
+              {(orders.length + lowStockCount) > 0 && (
+                <span className="badge-dot">{orders.length + lowStockCount}</span>
+              )}
             </button>
-            <div className="dash-avatar">MC</div>
+            <div className="dash-avatar">{adminInitials}</div>
             <div className="dash-user-info">
               <b>{userMeta.name}</b>
               <small>Administrator</small>
@@ -3450,11 +3525,11 @@ function AdminDashboard({
           {tab === 'Dashboard' && (
             <>
               <div className="wmk-breadcrumb">
-                <b>Dashboard</b> &gt; Good morning, {userMeta.name.split(' ')[0]}.
+                <b>Dashboard</b> &gt; Welcome, {userMeta.name.split(' ')[0]}.
               </div>
               <span className="eyebrow">EXECUTIVE COMMAND CENTER</span>
-              <h1>Good morning, {userMeta.name.split(' ')[0]}.</h1>
-              <p>All 7 branches · Tuesday, March 24</p>
+              <h1>Welcome, {userMeta.name.split(' ')[0]}.</h1>
+              <p>All 7 branches · {adminTodayStr}</p>
 
               {/* Row 1: 7 Required Admin Widgets styled with the white card + icon UI */}
               <div className="wmk-inv-kpi-grid">
@@ -3463,9 +3538,9 @@ function AdminDashboard({
                     <Package size={18} />
                   </div>
                   <div className="wmk-inv-kpi-body">
-                    <span>Total Orders Today</span>
-                    <b>46 orders</b>
-                    <small>+14% vs yesterday</small>
+                    <span>Total Orders</span>
+                    <b>{orders.length} orders</b>
+                    <small>Live database orders</small>
                   </div>
                 </div>
 
@@ -3475,7 +3550,7 @@ function AdminDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Orders In Progress</span>
-                    <b>128 pairs</b>
+                    <b>{adminInProgressCount} pairs</b>
                     <small>Across 7 active branches</small>
                   </div>
                 </div>
@@ -3486,8 +3561,8 @@ function AdminDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Completed Orders</span>
-                    <b>64 pairs</b>
-                    <small>Completed today</small>
+                    <b>{adminCompletedCount} pairs</b>
+                    <small>Quality checked</small>
                   </div>
                 </div>
 
@@ -3497,7 +3572,7 @@ function AdminDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Ready for Pickup</span>
-                    <b>23 pairs</b>
+                    <b>{adminReadyCount} pairs</b>
                     <small>Awaiting customer claim</small>
                   </div>
                 </div>
@@ -3508,8 +3583,8 @@ function AdminDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Active Customers</span>
-                    <b>8,492</b>
-                    <small>96% retention rate</small>
+                    <b>{usersList.length}</b>
+                    <small>Registered accounts</small>
                   </div>
                 </div>
 
@@ -3519,8 +3594,8 @@ function AdminDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Inventory Alerts</span>
-                    <b>{17 + lowStockCount} alerts</b>
-                    <small>Needs attention</small>
+                    <b>{lowStockCount} alerts</b>
+                    <small>{lowStockCount === 0 ? 'Stock healthy' : 'Needs attention'}</small>
                   </div>
                 </div>
 
@@ -3534,8 +3609,8 @@ function AdminDashboard({
                   </div>
                   <div className="wmk-inv-kpi-body">
                     <span>Revenue Summary</span>
-                    <b>₱784,820</b>
-                    <small>Month-to-date gross revenue across all branches</small>
+                    <b>₱{adminRevenueTotal.toLocaleString()}</b>
+                    <small>Gross revenue from live orders across all branches</small>
                   </div>
                 </div>
               </div>
