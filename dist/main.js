@@ -32332,13 +32332,17 @@ ${suffix}`;
     onCompleteBooking,
     onCancel
   }) {
+    const today = /* @__PURE__ */ new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDate = today.getDate();
     const activeServices = servicesCatalog.filter((s) => !s.archived);
     const [step, setStep] = (0, import_react5.useState)(1);
     const [selectedBranchId, setSelectedBranchId] = (0, import_react5.useState)(initialBranchId);
     const [selectedServiceId, setSelectedServiceId] = (0, import_react5.useState)("02");
-    const [calendarYear, setCalendarYear] = (0, import_react5.useState)(2026);
-    const [calendarMonth, setCalendarMonth] = (0, import_react5.useState)(2);
-    const [selectedDay, setSelectedDay] = (0, import_react5.useState)(28);
+    const [calendarYear, setCalendarYear] = (0, import_react5.useState)(todayYear);
+    const [calendarMonth, setCalendarMonth] = (0, import_react5.useState)(todayMonth);
+    const [selectedDay, setSelectedDay] = (0, import_react5.useState)(todayDate);
     const [selectedTime, setSelectedTime] = (0, import_react5.useState)("10:30 AM");
     const [shoeModel, setShoeModel] = (0, import_react5.useState)("Air Jordan 1 Retro High");
     const [customerEmail, setCustomerEmail] = (0, import_react5.useState)("juan.delacruz@email.com");
@@ -32369,9 +32373,13 @@ ${suffix}`;
       { length: firstDayOfWeek },
       (_, idx) => daysInPrevMonth - firstDayOfWeek + idx + 1
     );
-    const activeSelectedDay = Math.min(selectedDay, daysInMonth);
+    const isCurrentMonth = calendarYear === todayYear && calendarMonth === todayMonth;
+    const canGoPrevMonth = calendarYear > todayYear || calendarYear === todayYear && calendarMonth > todayMonth;
+    const minAllowedDay = isCurrentMonth ? todayDate : 1;
+    const activeSelectedDay = Math.max(minAllowedDay, Math.min(selectedDay, daysInMonth));
     const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`;
     const handlePrevMonth = () => {
+      if (!canGoPrevMonth) return;
       if (calendarMonth === 0) {
         setCalendarMonth(11);
         setCalendarYear((y) => y - 1);
@@ -32666,7 +32674,17 @@ ${suffix}`;
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-box", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-nav", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Previous month", onClick: handlePrevMonth, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronLeft, { size: 14 }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+              "button",
+              {
+                type: "button",
+                "aria-label": "Previous month",
+                disabled: !canGoPrevMonth,
+                style: !canGoPrevMonth ? { opacity: 0.35, cursor: "not-allowed" } : void 0,
+                onClick: handlePrevMonth,
+                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronLeft, { size: 14 })
+              }
+            ),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
               currentMonthName,
               " ",
@@ -32677,16 +32695,23 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-grid", children: [
             ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "calendar-dow", children: d }, d)),
             prevMonthTrailingDays.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", disabled: true, className: "calendar-day muted", children: d }, `prev-${d}`)),
-            Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "button",
-              {
-                type: "button",
-                className: `calendar-day ${activeSelectedDay === day ? "selected" : ""}`,
-                onClick: () => setSelectedDay(day),
-                children: day
-              },
-              day
-            ))
+            Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => {
+              const isPastDay = calendarYear < todayYear || calendarYear === todayYear && calendarMonth < todayMonth || isCurrentMonth && day < todayDate;
+              return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "button",
+                {
+                  type: "button",
+                  disabled: isPastDay,
+                  className: `calendar-day ${isPastDay ? "muted" : ""} ${!isPastDay && activeSelectedDay === day ? "selected" : ""}`,
+                  style: isPastDay ? { opacity: 0.35, cursor: "not-allowed" } : void 0,
+                  onClick: () => {
+                    if (!isPastDay) setSelectedDay(day);
+                  },
+                  children: day
+                },
+                day
+              );
+            })
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [

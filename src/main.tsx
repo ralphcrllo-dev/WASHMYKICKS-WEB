@@ -1151,13 +1151,18 @@ function CustomerBookAppointmentWizard({
   onCompleteBooking: (newOrder: JobOrder) => void
   onCancel: () => void
 }) {
+  const today = new Date()
+  const todayYear = today.getFullYear()
+  const todayMonth = today.getMonth()
+  const todayDate = today.getDate()
+
   const activeServices = servicesCatalog.filter((s) => !s.archived)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [selectedBranchId, setSelectedBranchId] = useState<number>(initialBranchId)
   const [selectedServiceId, setSelectedServiceId] = useState<string>('02') // Deep Cleaning default like screenshot
-  const [calendarYear, setCalendarYear] = useState<number>(2026)
-  const [calendarMonth, setCalendarMonth] = useState<number>(2) // 0=Jan, 2=March default
-  const [selectedDay, setSelectedDay] = useState<number>(28)
+  const [calendarYear, setCalendarYear] = useState<number>(todayYear)
+  const [calendarMonth, setCalendarMonth] = useState<number>(todayMonth)
+  const [selectedDay, setSelectedDay] = useState<number>(todayDate)
   const [selectedTime, setSelectedTime] = useState<string>('10:30 AM')
   const [shoeModel, setShoeModel] = useState<string>('Air Jordan 1 Retro High')
 
@@ -1191,10 +1196,15 @@ function CustomerBookAppointmentWizard({
     { length: firstDayOfWeek },
     (_, idx) => daysInPrevMonth - firstDayOfWeek + idx + 1
   )
-  const activeSelectedDay = Math.min(selectedDay, daysInMonth)
+  const isCurrentMonth = calendarYear === todayYear && calendarMonth === todayMonth
+  const canGoPrevMonth =
+    calendarYear > todayYear || (calendarYear === todayYear && calendarMonth > todayMonth)
+  const minAllowedDay = isCurrentMonth ? todayDate : 1
+  const activeSelectedDay = Math.max(minAllowedDay, Math.min(selectedDay, daysInMonth))
   const formattedDate = `${currentMonthName} ${activeSelectedDay}, ${calendarYear}`
 
   const handlePrevMonth = () => {
+    if (!canGoPrevMonth) return
     if (calendarMonth === 0) {
       setCalendarMonth(11)
       setCalendarYear((y) => y - 1)
@@ -1524,7 +1534,13 @@ function CustomerBookAppointmentWizard({
 
           <div className="calendar-box">
             <div className="calendar-nav">
-              <button type="button" aria-label="Previous month" onClick={handlePrevMonth}>
+              <button
+                type="button"
+                aria-label="Previous month"
+                disabled={!canGoPrevMonth}
+                style={!canGoPrevMonth ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+                onClick={handlePrevMonth}
+              >
                 <ChevronLeft size={14} />
               </button>
               <b>
@@ -1545,16 +1561,28 @@ function CustomerBookAppointmentWizard({
                   {d}
                 </button>
               ))}
-              {Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => (
-                <button
-                  key={day}
-                  type="button"
-                  className={`calendar-day ${activeSelectedDay === day ? 'selected' : ''}`}
-                  onClick={() => setSelectedDay(day)}
-                >
-                  {day}
-                </button>
-              ))}
+              {Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => {
+                const isPastDay =
+                  calendarYear < todayYear ||
+                  (calendarYear === todayYear && calendarMonth < todayMonth) ||
+                  (isCurrentMonth && day < todayDate)
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    disabled={isPastDay}
+                    className={`calendar-day ${isPastDay ? 'muted' : ''} ${
+                      !isPastDay && activeSelectedDay === day ? 'selected' : ''
+                    }`}
+                    style={isPastDay ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+                    onClick={() => {
+                      if (!isPastDay) setSelectedDay(day)
+                    }}
+                  >
+                    {day}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
