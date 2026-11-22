@@ -1383,7 +1383,7 @@ function CustomerBookAppointmentWizard({
       price: selectedService.price.replace('From ', ''),
       status: 'Pending Assessment',
       stageIndex: 1,
-      specialist: 'Carlo Mendoza',
+      specialist: 'Pending Specialist Assessment',
       assessed: false,
       docs: createDefaultDocumentation(),
     }
@@ -2828,7 +2828,22 @@ function StaffDashboard({
     }
     const targetOrder = orders.find((o) => o.id === id)
     setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: nextStatus, stageIndex: stageMap[nextStatus] } : o))
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              status: nextStatus,
+              stageIndex: stageMap[nextStatus],
+              specialist:
+                !o.specialist ||
+                o.specialist === 'Carlo Mendoza' ||
+                o.specialist === 'Pending Specialist Assessment' ||
+                o.specialist === 'Assigned Specialist'
+                  ? userMeta.name
+                  : o.specialist,
+            }
+          : o
+      )
     )
     void updateServiceOrderStatus({
       orderNumber: id,
@@ -3259,6 +3274,7 @@ function StaffDashboard({
                             shoe: draftUpdate.shoeLabel || o.shoe,
                             shoeBrand: draftUpdate.shoeBrand || o.shoeBrand,
                             shoeModel: draftUpdate.shoeModel || o.shoeModel,
+                            specialist: userMeta.name,
                             assessmentNotes: draftUpdate.notes,
                             conditionTags: draftUpdate.conditions,
                           }
@@ -3288,6 +3304,7 @@ function StaffDashboard({
                           shoe: shoeLabel || o.shoe,
                           shoeBrand: shoeBrand ?? o.shoeBrand,
                           shoeModel: shoeModel ?? o.shoeModel,
+                          specialist: userMeta.name,
                           assessed: true,
                           status: 'In Progress',
                           stageIndex: 3,
@@ -3297,7 +3314,7 @@ function StaffDashboard({
                       : o
                   )
                 )
-                showToast(`Assessment completed for ${orderId}. Order moved to "In Progress".`)
+                showToast(`Assessment completed for ${orderId} by ${userMeta.name}. Order moved to "In Progress".`)
               }}
             />
           )}
@@ -4416,9 +4433,19 @@ function AdminDashboard({
                             }}
                             style={{ padding: '5px 8px', border: '1px solid #d1d5db', borderRadius: 6, fontSize: 12 }}
                           >
-                            <option value="Carlo Mendoza">Carlo Mendoza</option>
-                            <option value="Marco Santos">Marco Santos</option>
-                            <option value="Paolo Rivera">Paolo Rivera</option>
+                            {Array.from(
+                              new Set([
+                                o.specialist || 'Pending Specialist Assessment',
+                                ...usersList
+                                  .filter((u) => u.role.toLowerCase().includes('staff'))
+                                  .map((u) => u.name),
+                                'Pending Specialist Assessment',
+                              ])
+                            ).map((specName) => (
+                              <option key={specName} value={specName}>
+                                {specName}
+                              </option>
+                            ))}
                           </select>
                         </td>
                         <td>
@@ -4886,11 +4913,31 @@ function App() {
     fetchLiveProductionData()
       .then((live) => {
         if (live.orders.length > 0) {
+          const staffUsers = (live.users || []).filter((u: any) =>
+            String(u.role || '').toLowerCase().includes('staff')
+          )
           setOrders(
-            live.orders.map((o: any) => ({
-              ...o,
-              docs: o.docs || createDefaultDocumentation(),
-            }))
+            live.orders.map((o: any) => {
+              let resolvedSpec = o.specialist
+              if (
+                !resolvedSpec ||
+                resolvedSpec === 'Carlo Mendoza' ||
+                resolvedSpec === 'Assigned Specialist'
+              ) {
+                const branchStaff =
+                  staffUsers.find((s: any) => s.branch === o.branch) || staffUsers[0]
+                if (o.assessed || o.assessmentNotes || o.status !== 'Pending Assessment') {
+                  resolvedSpec = branchStaff?.name || 'Branch Specialist'
+                } else {
+                  resolvedSpec = branchStaff?.name || 'Pending Specialist Assessment'
+                }
+              }
+              return {
+                ...o,
+                specialist: resolvedSpec,
+                docs: o.docs || createDefaultDocumentation(),
+              }
+            })
           )
         }
         if (live.inventory.length > 0) {
@@ -4925,9 +4972,18 @@ function App() {
     role: Role,
     meta: { email: string; employeeId?: string; branch?: string; name?: string }
   ) => {
+    const fallbackName =
+      (meta.email || '')
+        .split('@')[0]
+        .replace(/[0-9._-]+/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        .join(' ') || (role === 'customer' ? 'Customer' : role === 'staff' ? 'Staff Specialist' : 'Administrator')
     setActiveRole(role)
     setUserMeta({
-      name: meta.name || (role === 'customer' ? 'Juan Dela Cruz' : role === 'staff' ? 'Carlo Mendoza' : 'Mika Cruz'),
+      name: meta.name || fallbackName,
       email: meta.email,
       employeeId: meta.employeeId,
       branch: meta.branch,
