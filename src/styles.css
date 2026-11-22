@@ -2874,10 +2874,9 @@ footer > div:not(.footer-brand) button:hover {
 .wmk-angle-bar {
   margin-top: 16px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .wmk-angle-tabs {

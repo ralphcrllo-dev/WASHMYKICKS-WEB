@@ -34,7 +34,7 @@ export const ANGLE_META: {
 }[] = [
   { key: 'left', tabLabel: 'LEFT SIDE', setTitle: 'Left profile', shortLabel: 'Left side' },
   { key: 'right', tabLabel: 'RIGHT SIDE', setTitle: 'Right profile', shortLabel: 'Right side' },
-  { key: 'toe', tabLabel: 'TOE BOX', setTitle: 'Toe box', shortLabel: 'Toe' },
+  { key: 'toe', tabLabel: 'TOE BOX', setTitle: 'Toe box', shortLabel: 'Toe box' },
   { key: 'sole', tabLabel: 'SOLE', setTitle: 'Outsole', shortLabel: 'Sole' },
 ]
 
