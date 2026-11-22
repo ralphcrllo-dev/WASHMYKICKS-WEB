@@ -837,9 +837,82 @@ export async function triggerDatabaseBackupManifest() {
    and audit_logs so dashboards display only real production rows.
    ============================================================================ */
 
+const DEMO_SEED_EMAILS = new Set([
+  'mika.cruz@washmykicks.ph',
+  'carlo.mendoza@washmykicks.ph',
+  'marco.santos@washmykicks.ph',
+  'paolo.rivera@washmykicks.ph',
+  'lara.gomez@washmykicks.ph',
+  'juan.delacruz@email.com',
+  'angela.m@email.com',
+  'jiro.reyes@email.com',
+  'kaye.s@email.com',
+])
+
+const DEMO_SEED_ORDER_IDS = new Set([
+  'WMK-2026-0001',
+  'WMK-2026-0002',
+  'WMK-2026-0003',
+  'WMK-2026-0004',
+  'WMK-2026-0041',
+  'WMK-2026-0042',
+  'WMK-2026-0043',
+  'WMK-2026-0044',
+  'WMK-2026-0045',
+  'WMK-2026-0046',
+  'WMK-2026-01842',
+  'WMK-2026-01849',
+  'WMK-2026-01835',
+  'WMK-2026-01790',
+])
+
+export function loadCachedProductionData(): {
+  orders: any[]
+  inventory: any[]
+  users: { id: string; name: string; email: string; role: string; branch: string; active: boolean }[]
+} {
+  let cachedOrders: any[] = []
+  try {
+    const saved = JSON.parse(localStorage.getItem(ORDERS_VAULT_KEY) || '[]')
+    if (Array.isArray(saved)) {
+      cachedOrders = saved.filter((o: any) => o && o.id && !DEMO_SEED_ORDER_IDS.has(String(o.id)))
+    }
+  } catch {}
+
+  let cachedInventory: any[] = []
+  try {
+    const savedInv = JSON.parse(localStorage.getItem(INVENTORY_VAULT_KEY) || '[]')
+    if (Array.isArray(savedInv)) cachedInventory = savedInv
+  } catch {}
+
+  const accs = loadProvisionedAccounts()
+  const cachedUsers = accs
+    .filter((a) => !DEMO_SEED_EMAILS.has(a.email.trim().toLowerCase()))
+    .map((a, i) => ({
+      id: `USR-${String(i + 1).padStart(2, '0')}`,
+      name: `${a.firstName} ${a.lastName}`.trim() || a.username,
+      email: a.email,
+      role: a.role,
+      branch: a.branchName || (a.role === 'CUSTOMER' ? 'Pasig City' : 'All Branches'),
+      active: a.accountStatus === 'ACTIVE',
+    }))
+
+  return {
+    orders: cachedOrders,
+    inventory: cachedInventory,
+    users: cachedUsers,
+  }
+}
+
 export async function fetchLiveProductionData() {
+  const cached = loadCachedProductionData()
   if (!supabase || !isSupabaseConfigured) {
-    return { orders: [], inventory: [], users: [], auditLogs: [] }
+    return {
+      orders: cached.orders,
+      inventory: cached.inventory,
+      users: cached.users,
+      auditLogs: [] as ErdAuditLog[],
+    }
   }
 
   const stageMap: Record<string, number> = {
@@ -850,9 +923,9 @@ export async function fetchLiveProductionData() {
     Completed: 5,
   }
 
-  let liveOrders: any[] = []
-  try {
-    const { data: soRows } = await supabase
+  // Run all 4 Supabase queries in PARALLEL instead of sequentially (4x faster load)
+  const [soResult, invResult, usrResult, auditsResult] = await Promise.all([
+    supabase
       .from('service_orders')
       .select(
         `
@@ -886,29 +959,68 @@ export async function fetchLiveProductionData() {
       `
       )
       .order('order_id', { ascending: false })
+      .then(
+        (r) => r.data,
+        () => null
+      ),
+    supabase
+      .from('v_branch_inventory_stock')
+      .select('*')
+      .order('branch_inventory_id', { ascending: true })
+      .then(
+        (r) => r.data,
+        () => null
+      ),
+    supabase
+      .from('user_accounts')
+      .select(
+        'user_id, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)'
+      )
+      .order('user_id', { ascending: false })
+      .then(
+        (r) => r.data,
+        () => null
+      ),
+    fetchAuditLogsList(50).catch(() => [] as ErdAuditLog[]),
+  ])
 
-    if (Array.isArray(soRows)) {
-      liveOrders = soRows.map((row: any) => {
-        const bk = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings
-        const cp = bk?.customer_profiles
-        const ua = Array.isArray(cp?.user_accounts) ? cp?.user_accounts[0] : cp?.user_accounts
-        const bs = bk?.branch_services
-        const br = bs?.branches
-        const ss = bs?.shoe_services
-        const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments
+  const orderMap = new Map<string, any>()
+  // 1. Start with cached local orders (preserves assessment notes, uploaded photos, & instant bookings)
+  cached.orders.forEach((ord) => {
+    if (ord?.id && !DEMO_SEED_ORDER_IDS.has(String(ord.id))) {
+      orderMap.set(String(ord.id), ord)
+    }
+  })
 
-        const rawReq = String(bk?.customer_request || row.work_instructions || '')
-        const shoeTitle = rawReq.split('—')[0]?.trim() || 'Sneaker Pair'
-        const email = ua?.email || ''
-        const fullName = cp ? `${cp.first_name || ''} ${cp.last_name || ''}`.trim() : 'Customer'
-        const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now())
-        const dateStr = sched.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-        const timeStr = sched.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-        const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650)
-        const st = (row.order_status || 'Pending Assessment') as OrderStatus
+  // 2. Merge live rows from Supabase service_orders
+  if (Array.isArray(soResult)) {
+    soResult.forEach((row: any) => {
+      const ordId = String(row.order_number || `WMK-2026-${String(row.order_id).padStart(4, '0')}`)
+      if (DEMO_SEED_ORDER_IDS.has(ordId)) return
 
-        return {
-          id: String(row.order_number || `WMK-2026-${String(row.order_id).padStart(4, '0')}`),
+      const bk = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings
+      const cp = bk?.customer_profiles
+      const ua = Array.isArray(cp?.user_accounts) ? cp?.user_accounts[0] : cp?.user_accounts
+      const bs = bk?.branch_services
+      const br = bs?.branches
+      const ss = bs?.shoe_services
+      const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments
+
+      const email = String(ua?.email || '').trim().toLowerCase()
+      if (DEMO_SEED_EMAILS.has(email)) return
+
+      const rawReq = String(bk?.customer_request || row.work_instructions || '')
+      const shoeTitle = rawReq.split('—')[0]?.trim() || 'Sneaker Pair'
+      const fullName = cp ? `${cp.first_name || ''} ${cp.last_name || ''}`.trim() : 'Customer'
+      const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now())
+      const dateStr = sched.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      const timeStr = sched.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650)
+      const st = (row.order_status || 'Pending Assessment') as OrderStatus
+
+      if (!orderMap.has(ordId)) {
+        orderMap.set(ordId, {
+          id: ordId,
           customer: fullName || 'Customer',
           email: email || '',
           shoe: shoeTitle,
@@ -919,120 +1031,80 @@ export async function fetchLiveProductionData() {
           price: `₱${priceNum.toLocaleString()}`,
           status: st,
           stageIndex: stageMap[st] || 1,
-          specialist: 'Assigned Specialist',
+          specialist: 'Pending Specialist Assessment',
           assessed: sa?.assessment_status === 'Completed' || sa?.assessment_status === 'Approved',
           assessmentNotes: sa?.damage_findings || sa?.service_notes || undefined,
-        }
-      })
-    }
-  } catch {}
+        })
+      }
+    })
+  }
 
-  let liveInventory: any[] = []
-  try {
-    const { data: invRows } = await supabase
-      .from('vw_branch_inventory_stock')
-      .select('*')
-      .order('branch_inventory_id', { ascending: true })
+  const liveOrders = Array.from(orderMap.values())
 
-    if (Array.isArray(invRows)) {
-      liveInventory = invRows.map((r: any) => ({
-        id: `inv-${r.branch_inventory_id}`,
-        name: String(r.item_name || 'Inventory Item'),
-        category: (r.category || 'Cleaning Chemicals') as any,
-        branch: String(r.branch_name || 'Wash My Kicks – Pasig City'),
-        stock: Number(r.current_stock ?? 0),
-        target: Math.max(10, Number(r.reorder_level ?? 10) * 2),
-      }))
-    }
-  } catch {}
+  // Merge inventory
+  let liveInventory: any[] = cached.inventory
+  if (Array.isArray(invResult) && invResult.length > 0 && liveInventory.length === 0) {
+    liveInventory = invResult.map((r: any) => ({
+      id: `inv-${r.branch_inventory_id}`,
+      name: String(r.item_name || 'Inventory Item'),
+      category: (r.category || 'Cleaning Chemicals') as any,
+      branch: String(r.branch_name || 'Wash My Kicks – Pasig City'),
+      stock: Number(r.current_stock ?? 0),
+      target: Math.max(10, Number(r.reorder_level ?? 10) * 2),
+    }))
+  }
 
-  const demoSeedEmails = new Set([
-    'mika.cruz@washmykicks.ph',
-    'carlo.mendoza@washmykicks.ph',
-    'marco.santos@washmykicks.ph',
-    'paolo.rivera@washmykicks.ph',
-    'lara.gomez@washmykicks.ph',
-    'juan.delacruz@email.com',
-    'angela.m@email.com',
-    'jiro.reyes@email.com',
-    'kaye.s@email.com',
-  ])
-
+  // Merge users
   const userMap = new Map<
     string,
     { id: string; name: string; email: string; role: string; branch: string; active: boolean }
   >()
+  cached.users.forEach((u) => {
+    userMap.set(u.email.trim().toLowerCase(), u)
+  })
 
-  // 1. Include all accounts created on this browser/device
-  const accs = loadProvisionedAccounts()
-  accs.forEach((a, i) => {
-    const emailKey = a.email.trim().toLowerCase()
-    if (!demoSeedEmails.has(emailKey)) {
+  if (Array.isArray(usrResult)) {
+    usrResult.forEach((u: any) => {
+      const emailKey = String(u.email || '').trim().toLowerCase()
+      if (!emailKey || DEMO_SEED_EMAILS.has(emailKey)) return
+      const profile = Array.isArray(u.customer_profiles) ? u.customer_profiles[0] : u.customer_profiles
+      const fullName = profile
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+        : ''
+      if (!userMap.has(emailKey)) {
+        userMap.set(emailKey, {
+          id: `USR-${String(u.user_id).padStart(2, '0')}`,
+          name: fullName || String(u.username || u.email || 'User'),
+          email: String(u.email || ''),
+          role: String(u.roles?.role_name || 'CUSTOMER'),
+          branch: String(u.branches?.branch_name || 'All Branches'),
+          active: u.account_status === 'ACTIVE' || u.account_status === 'PENDING_VERIFICATION',
+        })
+      }
+    })
+  }
+
+  // Also ensure any customer who booked an order is represented in the users list
+  liveOrders.forEach((ord) => {
+    const emailKey = String(ord.email || '').trim().toLowerCase()
+    if (emailKey && !DEMO_SEED_EMAILS.has(emailKey) && !userMap.has(emailKey)) {
       userMap.set(emailKey, {
-        id: `USR-${String(i + 1).padStart(2, '0')}`,
-        name: `${a.firstName} ${a.lastName}`.trim() || a.username,
-        email: a.email,
-        role: a.role,
-        branch: a.branchName || (a.role === 'CUSTOMER' ? 'Pasig City' : 'All Branches'),
-        active: a.accountStatus === 'ACTIVE',
+        id: `USR-${String(userMap.size + 1).padStart(2, '0')}`,
+        name: String(ord.customer || 'Customer'),
+        email: ord.email,
+        role: 'CUSTOMER',
+        branch: String(ord.branch || 'Wash My Kicks – Pasig City'),
+        active: true,
       })
     }
   })
 
-  // 2. Merge live rows from Supabase public.user_accounts
-  try {
-    const { data: usrRows } = await supabase
-      .from('user_accounts')
-      .select('user_id, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)')
-      .order('user_id', { ascending: false })
-
-    if (Array.isArray(usrRows)) {
-      usrRows.forEach((u: any) => {
-        const emailKey = String(u.email || '').trim().toLowerCase()
-        if (!emailKey || demoSeedEmails.has(emailKey)) return
-        const profile = Array.isArray(u.customer_profiles) ? u.customer_profiles[0] : u.customer_profiles
-        const fullName = profile
-          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-          : ''
-        if (!userMap.has(emailKey)) {
-          userMap.set(emailKey, {
-            id: `USR-${String(u.user_id).padStart(2, '0')}`,
-            name: fullName || String(u.username || u.email || 'User'),
-            email: String(u.email || ''),
-            role: String(u.roles?.role_name || 'CUSTOMER'),
-            branch: String(u.branches?.branch_name || 'All Branches'),
-            active: u.account_status === 'ACTIVE' || u.account_status === 'PENDING_VERIFICATION',
-          })
-        }
-      })
-    }
-  } catch {}
-
   const liveUsers = Array.from(userMap.values())
-
-  let liveAudits: ErdAuditLog[] = []
-  try {
-    liveAudits = await fetchAuditLogsList(50)
-  } catch {}
-
-  if (liveOrders.length === 0) {
-    try {
-      const saved = JSON.parse(localStorage.getItem(ORDERS_VAULT_KEY) || '[]')
-      if (Array.isArray(saved)) liveOrders = saved
-    } catch {}
-  }
-
-  if (liveInventory.length === 0) {
-    try {
-      const savedInv = JSON.parse(localStorage.getItem(INVENTORY_VAULT_KEY) || '[]')
-      if (Array.isArray(savedInv)) liveInventory = savedInv
-    } catch {}
-  }
 
   return {
     orders: liveOrders,
     inventory: liveInventory,
     users: liveUsers,
-    auditLogs: liveAudits,
+    auditLogs: Array.isArray(auditsResult) ? auditsResult : [],
   }
 }

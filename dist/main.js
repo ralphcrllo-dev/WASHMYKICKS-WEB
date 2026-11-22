@@ -29999,9 +29999,72 @@ ${suffix}`;
     if (error) throw error;
     return data;
   }
+  var DEMO_SEED_EMAILS = /* @__PURE__ */ new Set([
+    "mika.cruz@washmykicks.ph",
+    "carlo.mendoza@washmykicks.ph",
+    "marco.santos@washmykicks.ph",
+    "paolo.rivera@washmykicks.ph",
+    "lara.gomez@washmykicks.ph",
+    "juan.delacruz@email.com",
+    "angela.m@email.com",
+    "jiro.reyes@email.com",
+    "kaye.s@email.com"
+  ]);
+  var DEMO_SEED_ORDER_IDS = /* @__PURE__ */ new Set([
+    "WMK-2026-0001",
+    "WMK-2026-0002",
+    "WMK-2026-0003",
+    "WMK-2026-0004",
+    "WMK-2026-0041",
+    "WMK-2026-0042",
+    "WMK-2026-0043",
+    "WMK-2026-0044",
+    "WMK-2026-0045",
+    "WMK-2026-0046",
+    "WMK-2026-01842",
+    "WMK-2026-01849",
+    "WMK-2026-01835",
+    "WMK-2026-01790"
+  ]);
+  function loadCachedProductionData() {
+    let cachedOrders = [];
+    try {
+      const saved = JSON.parse(localStorage.getItem(ORDERS_VAULT_KEY) || "[]");
+      if (Array.isArray(saved)) {
+        cachedOrders = saved.filter((o) => o && o.id && !DEMO_SEED_ORDER_IDS.has(String(o.id)));
+      }
+    } catch {
+    }
+    let cachedInventory = [];
+    try {
+      const savedInv = JSON.parse(localStorage.getItem(INVENTORY_VAULT_KEY) || "[]");
+      if (Array.isArray(savedInv)) cachedInventory = savedInv;
+    } catch {
+    }
+    const accs = loadProvisionedAccounts();
+    const cachedUsers = accs.filter((a) => !DEMO_SEED_EMAILS.has(a.email.trim().toLowerCase())).map((a, i) => ({
+      id: `USR-${String(i + 1).padStart(2, "0")}`,
+      name: `${a.firstName} ${a.lastName}`.trim() || a.username,
+      email: a.email,
+      role: a.role,
+      branch: a.branchName || (a.role === "CUSTOMER" ? "Pasig City" : "All Branches"),
+      active: a.accountStatus === "ACTIVE"
+    }));
+    return {
+      orders: cachedOrders,
+      inventory: cachedInventory,
+      users: cachedUsers
+    };
+  }
   async function fetchLiveProductionData() {
+    const cached = loadCachedProductionData();
     if (!supabase || !isSupabaseConfigured) {
-      return { orders: [], inventory: [], users: [], auditLogs: [] };
+      return {
+        orders: cached.orders,
+        inventory: cached.inventory,
+        users: cached.users,
+        auditLogs: []
+      };
     }
     const stageMap = {
       "Pending Assessment": 1,
@@ -30010,9 +30073,8 @@ ${suffix}`;
       "Ready for Pickup": 4,
       Completed: 5
     };
-    let liveOrders = [];
-    try {
-      const { data: soRows } = await supabase.from("service_orders").select(
+    const [soResult, invResult, usrResult, auditsResult] = await Promise.all([
+      supabase.from("service_orders").select(
         `
         order_id,
         order_number,
@@ -30042,27 +30104,52 @@ ${suffix}`;
           service_notes
         )
       `
-      ).order("order_id", { ascending: false });
-      if (Array.isArray(soRows)) {
-        liveOrders = soRows.map((row) => {
-          const bk = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings;
-          const cp = bk?.customer_profiles;
-          const ua = Array.isArray(cp?.user_accounts) ? cp?.user_accounts[0] : cp?.user_accounts;
-          const bs = bk?.branch_services;
-          const br = bs?.branches;
-          const ss = bs?.shoe_services;
-          const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments;
-          const rawReq = String(bk?.customer_request || row.work_instructions || "");
-          const shoeTitle = rawReq.split("\u2014")[0]?.trim() || "Sneaker Pair";
-          const email = ua?.email || "";
-          const fullName = cp ? `${cp.first_name || ""} ${cp.last_name || ""}`.trim() : "Customer";
-          const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now());
-          const dateStr = sched.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-          const timeStr = sched.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-          const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650);
-          const st = row.order_status || "Pending Assessment";
-          return {
-            id: String(row.order_number || `WMK-2026-${String(row.order_id).padStart(4, "0")}`),
+      ).order("order_id", { ascending: false }).then(
+        (r) => r.data,
+        () => null
+      ),
+      supabase.from("v_branch_inventory_stock").select("*").order("branch_inventory_id", { ascending: true }).then(
+        (r) => r.data,
+        () => null
+      ),
+      supabase.from("user_accounts").select(
+        "user_id, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)"
+      ).order("user_id", { ascending: false }).then(
+        (r) => r.data,
+        () => null
+      ),
+      fetchAuditLogsList(50).catch(() => [])
+    ]);
+    const orderMap = /* @__PURE__ */ new Map();
+    cached.orders.forEach((ord) => {
+      if (ord?.id && !DEMO_SEED_ORDER_IDS.has(String(ord.id))) {
+        orderMap.set(String(ord.id), ord);
+      }
+    });
+    if (Array.isArray(soResult)) {
+      soResult.forEach((row) => {
+        const ordId = String(row.order_number || `WMK-2026-${String(row.order_id).padStart(4, "0")}`);
+        if (DEMO_SEED_ORDER_IDS.has(ordId)) return;
+        const bk = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings;
+        const cp = bk?.customer_profiles;
+        const ua = Array.isArray(cp?.user_accounts) ? cp?.user_accounts[0] : cp?.user_accounts;
+        const bs = bk?.branch_services;
+        const br = bs?.branches;
+        const ss = bs?.shoe_services;
+        const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments;
+        const email = String(ua?.email || "").trim().toLowerCase();
+        if (DEMO_SEED_EMAILS.has(email)) return;
+        const rawReq = String(bk?.customer_request || row.work_instructions || "");
+        const shoeTitle = rawReq.split("\u2014")[0]?.trim() || "Sneaker Pair";
+        const fullName = cp ? `${cp.first_name || ""} ${cp.last_name || ""}`.trim() : "Customer";
+        const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now());
+        const dateStr = sched.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        const timeStr = sched.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650);
+        const st = row.order_status || "Pending Assessment";
+        if (!orderMap.has(ordId)) {
+          orderMap.set(ordId, {
+            id: ordId,
             customer: fullName || "Customer",
             email: email || "",
             shoe: shoeTitle,
@@ -30073,102 +30160,66 @@ ${suffix}`;
             price: `\u20B1${priceNum.toLocaleString()}`,
             status: st,
             stageIndex: stageMap[st] || 1,
-            specialist: "Assigned Specialist",
+            specialist: "Pending Specialist Assessment",
             assessed: sa?.assessment_status === "Completed" || sa?.assessment_status === "Approved",
             assessmentNotes: sa?.damage_findings || sa?.service_notes || void 0
-          };
-        });
-      }
-    } catch {
+          });
+        }
+      });
     }
-    let liveInventory = [];
-    try {
-      const { data: invRows } = await supabase.from("vw_branch_inventory_stock").select("*").order("branch_inventory_id", { ascending: true });
-      if (Array.isArray(invRows)) {
-        liveInventory = invRows.map((r) => ({
-          id: `inv-${r.branch_inventory_id}`,
-          name: String(r.item_name || "Inventory Item"),
-          category: r.category || "Cleaning Chemicals",
-          branch: String(r.branch_name || "Wash My Kicks \u2013 Pasig City"),
-          stock: Number(r.current_stock ?? 0),
-          target: Math.max(10, Number(r.reorder_level ?? 10) * 2)
-        }));
-      }
-    } catch {
+    const liveOrders = Array.from(orderMap.values());
+    let liveInventory = cached.inventory;
+    if (Array.isArray(invResult) && invResult.length > 0 && liveInventory.length === 0) {
+      liveInventory = invResult.map((r) => ({
+        id: `inv-${r.branch_inventory_id}`,
+        name: String(r.item_name || "Inventory Item"),
+        category: r.category || "Cleaning Chemicals",
+        branch: String(r.branch_name || "Wash My Kicks \u2013 Pasig City"),
+        stock: Number(r.current_stock ?? 0),
+        target: Math.max(10, Number(r.reorder_level ?? 10) * 2)
+      }));
     }
-    const demoSeedEmails = /* @__PURE__ */ new Set([
-      "mika.cruz@washmykicks.ph",
-      "carlo.mendoza@washmykicks.ph",
-      "marco.santos@washmykicks.ph",
-      "paolo.rivera@washmykicks.ph",
-      "lara.gomez@washmykicks.ph",
-      "juan.delacruz@email.com",
-      "angela.m@email.com",
-      "jiro.reyes@email.com",
-      "kaye.s@email.com"
-    ]);
     const userMap = /* @__PURE__ */ new Map();
-    const accs = loadProvisionedAccounts();
-    accs.forEach((a, i) => {
-      const emailKey = a.email.trim().toLowerCase();
-      if (!demoSeedEmails.has(emailKey)) {
+    cached.users.forEach((u) => {
+      userMap.set(u.email.trim().toLowerCase(), u);
+    });
+    if (Array.isArray(usrResult)) {
+      usrResult.forEach((u) => {
+        const emailKey = String(u.email || "").trim().toLowerCase();
+        if (!emailKey || DEMO_SEED_EMAILS.has(emailKey)) return;
+        const profile = Array.isArray(u.customer_profiles) ? u.customer_profiles[0] : u.customer_profiles;
+        const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
+        if (!userMap.has(emailKey)) {
+          userMap.set(emailKey, {
+            id: `USR-${String(u.user_id).padStart(2, "0")}`,
+            name: fullName || String(u.username || u.email || "User"),
+            email: String(u.email || ""),
+            role: String(u.roles?.role_name || "CUSTOMER"),
+            branch: String(u.branches?.branch_name || "All Branches"),
+            active: u.account_status === "ACTIVE" || u.account_status === "PENDING_VERIFICATION"
+          });
+        }
+      });
+    }
+    liveOrders.forEach((ord) => {
+      const emailKey = String(ord.email || "").trim().toLowerCase();
+      if (emailKey && !DEMO_SEED_EMAILS.has(emailKey) && !userMap.has(emailKey)) {
         userMap.set(emailKey, {
-          id: `USR-${String(i + 1).padStart(2, "0")}`,
-          name: `${a.firstName} ${a.lastName}`.trim() || a.username,
-          email: a.email,
-          role: a.role,
-          branch: a.branchName || (a.role === "CUSTOMER" ? "Pasig City" : "All Branches"),
-          active: a.accountStatus === "ACTIVE"
+          id: `USR-${String(userMap.size + 1).padStart(2, "0")}`,
+          name: String(ord.customer || "Customer"),
+          email: ord.email,
+          role: "CUSTOMER",
+          branch: String(ord.branch || "Wash My Kicks \u2013 Pasig City"),
+          active: true
         });
       }
     });
-    try {
-      const { data: usrRows } = await supabase.from("user_accounts").select("user_id, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)").order("user_id", { ascending: false });
-      if (Array.isArray(usrRows)) {
-        usrRows.forEach((u) => {
-          const emailKey = String(u.email || "").trim().toLowerCase();
-          if (!emailKey || demoSeedEmails.has(emailKey)) return;
-          const profile = Array.isArray(u.customer_profiles) ? u.customer_profiles[0] : u.customer_profiles;
-          const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
-          if (!userMap.has(emailKey)) {
-            userMap.set(emailKey, {
-              id: `USR-${String(u.user_id).padStart(2, "0")}`,
-              name: fullName || String(u.username || u.email || "User"),
-              email: String(u.email || ""),
-              role: String(u.roles?.role_name || "CUSTOMER"),
-              branch: String(u.branches?.branch_name || "All Branches"),
-              active: u.account_status === "ACTIVE" || u.account_status === "PENDING_VERIFICATION"
-            });
-          }
-        });
-      }
-    } catch {
-    }
     const liveUsers = Array.from(userMap.values());
-    let liveAudits = [];
-    try {
-      liveAudits = await fetchAuditLogsList(50);
-    } catch {
-    }
-    if (liveOrders.length === 0) {
-      try {
-        const saved = JSON.parse(localStorage.getItem(ORDERS_VAULT_KEY) || "[]");
-        if (Array.isArray(saved)) liveOrders = saved;
-      } catch {
-      }
-    }
-    if (liveInventory.length === 0) {
-      try {
-        const savedInv = JSON.parse(localStorage.getItem(INVENTORY_VAULT_KEY) || "[]");
-        if (Array.isArray(savedInv)) liveInventory = savedInv;
-      } catch {
-      }
-    }
     return {
       orders: liveOrders,
       inventory: liveInventory,
       users: liveUsers,
-      auditLogs: liveAudits
+      auditLogs: Array.isArray(auditsResult) ? auditsResult : []
     };
   }
 
@@ -34528,7 +34579,7 @@ ${suffix}`;
     const [newSvcCopy, setNewSvcCopy] = (0, import_react5.useState)("");
     const [newSvcPrice, setNewSvcPrice] = (0, import_react5.useState)("\u20B1500");
     const [newSvcDuration, setNewSvcDuration] = (0, import_react5.useState)("2\u20134 days");
-    const [usersList, setUsersList] = (0, import_react5.useState)([]);
+    const [usersList, setUsersList] = (0, import_react5.useState)(() => loadCachedProductionData().users);
     const [auditLogs, setAuditLogs] = (0, import_react5.useState)([]);
     (0, import_react5.useEffect)(() => {
       fetchLiveProductionData().then((res) => {
@@ -34536,7 +34587,7 @@ ${suffix}`;
         if (res.auditLogs.length > 0) setAuditLogs(res.auditLogs);
       }).catch(() => {
       });
-    }, []);
+    }, [orders.length]);
     const sidebarItems = [
       { key: "Dashboard", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LayoutDashboard, { size: 17 }) },
       { key: "Branches", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Building2, { size: 17 }) },
@@ -35880,9 +35931,18 @@ ${suffix}`;
       window.addEventListener("popstate", handlePopState);
       return () => window.removeEventListener("popstate", handlePopState);
     }, []);
-    const [orders, setOrders] = (0, import_react5.useState)(initialOrders);
+    const [orders, setOrders] = (0, import_react5.useState)(() => {
+      const cached = loadCachedProductionData();
+      return cached.orders.map((o) => ({
+        ...o,
+        docs: o.docs || createDefaultDocumentation()
+      }));
+    });
     const [reviews, setReviews] = (0, import_react5.useState)(initialReviews);
-    const [inventory, setInventory] = (0, import_react5.useState)(INITIAL_INVENTORY_RECORDS);
+    const [inventory, setInventory] = (0, import_react5.useState)(() => {
+      const cached = loadCachedProductionData();
+      return cached.inventory.length > 0 ? cached.inventory : INITIAL_INVENTORY_RECORDS;
+    });
     const [servicesCatalog, setServicesCatalog] = (0, import_react5.useState)(services);
     (0, import_react5.useEffect)(() => {
       fetchLiveProductionData().then((live) => {
@@ -35914,7 +35974,7 @@ ${suffix}`;
         }
       }).catch(() => {
       });
-    }, []);
+    }, [activeRole, userMeta.email]);
     (0, import_react5.useEffect)(() => {
       if (orders.length > 0) saveLiveProductionOrders(orders);
     }, [orders]);

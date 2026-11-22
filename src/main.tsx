@@ -5,6 +5,7 @@ import {
   createBookingRecord,
   dispatchTransactionalEmail,
   fetchLiveProductionData,
+  loadCachedProductionData,
   registerCustomerAccount,
   requestPasswordResetEmail,
   saveLiveProductionInventory,
@@ -3352,7 +3353,7 @@ function AdminDashboard({
 
   const [usersList, setUsersList] = useState<
     { id: string; name: string; email: string; role: string; branch: string; active: boolean }[]
-  >([])
+  >(() => loadCachedProductionData().users)
   const [auditLogs, setAuditLogs] = useState<
     { time: string; actor: string; role: string; action: string; target: string }[]
   >([])
@@ -3364,7 +3365,7 @@ function AdminDashboard({
         if (res.auditLogs.length > 0) setAuditLogs(res.auditLogs)
       })
       .catch(() => {})
-  }, [])
+  }, [orders.length])
 
   const sidebarItems: { key: typeof tab; icon: React.ReactNode }[] = [
     { key: 'Dashboard', icon: <LayoutDashboard size={17} /> },
@@ -4963,12 +4964,21 @@ function App() {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const [orders, setOrders] = useState<JobOrder[]>(initialOrders)
+  const [orders, setOrders] = useState<JobOrder[]>(() => {
+    const cached = loadCachedProductionData()
+    return cached.orders.map((o: any) => ({
+      ...o,
+      docs: o.docs || createDefaultDocumentation(),
+    }))
+  })
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
-  const [inventory, setInventory] = useState<InventoryRecord[]>(INITIAL_INVENTORY_RECORDS)
+  const [inventory, setInventory] = useState<InventoryRecord[]>(() => {
+    const cached = loadCachedProductionData()
+    return cached.inventory.length > 0 ? cached.inventory : INITIAL_INVENTORY_RECORDS
+  })
   const [servicesCatalog, setServicesCatalog] = useState<Service[]>(services)
 
-  // Fetch live production rows from Supabase PostgreSQL on mount
+  // Fetch live production rows from Supabase PostgreSQL on mount & after login
   useEffect(() => {
     fetchLiveProductionData()
       .then((live) => {
@@ -5005,7 +5015,7 @@ function App() {
         }
       })
       .catch(() => {})
-  }, [])
+  }, [activeRole, userMeta.email])
 
   useEffect(() => {
     if (orders.length > 0) saveLiveProductionOrders(orders)
