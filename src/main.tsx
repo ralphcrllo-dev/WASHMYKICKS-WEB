@@ -250,10 +250,13 @@ function Header({
           </button>
         ) : (
           <>
-            <button className={page === 'login' ? 'active' : ''} onClick={() => go('login')}>
+            <button
+              className={page === 'login-customer' ? 'active' : ''}
+              onClick={() => go('login-customer')}
+            >
               Log in
             </button>
-            <button className="nav-cta" onClick={() => go('login')}>
+            <button className="nav-cta" onClick={() => go('portals')}>
               Select Account / Portal
             </button>
           </>
@@ -298,10 +301,10 @@ function Footer({ setPage }: { setPage: (page: string) => void }) {
       </div>
       <div>
         <b>Portals</b>
-        <button onClick={() => setPage('login')}>Account Selection</button>
-        <button onClick={() => setPage('login-customer')}>Customer Login</button>
-        <button onClick={() => setPage('login-staff')}>Staff Login</button>
-        <button onClick={() => setPage('login-admin')}>Administrator Login</button>
+        <button onClick={() => setPage('portals')}>Account Selection (/portals)</button>
+        <button onClick={() => setPage('login-customer')}>Customer Login (/login)</button>
+        <button onClick={() => setPage('login-staff')}>Staff Login (/staff/login)</button>
+        <button onClick={() => setPage('login-admin')}>Administrator Login (/admin/login)</button>
       </div>
       <form onSubmit={(e) => e.preventDefault()}>
         <b>Service updates</b>
@@ -616,6 +619,7 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
       id: 'customer' as Role,
       tag: 'CUSTOMER PORTAL',
       title: 'Customer Portal',
+      routePath: '/login',
       icon: <User size={26} />,
       description:
         'Book appointments, track shoe orders, receive notifications, manage service history, and submit reviews.',
@@ -625,6 +629,7 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
       id: 'staff' as Role,
       tag: 'STAFF PORTAL',
       title: 'Staff Portal',
+      routePath: '/staff/login',
       icon: <Briefcase size={26} />,
       description:
         'Manage job orders, perform shoe assessments, upload documentation, update service progress, and manage assigned tasks.',
@@ -634,6 +639,7 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
       id: 'admin' as Role,
       tag: 'ADMINISTRATOR PORTAL',
       title: 'Administrator Portal',
+      routePath: '/admin/login',
       icon: <Shield size={26} />,
       description:
         'Manage branches, monitor inventory, view reports, oversee staff activities, and control system settings.',
@@ -643,7 +649,7 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
 
   return (
     <Listing eyebrow="ROLE-BASED LOGIN SYSTEM" title="Welcome to WashMyKicks">
-      <p className="lead">Choose how you want to access the system.</p>
+      <p className="lead">Choose how you want to access the system, or visit each dedicated portal URL directly.</p>
 
       <div className="portal-grid">
         {cards.map((card) => (
@@ -657,7 +663,21 @@ function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) 
               if (e.key === 'Enter' || e.key === ' ') setPage(`login-${card.id}`)
             }}
           >
-            <div className="portal-icon-box">{card.icon}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <div className="portal-icon-box" style={{ marginBottom: 0 }}>{card.icon}</div>
+              <code
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: 999,
+                  background: '#111827',
+                  color: '#f9fafb',
+                }}
+              >
+                {card.routePath}
+              </code>
+            </div>
             <span className="eyebrow">{card.tag}</span>
             <h2>{card.title}</h2>
             <p>{card.description}</p>
@@ -893,9 +913,23 @@ function RoleLogin({
 
       <div className="auth-form-wrap">
         <form className="auth-form" onSubmit={handleSubmit}>
-          <button type="button" className="back-link" onClick={() => setPage('login')}>
-            <ArrowLeft size={14} /> Back to Account Selection
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+            <button type="button" className="back-link" style={{ marginBottom: 0 }} onClick={() => setPage('portals')}>
+              <ArrowLeft size={14} /> All Portals (/portals)
+            </button>
+            <code
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '3px 9px',
+                borderRadius: 999,
+                background: '#111827',
+                color: '#f9fafb',
+              }}
+            >
+              {isCustomer ? '/login' : isStaff ? '/staff/login' : '/admin/login'}
+            </code>
+          </div>
 
           <span className="eyebrow">{roleLabel.toUpperCase()} PORTAL</span>
           <h1>{isCreatingAccount ? `Register ${roleLabel} Account` : `${roleLabel} Login`}</h1>
@@ -4879,12 +4913,184 @@ function PublicShoeBookingModule({
 }
 
 /* ============================================================================
+   DEDICATED URL ROUTING & SESSION PERSISTENCE
+   - Customer Login:     /login              (or /customer/login)
+   - Staff Login:        /staff/login        (or /staff)
+   - Admin Login:        /admin/login        (or /admin)
+   - Customer Dashboard: /customer/dashboard (or /dashboard)
+   - Staff Dashboard:    /staff/dashboard
+   - Admin Dashboard:    /admin/dashboard
+   - Portal Switcher:    /portals
+   ============================================================================ */
+
+const ACTIVE_SESSION_STORAGE_KEY = 'wmk-active-session-v1'
+
+type PersistedRoleSession = {
+  role: Role
+  userMeta: {
+    name: string
+    email: string
+    employeeId?: string
+    branch?: string
+  }
+}
+
+function loadPersistedRoleSession(): PersistedRoleSession | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && (parsed.role === 'customer' || parsed.role === 'staff' || parsed.role === 'admin') && parsed.userMeta) {
+      return parsed as PersistedRoleSession
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function savePersistedRoleSession(session: PersistedRoleSession | null): void {
+  try {
+    if (!session) {
+      localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY)
+    } else {
+      localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify(session))
+    }
+  } catch {}
+}
+
+function getBasePathPrefix(): string {
+  if (typeof window === 'undefined') return ''
+  return window.location.pathname.startsWith('/WASHMYKICKS-WEB') ? '/WASHMYKICKS-WEB' : ''
+}
+
+function urlPathToPage(rawPathname: string): string {
+  const prefix = getBasePathPrefix()
+  let path = rawPathname
+  if (prefix && path.startsWith(prefix)) {
+    path = path.slice(prefix.length)
+  }
+  const clean = (path.replace(/\/+$/, '') || '/').toLowerCase()
+
+  switch (clean) {
+    case '/':
+    case '/home':
+    case '/index.html':
+      return 'home'
+    case '/services':
+      return 'services'
+    case '/track':
+      return 'track'
+    case '/branches':
+      return 'branches'
+    case '/book':
+      return 'book'
+    case '/reviews':
+      return 'reviews'
+    case '/about':
+      return 'about'
+    case '/portals':
+    case '/select-account':
+      return 'portals'
+    case '/login':
+    case '/customer/login':
+      return 'login-customer'
+    case '/staff/login':
+    case '/staff':
+      return 'login-staff'
+    case '/admin/login':
+    case '/admin':
+      return 'login-admin'
+    case '/customer/dashboard':
+    case '/dashboard':
+      return 'dashboard-customer'
+    case '/staff/dashboard':
+      return 'dashboard-staff'
+    case '/admin/dashboard':
+      return 'dashboard-admin'
+    default:
+      return 'home'
+  }
+}
+
+function pageToUrlPath(pageKey: string): string {
+  const prefix = getBasePathPrefix()
+  let sub = '/'
+  switch (pageKey) {
+    case 'home':
+      sub = '/'
+      break
+    case 'services':
+      sub = '/services'
+      break
+    case 'track':
+      sub = '/track'
+      break
+    case 'branches':
+      sub = '/branches'
+      break
+    case 'book':
+      sub = '/book'
+      break
+    case 'reviews':
+      sub = '/reviews'
+      break
+    case 'about':
+      sub = '/about'
+      break
+    case 'portals':
+      sub = '/portals'
+      break
+    case 'login':
+    case 'login-customer':
+      sub = '/login'
+      break
+    case 'login-staff':
+      sub = '/staff/login'
+      break
+    case 'login-admin':
+      sub = '/admin/login'
+      break
+    case 'dashboard-customer':
+      sub = '/customer/dashboard'
+      break
+    case 'dashboard-staff':
+      sub = '/staff/dashboard'
+      break
+    case 'dashboard-admin':
+      sub = '/admin/dashboard'
+      break
+    default:
+      sub = '/'
+      break
+  }
+  if (!prefix) return sub
+  return sub === '/' ? `${prefix}/` : `${prefix}${sub}`
+}
+
+/* ============================================================================
    MAIN APPLICATION ROUTER & STATE
    ============================================================================ */
 
 function App() {
-  const [page, setPage] = useState('home')
-  const [activeRole, setActiveRole] = useState<Role | null>(null)
+  const initialSavedSession = loadPersistedRoleSession()
+  const initialRoutePage = (() => {
+    if (typeof window === 'undefined') return 'home'
+    const requested = urlPathToPage(window.location.pathname)
+    if (requested === 'dashboard-customer' && initialSavedSession?.role !== 'customer') {
+      return 'login-customer'
+    }
+    if (requested === 'dashboard-staff' && initialSavedSession?.role !== 'staff') {
+      return 'login-staff'
+    }
+    if (requested === 'dashboard-admin' && initialSavedSession?.role !== 'admin') {
+      return 'login-admin'
+    }
+    return requested
+  })()
+
+  const [page, setPageState] = useState(initialRoutePage)
+  const [activeRole, setActiveRole] = useState<Role | null>(initialSavedSession?.role || null)
   const [preselectedBranchId, setPreselectedBranchId] = useState<number>(1)
   const [preselectedFromMap, setPreselectedFromMap] = useState<boolean>(false)
   const [customerInitialTab, setCustomerInitialTab] = useState<
@@ -4896,12 +5102,58 @@ function App() {
     email: string
     employeeId?: string
     branch?: string
-  }>({
-    name: 'Juan Dela Cruz',
-    email: 'juan.delacruz@email.com',
-    employeeId: 'WMK-EMP-0104',
-    branch: staffBranches[0],
-  })
+  }>(
+    initialSavedSession?.userMeta || {
+      name: 'Customer',
+      email: '',
+      employeeId: '',
+      branch: staffBranches[0],
+    }
+  )
+
+  const setPage = (nextPage: string) => {
+    const normalized = nextPage === 'login' ? 'login-customer' : nextPage
+    setPageState(normalized)
+    if (typeof window !== 'undefined') {
+      const targetUrl = pageToUrlPath(normalized)
+      if (window.location.pathname !== targetUrl) {
+        window.history.pushState({ page: normalized }, '', targetUrl)
+      }
+    }
+  }
+
+  // Sync browser URL on initial mount and listen to Back/Forward buttons
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const expectedUrl = pageToUrlPath(page)
+    if (window.location.pathname !== expectedUrl) {
+      window.history.replaceState({ page }, '', expectedUrl)
+    }
+
+    const handlePopState = () => {
+      const session = loadPersistedRoleSession()
+      const requested = urlPathToPage(window.location.pathname)
+      if (requested === 'dashboard-customer' && session?.role !== 'customer') {
+        setPageState('login-customer')
+        window.history.replaceState({ page: 'login-customer' }, '', pageToUrlPath('login-customer'))
+        return
+      }
+      if (requested === 'dashboard-staff' && session?.role !== 'staff') {
+        setPageState('login-staff')
+        window.history.replaceState({ page: 'login-staff' }, '', pageToUrlPath('login-staff'))
+        return
+      }
+      if (requested === 'dashboard-admin' && session?.role !== 'admin') {
+        setPageState('login-admin')
+        window.history.replaceState({ page: 'login-admin' }, '', pageToUrlPath('login-admin'))
+        return
+      }
+      setPageState(requested)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const [orders, setOrders] = useState<JobOrder[]>(initialOrders)
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
@@ -4981,13 +5233,15 @@ function App() {
         .filter(Boolean)
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
         .join(' ') || (role === 'customer' ? 'Customer' : role === 'staff' ? 'Staff Specialist' : 'Administrator')
-    setActiveRole(role)
-    setUserMeta({
+    const nextMeta = {
       name: meta.name || fallbackName,
       email: meta.email,
       employeeId: meta.employeeId,
       branch: meta.branch,
-    })
+    }
+    setActiveRole(role)
+    setUserMeta(nextMeta)
+    savePersistedRoleSession({ role, userMeta: nextMeta })
     if (role === 'customer' && preselectedFromMap) {
       setCustomerInitialTab('Book Appointment')
     } else {
@@ -4998,16 +5252,24 @@ function App() {
   }
 
   const handleLogout = () => {
+    const previousRole = activeRole
     void signOutSession(userMeta.email).catch(() => null)
+    savePersistedRoleSession(null)
     setActiveRole(null)
     setCustomerInitialTab('Dashboard')
-    setPage('login')
+    if (previousRole === 'staff') {
+      setPage('login-staff')
+    } else if (previousRole === 'admin') {
+      setPage('login-admin')
+    } else {
+      setPage('login-customer')
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // Role-Specific Login Pages
-  if (page.startsWith('login-')) {
-    const role = page.replace('login-', '') as Role
+  // Role-Specific Login Pages (/login, /staff/login, /admin/login)
+  if (page === 'login' || page.startsWith('login-')) {
+    const role = (page === 'login' ? 'customer' : page.replace('login-', '')) as Role
     return <RoleLogin role={role} setPage={setPage} onLoginSuccess={handleLoginSuccess} />
   }
 

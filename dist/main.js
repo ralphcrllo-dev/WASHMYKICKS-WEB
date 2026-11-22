@@ -31897,8 +31897,15 @@ ${suffix}`;
           activeRole[0].toUpperCase() + activeRole.slice(1),
           " Dashboard"
         ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: page === "login" ? "active" : "", onClick: () => go("login"), children: "Log in" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "nav-cta", onClick: () => go("login"), children: "Select Account / Portal" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              className: page === "login-customer" ? "active" : "",
+              onClick: () => go("login-customer"),
+              children: "Log in"
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "nav-cta", onClick: () => go("portals"), children: "Select Account / Portal" })
         ] })
       ] })
     ] });
@@ -31934,10 +31941,10 @@ ${suffix}`;
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Portals" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login"), children: "Account Selection" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-customer"), children: "Customer Login" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-staff"), children: "Staff Login" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-admin"), children: "Administrator Login" })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("portals"), children: "Account Selection (/portals)" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-customer"), children: "Customer Login (/login)" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-staff"), children: "Staff Login (/staff/login)" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-admin"), children: "Administrator Login (/admin/login)" })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { onSubmit: (e) => e.preventDefault(), children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Service updates" }),
@@ -32203,6 +32210,7 @@ ${suffix}`;
         id: "customer",
         tag: "CUSTOMER PORTAL",
         title: "Customer Portal",
+        routePath: "/login",
         icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(User, { size: 26 }),
         description: "Book appointments, track shoe orders, receive notifications, manage service history, and submit reviews.",
         buttonText: "Continue as Customer"
@@ -32211,6 +32219,7 @@ ${suffix}`;
         id: "staff",
         tag: "STAFF PORTAL",
         title: "Staff Portal",
+        routePath: "/staff/login",
         icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Briefcase, { size: 26 }),
         description: "Manage job orders, perform shoe assessments, upload documentation, update service progress, and manage assigned tasks.",
         buttonText: "Continue as Staff"
@@ -32219,13 +32228,14 @@ ${suffix}`;
         id: "admin",
         tag: "ADMINISTRATOR PORTAL",
         title: "Administrator Portal",
+        routePath: "/admin/login",
         icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Shield, { size: 26 }),
         description: "Manage branches, monitor inventory, view reports, oversee staff activities, and control system settings.",
         buttonText: "Continue as Administrator"
       }
     ];
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "ROLE-BASED LOGIN SYSTEM", title: "Welcome to WashMyKicks", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Choose how you want to access the system." }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Choose how you want to access the system, or visit each dedicated portal URL directly." }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-grid", children: cards.map((card) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
         "article",
         {
@@ -32237,7 +32247,23 @@ ${suffix}`;
             if (e.key === "Enter" || e.key === " ") setPage(`login-${card.id}`);
           },
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-icon-box", children: card.icon }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-icon-box", style: { marginBottom: 0 }, children: card.icon }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "code",
+                {
+                  style: {
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "#111827",
+                    color: "#f9fafb"
+                  },
+                  children: card.routePath
+                }
+              )
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: card.tag }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: card.title }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: card.description }),
@@ -32453,9 +32479,25 @@ ${suffix}`;
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-form-wrap", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { className: "auth-form", onSubmit: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", onClick: () => setPage("login"), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
-          " Back to Account Selection"
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", style: { marginBottom: 0 }, onClick: () => setPage("portals"), children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
+            " All Portals (/portals)"
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "code",
+            {
+              style: {
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "3px 9px",
+                borderRadius: 999,
+                background: "#111827",
+                color: "#f9fafb"
+              },
+              children: isCustomer ? "/login" : isStaff ? "/staff/login" : "/admin/login"
+            }
+          )
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "eyebrow", children: [
           roleLabel.toUpperCase(),
@@ -35839,18 +35881,203 @@ ${suffix}`;
       }
     ) });
   }
+  var ACTIVE_SESSION_STORAGE_KEY = "wmk-active-session-v1";
+  function loadPersistedRoleSession() {
+    try {
+      const raw = localStorage.getItem(ACTIVE_SESSION_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && (parsed.role === "customer" || parsed.role === "staff" || parsed.role === "admin") && parsed.userMeta) {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  function savePersistedRoleSession(session) {
+    try {
+      if (!session) {
+        localStorage.removeItem(ACTIVE_SESSION_STORAGE_KEY);
+      } else {
+        localStorage.setItem(ACTIVE_SESSION_STORAGE_KEY, JSON.stringify(session));
+      }
+    } catch {
+    }
+  }
+  function getBasePathPrefix() {
+    if (typeof window === "undefined") return "";
+    return window.location.pathname.startsWith("/WASHMYKICKS-WEB") ? "/WASHMYKICKS-WEB" : "";
+  }
+  function urlPathToPage(rawPathname) {
+    const prefix = getBasePathPrefix();
+    let path = rawPathname;
+    if (prefix && path.startsWith(prefix)) {
+      path = path.slice(prefix.length);
+    }
+    const clean = (path.replace(/\/+$/, "") || "/").toLowerCase();
+    switch (clean) {
+      case "/":
+      case "/home":
+      case "/index.html":
+        return "home";
+      case "/services":
+        return "services";
+      case "/track":
+        return "track";
+      case "/branches":
+        return "branches";
+      case "/book":
+        return "book";
+      case "/reviews":
+        return "reviews";
+      case "/about":
+        return "about";
+      case "/portals":
+      case "/select-account":
+        return "portals";
+      case "/login":
+      case "/customer/login":
+        return "login-customer";
+      case "/staff/login":
+      case "/staff":
+        return "login-staff";
+      case "/admin/login":
+      case "/admin":
+        return "login-admin";
+      case "/customer/dashboard":
+      case "/dashboard":
+        return "dashboard-customer";
+      case "/staff/dashboard":
+        return "dashboard-staff";
+      case "/admin/dashboard":
+        return "dashboard-admin";
+      default:
+        return "home";
+    }
+  }
+  function pageToUrlPath(pageKey) {
+    const prefix = getBasePathPrefix();
+    let sub = "/";
+    switch (pageKey) {
+      case "home":
+        sub = "/";
+        break;
+      case "services":
+        sub = "/services";
+        break;
+      case "track":
+        sub = "/track";
+        break;
+      case "branches":
+        sub = "/branches";
+        break;
+      case "book":
+        sub = "/book";
+        break;
+      case "reviews":
+        sub = "/reviews";
+        break;
+      case "about":
+        sub = "/about";
+        break;
+      case "portals":
+        sub = "/portals";
+        break;
+      case "login":
+      case "login-customer":
+        sub = "/login";
+        break;
+      case "login-staff":
+        sub = "/staff/login";
+        break;
+      case "login-admin":
+        sub = "/admin/login";
+        break;
+      case "dashboard-customer":
+        sub = "/customer/dashboard";
+        break;
+      case "dashboard-staff":
+        sub = "/staff/dashboard";
+        break;
+      case "dashboard-admin":
+        sub = "/admin/dashboard";
+        break;
+      default:
+        sub = "/";
+        break;
+    }
+    if (!prefix) return sub;
+    return sub === "/" ? `${prefix}/` : `${prefix}${sub}`;
+  }
   function App() {
-    const [page, setPage] = (0, import_react5.useState)("home");
-    const [activeRole, setActiveRole] = (0, import_react5.useState)(null);
+    const initialSavedSession = loadPersistedRoleSession();
+    const initialRoutePage = (() => {
+      if (typeof window === "undefined") return "home";
+      const requested = urlPathToPage(window.location.pathname);
+      if (requested === "dashboard-customer" && initialSavedSession?.role !== "customer") {
+        return "login-customer";
+      }
+      if (requested === "dashboard-staff" && initialSavedSession?.role !== "staff") {
+        return "login-staff";
+      }
+      if (requested === "dashboard-admin" && initialSavedSession?.role !== "admin") {
+        return "login-admin";
+      }
+      return requested;
+    })();
+    const [page, setPageState] = (0, import_react5.useState)(initialRoutePage);
+    const [activeRole, setActiveRole] = (0, import_react5.useState)(initialSavedSession?.role || null);
     const [preselectedBranchId, setPreselectedBranchId] = (0, import_react5.useState)(1);
     const [preselectedFromMap, setPreselectedFromMap] = (0, import_react5.useState)(false);
     const [customerInitialTab, setCustomerInitialTab] = (0, import_react5.useState)("Dashboard");
-    const [userMeta, setUserMeta] = (0, import_react5.useState)({
-      name: "Juan Dela Cruz",
-      email: "juan.delacruz@email.com",
-      employeeId: "WMK-EMP-0104",
-      branch: staffBranches[0]
-    });
+    const [userMeta, setUserMeta] = (0, import_react5.useState)(
+      initialSavedSession?.userMeta || {
+        name: "Customer",
+        email: "",
+        employeeId: "",
+        branch: staffBranches[0]
+      }
+    );
+    const setPage = (nextPage) => {
+      const normalized = nextPage === "login" ? "login-customer" : nextPage;
+      setPageState(normalized);
+      if (typeof window !== "undefined") {
+        const targetUrl = pageToUrlPath(normalized);
+        if (window.location.pathname !== targetUrl) {
+          window.history.pushState({ page: normalized }, "", targetUrl);
+        }
+      }
+    };
+    (0, import_react5.useEffect)(() => {
+      if (typeof window === "undefined") return;
+      const expectedUrl = pageToUrlPath(page);
+      if (window.location.pathname !== expectedUrl) {
+        window.history.replaceState({ page }, "", expectedUrl);
+      }
+      const handlePopState = () => {
+        const session = loadPersistedRoleSession();
+        const requested = urlPathToPage(window.location.pathname);
+        if (requested === "dashboard-customer" && session?.role !== "customer") {
+          setPageState("login-customer");
+          window.history.replaceState({ page: "login-customer" }, "", pageToUrlPath("login-customer"));
+          return;
+        }
+        if (requested === "dashboard-staff" && session?.role !== "staff") {
+          setPageState("login-staff");
+          window.history.replaceState({ page: "login-staff" }, "", pageToUrlPath("login-staff"));
+          return;
+        }
+        if (requested === "dashboard-admin" && session?.role !== "admin") {
+          setPageState("login-admin");
+          window.history.replaceState({ page: "login-admin" }, "", pageToUrlPath("login-admin"));
+          return;
+        }
+        setPageState(requested);
+      };
+      window.addEventListener("popstate", handlePopState);
+      return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
     const [orders, setOrders] = (0, import_react5.useState)(initialOrders);
     const [reviews, setReviews] = (0, import_react5.useState)(initialReviews);
     const [inventory, setInventory] = (0, import_react5.useState)(INITIAL_INVENTORY_RECORDS);
@@ -35906,13 +36133,15 @@ ${suffix}`;
     };
     const handleLoginSuccess = (role, meta) => {
       const fallbackName = (meta.email || "").split("@")[0].replace(/[0-9._-]+/g, " ").trim().split(/\s+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") || (role === "customer" ? "Customer" : role === "staff" ? "Staff Specialist" : "Administrator");
-      setActiveRole(role);
-      setUserMeta({
+      const nextMeta = {
         name: meta.name || fallbackName,
         email: meta.email,
         employeeId: meta.employeeId,
         branch: meta.branch
-      });
+      };
+      setActiveRole(role);
+      setUserMeta(nextMeta);
+      savePersistedRoleSession({ role, userMeta: nextMeta });
       if (role === "customer" && preselectedFromMap) {
         setCustomerInitialTab("Book Appointment");
       } else {
@@ -35922,14 +36151,22 @@ ${suffix}`;
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
     const handleLogout = () => {
+      const previousRole = activeRole;
       void signOutSession(userMeta.email).catch(() => null);
+      savePersistedRoleSession(null);
       setActiveRole(null);
       setCustomerInitialTab("Dashboard");
-      setPage("login");
+      if (previousRole === "staff") {
+        setPage("login-staff");
+      } else if (previousRole === "admin") {
+        setPage("login-admin");
+      } else {
+        setPage("login-customer");
+      }
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
-    if (page.startsWith("login-")) {
-      const role = page.replace("login-", "");
+    if (page === "login" || page.startsWith("login-")) {
+      const role = page === "login" ? "customer" : page.replace("login-", "");
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RoleLogin, { role, setPage, onLoginSuccess: handleLoginSuccess });
     }
     if (page === "dashboard-customer") {

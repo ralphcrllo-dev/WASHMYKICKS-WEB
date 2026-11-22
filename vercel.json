@@ -4,5 +4,11 @@
       "path": "/api/backup",
       "schedule": "0 2 * * *"
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|main\\.js|main\\.css|washmykicks-logo\\.jpg|favicon\\.ico).*)",
+      "destination": "/index.html"
+    }
   ]
 }

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WashMyKicks — Sneaker Care System</title>
+    <script>
+      (function () {
+        var base = document.createElement('base');
+        base.href = location.pathname.indexOf('/WASHMYKICKS-WEB') === 0 ? '/WASHMYKICKS-WEB/' : '/';
+        document.head.appendChild(base);
+      })();
+    </script>
+    <link
+      id="wmk-leaflet-css"
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+    />
+    <link rel="stylesheet" href="./main.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./main.js"></script>
+  </body>
+</html>

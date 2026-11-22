@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WashMyKicks — Sneaker Care System</title>
+    <script>
+      (function () {
+        var base = document.createElement('base');
+        base.href = location.pathname.indexOf('/WASHMYKICKS-WEB') === 0 ? '/WASHMYKICKS-WEB/' : '/';
+        document.head.appendChild(base);
+      })();
+    </script>
     <link
       id="wmk-leaflet-css"
       rel="stylesheet"
