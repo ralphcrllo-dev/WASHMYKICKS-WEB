@@ -32346,7 +32346,11 @@ ${suffix}`;
     const [selectedTime, setSelectedTime] = (0, import_react5.useState)("10:30 AM");
     const [shoeModel, setShoeModel] = (0, import_react5.useState)("Air Jordan 1 Retro High");
     const [customerEmail, setCustomerEmail] = (0, import_react5.useState)("juan.delacruz@email.com");
-    const [generatedOtp, setGeneratedOtp] = (0, import_react5.useState)("");
+    const [otpSent, setOtpSent] = (0, import_react5.useState)(false);
+    const [otpSending, setOtpSending] = (0, import_react5.useState)(false);
+    const [otpMode, setOtpMode] = (0, import_react5.useState)("server-hmac");
+    const [otpToken, setOtpToken] = (0, import_react5.useState)("");
+    const [otpExpiresAt, setOtpExpiresAt] = (0, import_react5.useState)(0);
     const [enteredOtp, setEnteredOtp] = (0, import_react5.useState)("");
     const [otpVerified, setOtpVerified] = (0, import_react5.useState)(false);
     const [otpNotice, setOtpNotice] = (0, import_react5.useState)("");
@@ -32448,45 +32452,128 @@ ${suffix}`;
         isFull: remaining === 0
       };
     };
-    const handleSendBookingOtp = () => {
-      const code = String(Math.floor(1e5 + Math.random() * 9e5));
-      setGeneratedOtp(code);
+    const handleSendBookingOtp = async () => {
+      const emailTarget = customerEmail.trim();
+      if (!emailTarget || !emailTarget.includes("@")) {
+        setOtpNotice("Please enter a valid email address first.");
+        return;
+      }
+      setOtpSending(true);
       setEnteredOtp("");
       setOtpVerified(false);
-      setOtpNotice(`Verification code ${code} sent to ${customerEmail}.`);
-      void dispatchTransactionalEmail({
-        to: customerEmail,
-        eventType: "EMAIL_VERIFICATION",
-        reference: code,
-        customerName: "Juan Dela Cruz",
-        serviceName: selectedService.title,
-        branchName: selectedBranch.name,
-        scheduledAt: `${formattedDate} \xB7 ${selectedTime}`
-      });
-    };
-    const handleVerifyOtp = (codeToCheck) => {
-      const candidate = (codeToCheck ?? enteredOtp).trim();
-      if (generatedOtp && candidate === generatedOtp) {
-        setOtpVerified(true);
-        setOtpNotice("\u2713 Email verification code confirmed!");
-        return true;
-      }
-      setOtpNotice("Invalid verification code. Please check the 6-digit code and try again.");
-      return false;
-    };
-    const handleConfirm = () => {
-      if (!otpVerified) {
-        if (generatedOtp && enteredOtp.trim() === generatedOtp) {
-          setOtpVerified(true);
-        } else {
-          if (!generatedOtp) {
-            handleSendBookingOtp();
-            setOtpNotice((prev) => `${prev} Please enter or auto-fill the 6-digit code to complete booking.`);
-          } else {
-            setOtpNotice("Please verify the 6-digit email verification code before confirming your booking.");
-          }
+      setOtpNotice(`Sending verification code to ${emailTarget}...`);
+      try {
+        const res = await fetch("/api/booking-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send",
+            email: emailTarget,
+            customerName: "Juan Dela Cruz",
+            serviceName: selectedService.title,
+            branchName: selectedBranch.name,
+            scheduledAt: `${formattedDate} \xB7 ${selectedTime}`
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setOtpMode("server-hmac");
+          setOtpToken(String(data.token || ""));
+          setOtpExpiresAt(Number(data.expiresAt || 0));
+          setOtpSent(true);
+          setOtpNotice(`A 6-digit verification code has been sent to ${emailTarget}. Please check your Inbox (and Spam folder).`);
+          setOtpSending(false);
           return;
         }
+      } catch {
+      }
+      if (supabase) {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: emailTarget,
+          options: { shouldCreateUser: true }
+        });
+        if (!error) {
+          setOtpMode("supabase-auth");
+          setOtpSent(true);
+          setOtpNotice(`A verification email has been sent to ${emailTarget} via Supabase Auth. Check your Inbox or Spam folder and enter the code below.`);
+          setOtpSending(false);
+          return;
+        }
+        setOtpSending(false);
+        setOtpNotice(`Could not send email (${error.message}). Configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables for instant Gmail SMTP delivery.`);
+        return;
+      }
+      setOtpSending(false);
+      setOtpNotice("Email service unavailable. Please configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables.");
+    };
+    const handleVerifyOtp = async () => {
+      const candidate = enteredOtp.trim();
+      const emailTarget = customerEmail.trim();
+      if (!candidate || candidate.length < 6) {
+        setOtpNotice("Please enter the 6-digit verification code sent to your email.");
+        return false;
+      }
+      if (otpMode === "server-hmac" && otpToken) {
+        try {
+          const res = await fetch("/api/booking-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "verify",
+              email: emailTarget,
+              code: candidate,
+              token: otpToken,
+              expiresAt: otpExpiresAt
+            })
+          });
+          const data = await res.json();
+          if (res.ok && data?.verified) {
+            setOtpVerified(true);
+            setOtpNotice("\u2713 Email verification code confirmed!");
+            return true;
+          }
+          setOtpNotice(data?.error || "Invalid verification code. Please check your email and try again.");
+          return false;
+        } catch {
+          setOtpNotice("Could not verify code with server. Please try again.");
+          return false;
+        }
+      }
+      if (otpMode === "supabase-auth" && supabase) {
+        const firstTry = await supabase.auth.verifyOtp({
+          email: emailTarget,
+          token: candidate,
+          type: "email"
+        });
+        if (!firstTry.error) {
+          setOtpVerified(true);
+          setOtpNotice("\u2713 Email verification code confirmed!");
+          return true;
+        }
+        const secondTry = await supabase.auth.verifyOtp({
+          email: emailTarget,
+          token: candidate,
+          type: "signup"
+        });
+        if (!secondTry.error) {
+          setOtpVerified(true);
+          setOtpNotice("\u2713 Email verification code confirmed!");
+          return true;
+        }
+        setOtpNotice(firstTry.error?.message || "Invalid verification code. Please check your email and try again.");
+        return false;
+      }
+      setOtpNotice('Please click "Send Verification Code" first.');
+      return false;
+    };
+    const handleConfirm = async () => {
+      if (!otpVerified) {
+        if (!otpSent) {
+          await handleSendBookingOtp();
+          return;
+        }
+        const ok = await handleVerifyOtp();
+        if (!ok) return;
       }
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
@@ -32495,7 +32582,7 @@ ${suffix}`;
         branchServiceId: selectedBranch.id,
         scheduledAt: scheduledIso,
         priceAtBooking: numericPrice,
-        customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Verified OTP: ${generatedOtp || "OK"}]`,
+        customerRequest: `${shoeModel || "Sneaker Pair"} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
         customerEmail: customerEmail || "juan.delacruz@email.com",
         customerName: "Juan Dela Cruz",
         serviceName: selectedService.title,
@@ -32916,13 +33003,14 @@ ${suffix}`;
                   {
                     type: "button",
                     className: "outline",
+                    disabled: otpSending,
                     style: { padding: "9px 14px", fontSize: 12 },
                     onClick: handleSendBookingOtp,
-                    children: generatedOtp ? "Resend Code" : "Send Verification Code"
+                    children: otpSending ? "Sending..." : otpSent ? "Resend Code" : "Send Verification Code"
                   }
                 )
               ] }),
-              generatedOtp && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
+              otpSent && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                   "input",
                   {
@@ -32932,7 +33020,7 @@ ${suffix}`;
                     onChange: (e) => setEnteredOtp(e.target.value),
                     placeholder: "Enter 6-digit code",
                     style: {
-                      width: 160,
+                      width: 170,
                       padding: "9px 12px",
                       border: "1px solid #d1d5db",
                       borderRadius: 8,
@@ -32949,25 +33037,8 @@ ${suffix}`;
                     type: "button",
                     className: "primary",
                     style: { padding: "9px 14px", fontSize: 12 },
-                    onClick: () => handleVerifyOtp(),
+                    onClick: () => void handleVerifyOtp(),
                     children: "Verify Code"
-                  }
-                ),
-                !otpVerified && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                  "button",
-                  {
-                    type: "button",
-                    className: "outline",
-                    style: { padding: "9px 12px", fontSize: 11.5 },
-                    onClick: () => {
-                      setEnteredOtp(generatedOtp);
-                      handleVerifyOtp(generatedOtp);
-                    },
-                    children: [
-                      "Auto-fill (",
-                      generatedOtp,
-                      ")"
-                    ]
                   }
                 )
               ] }),

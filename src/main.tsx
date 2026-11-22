@@ -15,6 +15,7 @@ import {
   upsertShoeAssessmentRecord,
 } from './lib/api'
 import { downloadExcel, exportDateStamp, pesoToNumber } from './lib/excelExport'
+import { supabase } from './lib/supabase'
 import {
   BeforeAfterDocumentationModule,
   INITIAL_INVENTORY_RECORDS,
@@ -1168,7 +1169,11 @@ function CustomerBookAppointmentWizard({
 
   // Booking Email Verification (OTP) state
   const [customerEmail, setCustomerEmail] = useState<string>('juan.delacruz@email.com')
-  const [generatedOtp, setGeneratedOtp] = useState<string>('')
+  const [otpSent, setOtpSent] = useState<boolean>(false)
+  const [otpSending, setOtpSending] = useState<boolean>(false)
+  const [otpMode, setOtpMode] = useState<'server-hmac' | 'supabase-auth'>('server-hmac')
+  const [otpToken, setOtpToken] = useState<string>('')
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0)
   const [enteredOtp, setEnteredOtp] = useState<string>('')
   const [otpVerified, setOtpVerified] = useState<boolean>(false)
   const [otpNotice, setOtpNotice] = useState<string>('')
@@ -1286,47 +1291,140 @@ function CustomerBookAppointmentWizard({
     }
   }
 
-  const handleSendBookingOtp = () => {
-    const code = String(Math.floor(100000 + Math.random() * 900000))
-    setGeneratedOtp(code)
+  const handleSendBookingOtp = async () => {
+    const emailTarget = customerEmail.trim()
+    if (!emailTarget || !emailTarget.includes('@')) {
+      setOtpNotice('Please enter a valid email address first.')
+      return
+    }
+
+    setOtpSending(true)
     setEnteredOtp('')
     setOtpVerified(false)
-    setOtpNotice(`Verification code ${code} sent to ${customerEmail}.`)
-    void dispatchTransactionalEmail({
-      to: customerEmail,
-      eventType: 'EMAIL_VERIFICATION',
-      reference: code,
-      customerName: 'Juan Dela Cruz',
-      serviceName: selectedService.title,
-      branchName: selectedBranch.name,
-      scheduledAt: `${formattedDate} · ${selectedTime}`,
-    })
+    setOtpNotice(`Sending verification code to ${emailTarget}...`)
+
+    try {
+      const res = await fetch('/api/booking-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send',
+          email: emailTarget,
+          customerName: 'Juan Dela Cruz',
+          serviceName: selectedService.title,
+          branchName: selectedBranch.name,
+          scheduledAt: `${formattedDate} · ${selectedTime}`,
+        }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setOtpMode('server-hmac')
+        setOtpToken(String(data.token || ''))
+        setOtpExpiresAt(Number(data.expiresAt || 0))
+        setOtpSent(true)
+        setOtpNotice(`A 6-digit verification code has been sent to ${emailTarget}. Please check your Inbox (and Spam folder).`)
+        setOtpSending(false)
+        return
+      }
+    } catch {
+      // Fallback to Supabase Auth OTP below
+    }
+
+    // Fallback: Use Supabase Auth built-in Email OTP delivery
+    if (supabase) {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailTarget,
+        options: { shouldCreateUser: true },
+      })
+      if (!error) {
+        setOtpMode('supabase-auth')
+        setOtpSent(true)
+        setOtpNotice(`A verification email has been sent to ${emailTarget} via Supabase Auth. Check your Inbox or Spam folder and enter the code below.`)
+        setOtpSending(false)
+        return
+      }
+      setOtpSending(false)
+      setOtpNotice(`Could not send email (${error.message}). Configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables for instant Gmail SMTP delivery.`)
+      return
+    }
+
+    setOtpSending(false)
+    setOtpNotice('Email service unavailable. Please configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables.')
   }
 
-  const handleVerifyOtp = (codeToCheck?: string) => {
-    const candidate = (codeToCheck ?? enteredOtp).trim()
-    if (generatedOtp && candidate === generatedOtp) {
-      setOtpVerified(true)
-      setOtpNotice('✓ Email verification code confirmed!')
-      return true
+  const handleVerifyOtp = async () => {
+    const candidate = enteredOtp.trim()
+    const emailTarget = customerEmail.trim()
+    if (!candidate || candidate.length < 6) {
+      setOtpNotice('Please enter the 6-digit verification code sent to your email.')
+      return false
     }
-    setOtpNotice('Invalid verification code. Please check the 6-digit code and try again.')
+
+    if (otpMode === 'server-hmac' && otpToken) {
+      try {
+        const res = await fetch('/api/booking-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'verify',
+            email: emailTarget,
+            code: candidate,
+            token: otpToken,
+            expiresAt: otpExpiresAt,
+          }),
+        })
+        const data = await res.json()
+        if (res.ok && data?.verified) {
+          setOtpVerified(true)
+          setOtpNotice('✓ Email verification code confirmed!')
+          return true
+        }
+        setOtpNotice(data?.error || 'Invalid verification code. Please check your email and try again.')
+        return false
+      } catch {
+        setOtpNotice('Could not verify code with server. Please try again.')
+        return false
+      }
+    }
+
+    if (otpMode === 'supabase-auth' && supabase) {
+      const firstTry = await supabase.auth.verifyOtp({
+        email: emailTarget,
+        token: candidate,
+        type: 'email',
+      })
+      if (!firstTry.error) {
+        setOtpVerified(true)
+        setOtpNotice('✓ Email verification code confirmed!')
+        return true
+      }
+      const secondTry = await supabase.auth.verifyOtp({
+        email: emailTarget,
+        token: candidate,
+        type: 'signup',
+      })
+      if (!secondTry.error) {
+        setOtpVerified(true)
+        setOtpNotice('✓ Email verification code confirmed!')
+        return true
+      }
+      setOtpNotice(firstTry.error?.message || 'Invalid verification code. Please check your email and try again.')
+      return false
+    }
+
+    setOtpNotice('Please click "Send Verification Code" first.')
     return false
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!otpVerified) {
-      if (generatedOtp && enteredOtp.trim() === generatedOtp) {
-        setOtpVerified(true)
-      } else {
-        if (!generatedOtp) {
-          handleSendBookingOtp()
-          setOtpNotice((prev) => `${prev} Please enter or auto-fill the 6-digit code to complete booking.`)
-        } else {
-          setOtpNotice('Please verify the 6-digit email verification code before confirming your booking.')
-        }
+      if (!otpSent) {
+        await handleSendBookingOtp()
         return
       }
+      const ok = await handleVerifyOtp()
+      if (!ok) return
     }
 
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
@@ -1337,7 +1435,7 @@ function CustomerBookAppointmentWizard({
       branchServiceId: selectedBranch.id,
       scheduledAt: scheduledIso,
       priceAtBooking: numericPrice,
-      customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Verified OTP: ${generatedOtp || 'OK'}]`,
+      customerRequest: `${shoeModel || 'Sneaker Pair'} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
       customerEmail: customerEmail || 'juan.delacruz@email.com',
       customerName: 'Juan Dela Cruz',
       serviceName: selectedService.title,
@@ -1794,14 +1892,15 @@ function CustomerBookAppointmentWizard({
               <button
                 type="button"
                 className="outline"
+                disabled={otpSending}
                 style={{ padding: '9px 14px', fontSize: 12 }}
                 onClick={handleSendBookingOtp}
               >
-                {generatedOtp ? 'Resend Code' : 'Send Verification Code'}
+                {otpSending ? 'Sending...' : otpSent ? 'Resend Code' : 'Send Verification Code'}
               </button>
             </div>
 
-            {generatedOtp && (
+            {otpSent && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
                 <input
                   type="text"
@@ -1810,7 +1909,7 @@ function CustomerBookAppointmentWizard({
                   onChange={(e) => setEnteredOtp(e.target.value)}
                   placeholder="Enter 6-digit code"
                   style={{
-                    width: 160,
+                    width: 170,
                     padding: '9px 12px',
                     border: '1px solid #d1d5db',
                     borderRadius: 8,
@@ -1824,23 +1923,10 @@ function CustomerBookAppointmentWizard({
                   type="button"
                   className="primary"
                   style={{ padding: '9px 14px', fontSize: 12 }}
-                  onClick={() => handleVerifyOtp()}
+                  onClick={() => void handleVerifyOtp()}
                 >
                   Verify Code
                 </button>
-                {!otpVerified && (
-                  <button
-                    type="button"
-                    className="outline"
-                    style={{ padding: '9px 12px', fontSize: 11.5 }}
-                    onClick={() => {
-                      setEnteredOtp(generatedOtp)
-                      handleVerifyOtp(generatedOtp)
-                    }}
-                  >
-                    Auto-fill ({generatedOtp})
-                  </button>
-                )}
               </div>
             )}
 

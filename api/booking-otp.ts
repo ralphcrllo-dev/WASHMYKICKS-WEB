@@ -1,0 +1,119 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import crypto from 'crypto'
+import nodemailer from 'nodemailer'
+
+const OTP_TTL_MS = 10 * 60 * 1000 // 10 minutes
+
+function getOtpSecret(): string {
+  return (
+    process.env.OTP_SIGNING_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.GMAIL_APP_PASSWORD ||
+    'wmk-enterprise-otp-hmac-secret-2026'
+  )
+}
+
+function computeOtpHmac(email: string, code: string, expiresAt: number): string {
+  return crypto
+    .createHmac('sha256', getOtpSecret())
+    .update(`${email.trim().toLowerCase()}:${code.trim()}:${expiresAt}`)
+    .digest('hex')
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  const {
+    action = 'send',
+    email,
+    code,
+    token,
+    expiresAt,
+    customerName = 'Valued Customer',
+    serviceName = 'Sneaker Care Service',
+    branchName = 'WashMyKicks Branch',
+    scheduledAt = '',
+  } = req.body ?? {}
+
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ ok: false, error: 'A valid email address is required.' })
+  }
+
+  if (action === 'verify') {
+    if (!code || !token || !expiresAt) {
+      return res.status(400).json({ ok: false, verified: false, error: 'Missing verification code or token.' })
+    }
+    if (Date.now() > Number(expiresAt)) {
+      return res.status(400).json({ ok: false, verified: false, error: 'Verification code has expired. Please request a new code.' })
+    }
+    const expected = computeOtpHmac(email, String(code), Number(expiresAt))
+    const a = Buffer.from(expected, 'hex')
+    const b = Buffer.from(String(token), 'hex')
+    const valid = a.length === b.length && crypto.timingSafeEqual(a, b)
+    if (!valid) {
+      return res.status(400).json({ ok: false, verified: false, error: 'Invalid 6-digit verification code.' })
+    }
+    return res.status(200).json({ ok: true, verified: true })
+  }
+
+  // action === 'send': Generate 6-digit OTP on the server only (never sent back in JSON)
+  const otpCode = String(crypto.randomInt(100000, 1000000))
+  const exp = Date.now() + OTP_TTL_MS
+  const signedToken = computeOtpHmac(email, otpCode, exp)
+
+  const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    return res.status(503).json({
+      ok: false,
+      reason: 'SMTP_NOT_CONFIGURED',
+      error: 'Gmail SMTP credentials (GMAIL_USER and GMAIL_APP_PASSWORD) are not yet configured in Vercel Environment Variables.',
+    })
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: GMAIL_USER,
+        pass: GMAIL_APP_PASSWORD,
+      },
+    })
+
+    await transporter.sendMail({
+      from: `WashMyKicks Security <${GMAIL_USER}>`,
+      to: email.trim(),
+      subject: `WashMyKicks — Your Booking Verification Code`,
+      html: `
+        <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · BOOKING SECURITY VERIFICATION</div>
+          <h2 style="margin:8px 0 12px;color:#111827;">Hi ${customerName}, verify your appointment</h2>
+          <p style="color:#4b5563;font-size:14px;line-height:1.6;">
+            Use the 6-digit verification code below to confirm your booking for <b>${serviceName}</b> at <b>${branchName}</b>${
+              scheduledAt ? ` on <b>${scheduledAt}</b>` : ''
+            }.
+          </p>
+          <div style="margin:20px 0;padding:18px;text-align:center;background:#111827;color:#ffffff;border-radius:12px;font-size:28px;font-weight:800;letter-spacing:8px;">
+            ${otpCode}
+          </div>
+          <p style="color:#6b7280;font-size:12px;line-height:1.5;">
+            This code expires in 10 minutes. Never share this code with anyone.
+          </p>
+        </div>
+      `,
+    })
+
+    // Return ONLY the HMAC signature and expiration — never the OTP code itself!
+    return res.status(200).json({
+      ok: true,
+      token: signedToken,
+      expiresAt: exp,
+    })
+  } catch (err: any) {
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || 'Failed to send verification email via Gmail SMTP.',
+    })
+  }
+}
