@@ -34821,50 +34821,56 @@ ${suffix}`;
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginTop: 0 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CHART 1 \xB7 BRANCH VOLUME" }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Orders Per Branch" }),
-                [
-                  ["San Juan City", 168, 92],
-                  ["Quezon City", 152, 84],
-                  ["Pasig City", 134, 74],
-                  ["Pateros", 98, 54],
-                  ["Montalban Rizal", 86, 48],
-                  ["Morong Rizal", 74, 41],
-                  ["Bacoor Cavite", 92, 51]
-                ].map(([name, count, pct]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: name }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-                      count,
-                      " orders"
-                    ] })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-fill", style: { width: `${pct}%` } }) })
-                ] }, String(name)))
+                staffBranches.map((fullBranch) => {
+                  const shortName = fullBranch.replace("Wash My Kicks \u2013 ", "");
+                  const count = orders.filter((o) => o.branch === fullBranch || o.branch.includes(shortName)).length;
+                  const pct = orders.length > 0 ? Math.round(count / orders.length * 100) : 0;
+                  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: shortName }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                        count,
+                        " orders"
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-fill", style: { width: `${pct}%` } }) })
+                  ] }, fullBranch);
+                })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginTop: 0 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CHART 2 \xB7 FINANCIAL PERFORMANCE" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Revenue Trends" }),
-                [
-                  ["Week 1 (Mar 1\u20137)", "\u20B1178,400", 68],
-                  ["Week 2 (Mar 8\u201314)", "\u20B1194,250", 76],
-                  ["Week 3 (Mar 15\u201321)", "\u20B1201,900", 82],
-                  ["Week 4 (Mar 22\u201328)", "\u20B1210,270", 91]
-                ].map(([week, rev, pct]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: week }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: rev })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-fill", style: { width: `${pct}%`, background: "#111827" } }) })
-                ] }, String(week))),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginTop: 18, padding: 12, background: "#f9fafb", borderRadius: 10, fontSize: 12 }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Peak Revenue Day:" }),
-                  " Saturdays (avg. \u20B142,800/day across all branches)"
-                ] })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Daily Revenue Trends" }),
+                (() => {
+                  const byDate = /* @__PURE__ */ new Map();
+                  orders.forEach((o) => {
+                    const d = o.date || "Unscheduled";
+                    byDate.set(d, (byDate.get(d) || 0) + pesoToNumber(o.price));
+                  });
+                  const entries = Array.from(byDate.entries()).slice(0, 5);
+                  const maxRev = Math.max(1, ...entries.map(([, r]) => r));
+                  if (entries.length === 0) {
+                    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: "18px 4px", color: "#6b7280", fontSize: 13 }, children: "No revenue recorded yet. Daily revenue bars will populate automatically day by day as orders are booked." });
+                  }
+                  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_jsx_runtime3.Fragment, { children: entries.map(([dateLabel, rev]) => {
+                    const pct = Math.round(rev / maxRev * 100);
+                    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: dateLabel }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                          "\u20B1",
+                          rev.toLocaleString()
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-fill", style: { width: `${pct}%`, background: "#111827" } }) })
+                    ] }, dateLabel);
+                  }) });
+                })()
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginTop: 0 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CHART 3 \xB7 CONSUMABLES TRACKING" }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Inventory Usage" }),
-                inventory.slice(0, 5).map((item) => {
-                  const usedPct = Math.min(96, Math.max(20, 100 - Math.round(item.stock / Math.max(item.target, 1) * 100)));
+                inventory.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: "18px 4px", color: "#6b7280", fontSize: 13 }, children: "No branch inventory items recorded yet. Add stock items in the Inventory tab to track utilization." }) : inventory.slice(0, 5).map((item) => {
+                  const usedPct = Math.min(96, Math.max(0, 100 - Math.round(item.stock / Math.max(item.target, 1) * 100)));
                   return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.name }),
@@ -34889,19 +34895,27 @@ ${suffix}`;
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginTop: 0 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CHART 4 \xB7 SERVICE MIX" }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Service Popularity" }),
-                [
-                  ["Deep Cleaning (\u20B1650)", "44% of bookings", 88],
-                  ["Basic Cleaning (\u20B1350)", "26% of bookings", 56],
-                  ["Restoration (From \u20B11,200)", "14% of bookings", 38],
-                  ["Shoe Protection (\u20B1280)", "10% of bookings", 28],
-                  ["Shoe Repair (From \u20B1800)", "6% of bookings", 18]
-                ].map(([svc, share, pct]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: svc }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: share })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-fill", style: { width: `${pct}%`, background: "#059669" } }) })
-                ] }, String(svc)))
+                servicesCatalog.filter((s) => !s.archived).map((svc) => {
+                  const count = orders.filter((o) => o.service.toLowerCase() === svc.title.toLowerCase()).length;
+                  const pct = orders.length > 0 ? Math.round(count / orders.length * 100) : 0;
+                  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-row", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "chart-bar-label", children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                        svc.title,
+                        " (",
+                        svc.price,
+                        ")"
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                        count,
+                        " bookings (",
+                        pct,
+                        "%)"
+                      ] })
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-track", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "chart-bar-fill", style: { width: `${pct}%`, background: "#059669" } }) })
+                  ] }, svc.id);
+                })
               ] })
             ] })
           ] }),
@@ -35334,10 +35348,29 @@ ${suffix}`;
           ] }),
           tab === "Reports" && (() => {
             const avgTicket = orders.length > 0 ? Math.round(adminRevenueTotal / orders.length) : 0;
+            const dailyMap = /* @__PURE__ */ new Map();
+            orders.forEach((o) => {
+              const d = o.date || "Unscheduled";
+              const existing = dailyMap.get(d);
+              const priceNum = pesoToNumber(o.price);
+              if (existing) {
+                existing.totalOrders += 1;
+                if (o.status === "Completed") existing.completedPairs += 1;
+                existing.revenue += priceNum;
+              } else {
+                dailyMap.set(d, {
+                  date: d,
+                  totalOrders: 1,
+                  completedPairs: o.status === "Completed" ? 1 : 0,
+                  revenue: priceNum
+                });
+              }
+            });
+            const dailyRows = Array.from(dailyMap.values());
             return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ANALYTICS & EXPORTS" }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Reports" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Financial summaries, turnaround efficiency, and branch KPI exports." }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Live financial summaries, day-by-day revenue logs, and branch KPI exports." }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-stats", style: { marginBottom: 20 }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
@@ -35346,7 +35379,7 @@ ${suffix}`;
                       "\u20B1",
                       adminRevenueTotal.toLocaleString()
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: orders.length === 0 ? "No completed orders yet" : `From ${orders.length} live orders` })
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: orders.length === 0 ? "No orders recorded yet" : `From ${orders.length} live orders` })
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Avg. Ticket Value" }),
@@ -35362,12 +35395,38 @@ ${suffix}`;
                       adminCompletedCount,
                       " pairs"
                     ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Across all 7 branches" })
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: orders.length === 0 ? "0% completed" : "Across all 7 branches" })
                   ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Registered Users" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: usersList.length }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Verified accounts" })
+                  ] })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: 20 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 15, margin: "0 0 10px" }, children: "Day-by-Day Revenue & Operations Log" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Date" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Orders Booked" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Completed Pairs" }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Daily Gross Revenue" })
+                    ] }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: dailyRows.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 4, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No daily report entries yet. Financial reports will automatically populate day by day as orders are created." }) }) : dailyRows.map((row) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.date }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("td", { children: [
+                        row.totalOrders,
+                        " orders"
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("td", { children: [
+                        row.completedPairs,
+                        " pairs"
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                        "\u20B1",
+                        row.revenue.toLocaleString()
+                      ] }) })
+                    ] }, row.date)) })
                   ] })
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
@@ -35388,6 +35447,11 @@ ${suffix}`;
                             ["Completed Pairs", adminCompletedCount, "Across all 7 branches"],
                             ["Registered Users", usersList.length, "Verified accounts"]
                           ]
+                        },
+                        {
+                          name: "Daily Revenue Log",
+                          headers: ["Date", "Orders Booked", "Completed Pairs", "Daily Revenue (PHP)"],
+                          rows: dailyRows.map((r) => [r.date, r.totalOrders, r.completedPairs, r.revenue])
                         },
                         {
                           name: "Job Orders",

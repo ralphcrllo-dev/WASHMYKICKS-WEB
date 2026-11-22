@@ -3779,105 +3779,127 @@ function AdminDashboard({
                 </div>
               </div>
 
-              {/* Row 4: 4 Required Admin Charts */}
+              {/* Row 4: 4 Required Admin Charts (100% Live from Supabase Orders & Inventory) */}
               <div className="charts-grid">
                 {/* Chart 1: Orders Per Branch */}
                 <div className="dash-panel" style={{ marginTop: 0 }}>
                   <span className="eyebrow">CHART 1 · BRANCH VOLUME</span>
                   <h2>Orders Per Branch</h2>
-                  {[
-                    ['San Juan City', 168, 92],
-                    ['Quezon City', 152, 84],
-                    ['Pasig City', 134, 74],
-                    ['Pateros', 98, 54],
-                    ['Montalban Rizal', 86, 48],
-                    ['Morong Rizal', 74, 41],
-                    ['Bacoor Cavite', 92, 51],
-                  ].map(([name, count, pct]) => (
-                    <div key={String(name)} className="chart-bar-row">
-                      <div className="chart-bar-label">
-                        <span>{name}</span>
-                        <b>{count} orders</b>
-                      </div>
-                      <div className="chart-bar-track">
-                        <div className="chart-bar-fill" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Chart 2: Revenue Trends */}
-                <div className="dash-panel" style={{ marginTop: 0 }}>
-                  <span className="eyebrow">CHART 2 · FINANCIAL PERFORMANCE</span>
-                  <h2>Revenue Trends</h2>
-                  {[
-                    ['Week 1 (Mar 1–7)', '₱178,400', 68],
-                    ['Week 2 (Mar 8–14)', '₱194,250', 76],
-                    ['Week 3 (Mar 15–21)', '₱201,900', 82],
-                    ['Week 4 (Mar 22–28)', '₱210,270', 91],
-                  ].map(([week, rev, pct]) => (
-                    <div key={String(week)} className="chart-bar-row">
-                      <div className="chart-bar-label">
-                        <span>{week}</span>
-                        <b>{rev}</b>
-                      </div>
-                      <div className="chart-bar-track">
-                        <div className="chart-bar-fill" style={{ width: `${pct}%`, background: '#111827' }} />
-                      </div>
-                    </div>
-                  ))}
-                  <div style={{ marginTop: 18, padding: 12, background: '#f9fafb', borderRadius: 10, fontSize: 12 }}>
-                    <b>Peak Revenue Day:</b> Saturdays (avg. ₱42,800/day across all branches)
-                  </div>
-                </div>
-
-                {/* Chart 3: Inventory Usage */}
-                <div className="dash-panel" style={{ marginTop: 0 }}>
-                  <span className="eyebrow">CHART 3 · CONSUMABLES TRACKING</span>
-                  <h2>Inventory Usage</h2>
-                  {inventory.slice(0, 5).map((item) => {
-                    const usedPct = Math.min(96, Math.max(20, 100 - Math.round((item.stock / Math.max(item.target, 1)) * 100)))
+                  {staffBranches.map((fullBranch) => {
+                    const shortName = fullBranch.replace('Wash My Kicks – ', '')
+                    const count = orders.filter((o) => o.branch === fullBranch || o.branch.includes(shortName)).length
+                    const pct = orders.length > 0 ? Math.round((count / orders.length) * 100) : 0
                     return (
-                      <div key={item.id} className="chart-bar-row">
+                      <div key={fullBranch} className="chart-bar-row">
                         <div className="chart-bar-label">
-                          <span>{item.name}</span>
-                          <b>{usedPct}% utilized</b>
+                          <span>{shortName}</span>
+                          <b>{count} orders</b>
                         </div>
                         <div className="chart-bar-track">
-                          <div
-                            className="chart-bar-fill"
-                            style={{
-                              width: `${usedPct}%`,
-                              background: usedPct > 70 ? '#dc2626' : '#2563eb',
-                            }}
-                          />
+                          <div className="chart-bar-fill" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     )
                   })}
                 </div>
 
+                {/* Chart 2: Revenue Trends (Day-by-Day Live Grouping) */}
+                <div className="dash-panel" style={{ marginTop: 0 }}>
+                  <span className="eyebrow">CHART 2 · FINANCIAL PERFORMANCE</span>
+                  <h2>Daily Revenue Trends</h2>
+                  {(() => {
+                    const byDate = new Map<string, number>()
+                    orders.forEach((o) => {
+                      const d = o.date || 'Unscheduled'
+                      byDate.set(d, (byDate.get(d) || 0) + pesoToNumber(o.price))
+                    })
+                    const entries = Array.from(byDate.entries()).slice(0, 5)
+                    const maxRev = Math.max(1, ...entries.map(([, r]) => r))
+                    if (entries.length === 0) {
+                      return (
+                        <div style={{ padding: '18px 4px', color: '#6b7280', fontSize: 13 }}>
+                          No revenue recorded yet. Daily revenue bars will populate automatically day by day as orders are booked.
+                        </div>
+                      )
+                    }
+                    return (
+                      <>
+                        {entries.map(([dateLabel, rev]) => {
+                          const pct = Math.round((rev / maxRev) * 100)
+                          return (
+                            <div key={dateLabel} className="chart-bar-row">
+                              <div className="chart-bar-label">
+                                <span>{dateLabel}</span>
+                                <b>₱{rev.toLocaleString()}</b>
+                              </div>
+                              <div className="chart-bar-track">
+                                <div className="chart-bar-fill" style={{ width: `${pct}%`, background: '#111827' }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )
+                  })()}
+                </div>
+
+                {/* Chart 3: Inventory Usage */}
+                <div className="dash-panel" style={{ marginTop: 0 }}>
+                  <span className="eyebrow">CHART 3 · CONSUMABLES TRACKING</span>
+                  <h2>Inventory Usage</h2>
+                  {inventory.length === 0 ? (
+                    <div style={{ padding: '18px 4px', color: '#6b7280', fontSize: 13 }}>
+                      No branch inventory items recorded yet. Add stock items in the Inventory tab to track utilization.
+                    </div>
+                  ) : (
+                    inventory.slice(0, 5).map((item) => {
+                      const usedPct = Math.min(96, Math.max(0, 100 - Math.round((item.stock / Math.max(item.target, 1)) * 100)))
+                      return (
+                        <div key={item.id} className="chart-bar-row">
+                          <div className="chart-bar-label">
+                            <span>{item.name}</span>
+                            <b>{usedPct}% utilized</b>
+                          </div>
+                          <div className="chart-bar-track">
+                            <div
+                              className="chart-bar-fill"
+                              style={{
+                                width: `${usedPct}%`,
+                                background: usedPct > 70 ? '#dc2626' : '#2563eb',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
                 {/* Chart 4: Service Popularity */}
                 <div className="dash-panel" style={{ marginTop: 0 }}>
                   <span className="eyebrow">CHART 4 · SERVICE MIX</span>
                   <h2>Service Popularity</h2>
-                  {[
-                    ['Deep Cleaning (₱650)', '44% of bookings', 88],
-                    ['Basic Cleaning (₱350)', '26% of bookings', 56],
-                    ['Restoration (From ₱1,200)', '14% of bookings', 38],
-                    ['Shoe Protection (₱280)', '10% of bookings', 28],
-                    ['Shoe Repair (From ₱800)', '6% of bookings', 18],
-                  ].map(([svc, share, pct]) => (
-                    <div key={String(svc)} className="chart-bar-row">
-                      <div className="chart-bar-label">
-                        <span>{svc}</span>
-                        <b>{share}</b>
-                      </div>
-                      <div className="chart-bar-track">
-                        <div className="chart-bar-fill" style={{ width: `${pct}%`, background: '#059669' }} />
-                      </div>
-                    </div>
-                  ))}
+                  {servicesCatalog
+                    .filter((s) => !s.archived)
+                    .map((svc) => {
+                      const count = orders.filter((o) => o.service.toLowerCase() === svc.title.toLowerCase()).length
+                      const pct = orders.length > 0 ? Math.round((count / orders.length) * 100) : 0
+                      return (
+                        <div key={svc.id} className="chart-bar-row">
+                          <div className="chart-bar-label">
+                            <span>
+                              {svc.title} ({svc.price})
+                            </span>
+                            <b>
+                              {count} bookings ({pct}%)
+                            </b>
+                          </div>
+                          <div className="chart-bar-track">
+                            <div className="chart-bar-fill" style={{ width: `${pct}%`, background: '#059669' }} />
+                          </div>
+                        </div>
+                      )
+                    })}
                 </div>
               </div>
             </>
@@ -4370,18 +4392,37 @@ function AdminDashboard({
           {/* ADMIN TAB: REPORTS */}
           {tab === 'Reports' && (() => {
             const avgTicket = orders.length > 0 ? Math.round(adminRevenueTotal / orders.length) : 0
+            const dailyMap = new Map<string, { date: string; totalOrders: number; completedPairs: number; revenue: number }>()
+            orders.forEach((o) => {
+              const d = o.date || 'Unscheduled'
+              const existing = dailyMap.get(d)
+              const priceNum = pesoToNumber(o.price)
+              if (existing) {
+                existing.totalOrders += 1
+                if (o.status === 'Completed') existing.completedPairs += 1
+                existing.revenue += priceNum
+              } else {
+                dailyMap.set(d, {
+                  date: d,
+                  totalOrders: 1,
+                  completedPairs: o.status === 'Completed' ? 1 : 0,
+                  revenue: priceNum,
+                })
+              }
+            })
+            const dailyRows = Array.from(dailyMap.values())
             return (
               <>
                 <span className="eyebrow">ANALYTICS & EXPORTS</span>
                 <h1>Reports</h1>
-                <p>Financial summaries, turnaround efficiency, and branch KPI exports.</p>
+                <p>Live financial summaries, day-by-day revenue logs, and branch KPI exports.</p>
 
                 <div className="dash-panel">
                   <div className="dash-stats" style={{ marginBottom: 20 }}>
                     <article>
                       <span>Gross Revenue</span>
                       <b>₱{adminRevenueTotal.toLocaleString()}</b>
-                      <small>{orders.length === 0 ? 'No completed orders yet' : `From ${orders.length} live orders`}</small>
+                      <small>{orders.length === 0 ? 'No orders recorded yet' : `From ${orders.length} live orders`}</small>
                     </article>
                     <article>
                       <span>Avg. Ticket Value</span>
@@ -4391,7 +4432,7 @@ function AdminDashboard({
                     <article>
                       <span>Completed Pairs</span>
                       <b>{adminCompletedCount} pairs</b>
-                      <small>Across all 7 branches</small>
+                      <small>{orders.length === 0 ? '0% completed' : 'Across all 7 branches'}</small>
                     </article>
                     <article>
                       <span>Registered Users</span>
@@ -4399,6 +4440,43 @@ function AdminDashboard({
                       <small>Verified accounts</small>
                     </article>
                   </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <h3 style={{ fontSize: 15, margin: '0 0 10px' }}>Day-by-Day Revenue &amp; Operations Log</h3>
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Orders Booked</th>
+                          <th>Completed Pairs</th>
+                          <th>Daily Gross Revenue</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dailyRows.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
+                              No daily report entries yet. Financial reports will automatically populate day by day as orders are created.
+                            </td>
+                          </tr>
+                        ) : (
+                          dailyRows.map((row) => (
+                            <tr key={row.date}>
+                              <td>
+                                <b>{row.date}</b>
+                              </td>
+                              <td>{row.totalOrders} orders</td>
+                              <td>{row.completedPairs} pairs</td>
+                              <td>
+                                <b>₱{row.revenue.toLocaleString()}</b>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
                   <button
                     type="button"
                     className="primary"
@@ -4415,6 +4493,11 @@ function AdminDashboard({
                             ['Completed Pairs', adminCompletedCount, 'Across all 7 branches'],
                             ['Registered Users', usersList.length, 'Verified accounts'],
                           ],
+                        },
+                        {
+                          name: 'Daily Revenue Log',
+                          headers: ['Date', 'Orders Booked', 'Completed Pairs', 'Daily Revenue (PHP)'],
+                          rows: dailyRows.map((r) => [r.date, r.totalOrders, r.completedPairs, r.revenue]),
                         },
                         {
                           name: 'Job Orders',
