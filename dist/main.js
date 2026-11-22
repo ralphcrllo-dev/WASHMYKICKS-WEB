@@ -33942,7 +33942,25 @@ ${suffix}`;
     const staffPendingCount = orders.filter((o) => o.status === "Pending Assessment").length;
     const staffInProgressCount = orders.filter((o) => o.status === "In Progress" || o.status === "Quality Check").length;
     const staffCompletedCount = orders.filter((o) => o.status === "Completed").length;
-    const staffUnreadCount = orders.filter((o) => o.status !== "Completed").length;
+    const staffLowStockItems = inventory.filter(
+      (i) => (!userMeta.branch || i.branch === userMeta.branch) && getInventoryStatus(i.stock, i.target) !== "Healthy"
+    );
+    const staffAlerts = [
+      ...orders.filter((o) => o.status !== "Completed").map((o) => ({
+        id: `order-${o.id}`,
+        title: o.status === "Pending Assessment" ? `New Drop-Off Assigned \u2014 ${o.id}` : `Service Update Needed (${o.status}) \u2014 ${o.id}`,
+        body: o.status === "Pending Assessment" ? `${o.customer} dropped off ${o.shoe} for ${o.service} at ${o.branch.replace("Wash My Kicks \u2013 ", "")}. Please complete initial Shoe Assessment.` : `${o.shoe} (${o.service}) is currently "${o.status}". Update 4-Angle Documentation or service status.`,
+        targetTab: o.status === "Pending Assessment" ? "Shoe Assessment" : "Before & After Documentation",
+        orderId: o.id
+      })),
+      ...staffLowStockItems.map((item) => ({
+        id: `inv-${item.id}`,
+        title: `Branch Inventory Low Alert \u2014 ${item.branch.replace("Wash My Kicks \u2013 ", "")}`,
+        body: `${item.name} is down to ${item.stock} / ${item.target} units. Check the Inventory module to restock or transfer.`,
+        targetTab: "Inventory"
+      }))
+    ];
+    const staffUnreadCount = staffAlerts.length;
     const staffInitials = userMeta.name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() || "").join("") || "ST";
     const staffTodayStr = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", {
       weekday: "long",
@@ -34218,52 +34236,29 @@ ${suffix}`;
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Branch updates" }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wmk-link-btn", onClick: () => setTab("Notifications"), children: "View all" })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-list", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                    "div",
-                    {
-                      className: "wmk-update-item",
-                      onClick: () => {
-                        setSelectedOrderId("WMK-2026-0045");
-                        setTab("Shoe Assessment");
-                      },
-                      children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 15 }) }),
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Assessment requested" }),
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-0045 \xB7 8 min ago" })
-                        ] }),
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                      ]
-                    }
-                  ),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                    "div",
-                    {
-                      className: "wmk-update-item",
-                      onClick: () => {
-                        setSelectedOrderId("WMK-2026-0046");
-                        setTab("Before & After Documentation");
-                      },
-                      children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Camera, { size: 15 }) }),
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "After photos due" }),
-                          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-0046 \xB7 Today" })
-                        ] }),
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                      ]
-                    }
-                  ),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Job Orders"), children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 15 }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Order completed" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-0041 \xB7 Yesterday" })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                  ] })
-                ] })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-list", children: orders.length === 0 && staffLowStockItems.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: "14px 4px", color: "#6b7280", fontSize: 13 }, children: "No branch updates yet. Updates will appear here as orders are booked or inventory changes." }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(import_jsx_runtime3.Fragment, { children: orders.slice(0, 3).map((ord) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "div",
+                  {
+                    className: "wmk-update-item",
+                    onClick: () => {
+                      setSelectedOrderId(ord.id);
+                      setTab(ord.status === "Pending Assessment" ? "Shoe Assessment" : "Before & After Documentation");
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: ord.status === "Completed" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 15 }) : ord.status === "Pending Assessment" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 15 }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Camera, { size: 15 }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: ord.status === "Pending Assessment" ? "Assessment requested" : ord.status }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                          ord.id,
+                          " \xB7 ",
+                          ord.date
+                        ] })
+                      ] }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
+                    ]
+                  },
+                  ord.id
+                )) }) })
               ] })
             ] })
           ] }),
@@ -34479,7 +34474,7 @@ ${suffix}`;
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Service" }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Order Status" })
               ] }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.map((o) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 5, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No customer orders recorded at your branch yet." }) }) : orders.map((o) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.customer }) }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.email }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.shoe }),
@@ -34492,20 +34487,21 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "STAFF ALERTS" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Notifications" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Branch drop-off alerts, documentation checks, and low-stock notifications." }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { padding: 14, border: "1px solid #e5e7eb", borderRadius: 10 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Outsole After-Photo Needed \u2014 WMK-2026-0046" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#6b7280", margin: "4px 0 0" }, children: "Upload final Sole after-photo in Before & After Documentation to complete Quality Check." })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { padding: 14, border: "1px solid #e5e7eb", borderRadius: 10 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "New Drop-Off Assigned \u2014 WMK-2026-01849" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#6b7280", margin: "4px 0 0" }, children: "Angela Mercado dropped off New Balance 2002R for Restoration. Please complete initial Shoe Assessment." })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { padding: 14, border: "1px solid #e5e7eb", borderRadius: 10 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Branch Inventory Low Alert \u2014 San Juan City" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#6b7280", margin: "4px 0 0" }, children: "Water Repellent 250ml is down to 7 / 25 units. Check the Inventory module to restock or transfer." })
-              ] })
-            ] })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", style: { display: "flex", flexDirection: "column", gap: 12 }, children: staffAlerts.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: 18, textAlign: "center", color: "#6b7280", fontSize: 13.5 }, children: "No branch notifications or alerts yet. Alerts will appear here when customers book appointments or stock runs low." }) : staffAlerts.map((alert) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+              "div",
+              {
+                style: { padding: 14, border: "1px solid #e5e7eb", borderRadius: 10, cursor: "pointer" },
+                onClick: () => {
+                  if (alert.orderId) setSelectedOrderId(alert.orderId);
+                  setTab(alert.targetTab);
+                },
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: alert.title }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#6b7280", margin: "4px 0 0" }, children: alert.body })
+                ]
+              },
+              alert.id
+            )) })
           ] })
         ] })
       ] })
@@ -34529,9 +34525,11 @@ ${suffix}`;
     const [newSvcPrice, setNewSvcPrice] = (0, import_react5.useState)("\u20B1500");
     const [newSvcDuration, setNewSvcDuration] = (0, import_react5.useState)("2\u20134 days");
     const [usersList, setUsersList] = (0, import_react5.useState)([]);
+    const [auditLogs, setAuditLogs] = (0, import_react5.useState)([]);
     (0, import_react5.useEffect)(() => {
       fetchLiveProductionData().then((res) => {
         if (res.users.length > 0) setUsersList(res.users);
+        if (res.auditLogs.length > 0) setAuditLogs(res.auditLogs);
       }).catch(() => {
       });
     }, []);
@@ -34792,32 +34790,31 @@ ${suffix}`;
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Branch updates" }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wmk-link-btn", onClick: () => setTab("Audit Trail"), children: "View all" })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-list", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Inventory"), children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-list", children: orders.length === 0 && lowStockCount === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { padding: "14px 4px", color: "#6b7280", fontSize: 13 }, children: "No network updates yet. Updates will appear here as orders are booked or inventory changes." }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+                  lowStockCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Inventory"), children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 15 }) }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
                       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Low stock alert" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "San Juan City \xB7 8 min ago" })
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                        lowStockCount,
+                        " item(s) need restock"
+                      ] })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
                   ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Job Orders"), children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Camera, { size: 15 }) }),
+                  orders.slice(0, 3).map((ord) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Job Orders"), children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: ord.status === "Completed" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 15 }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Camera, { size: 15 }) }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "After photos due" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "WMK-2026-0046 \xB7 Today" })
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: ord.status }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
+                        ord.id,
+                        " \xB7 ",
+                        ord.branch.replace("Wash My Kicks \u2013 ", "")
+                      ] })
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-item", onClick: () => setTab("Reports"), children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-update-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 15 }) }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-update-body", children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Daily revenue milestone" }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "\u20B1784,820 MTD \xB7 Today" })
-                    ] }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15, className: "wmk-update-arrow" })
-                  ] })
-                ] })
+                  ] }, ord.id))
+                ] }) })
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "charts-grid", children: [
@@ -35158,68 +35155,87 @@ ${suffix}`;
               onNotify: showToast
             }
           ),
-          tab === "CRM" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER RELATIONSHIP MANAGEMENT" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "CRM" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Customer profiles, lifetime sneaker care value, and retention insights." })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                "button",
-                {
-                  type: "button",
-                  className: "outline",
-                  style: { display: "inline-flex", alignItems: "center", gap: 6 },
-                  onClick: () => {
-                    const crmRows = [
-                      ["Juan Dela Cruz", "juan.delacruz@email.com", "Pasig City (Flagship)", 12, "VIP Sneakerhead"],
-                      ["Angela Mercado", "angela.m@email.com", "San Juan City", 7, "Gold Member"],
-                      ["Jiro Reyes", "jiro.reyes@email.com", "Quezon City", 5, "Silver Member"],
-                      ["Kaye Santos", "kaye.s@email.com", "Pasig City (Flagship)", 9, "Gold Member"]
-                    ];
-                    const fileName = `WashMyKicks_CRM_Customers_${exportDateStamp()}.xlsx`;
-                    downloadExcel(fileName, [
-                      {
-                        name: "CRM Customers",
-                        headers: ["Customer Name", "Email", "Preferred Branch", "Completed Pairs", "Loyalty Tier"],
-                        rows: crmRows
-                      }
-                    ]);
-                    showToast(`Exported ${crmRows.length} CRM customer profiles to ${fileName}.`);
-                  },
-                  children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 15 }),
-                    " Export Customers (.xlsx)"
-                  ]
-                }
-              )
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Customer" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Email" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Preferred Branch" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Completed Pairs" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Loyalty Tier" })
-              ] }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: [
-                ["Juan Dela Cruz", "juan.delacruz@email.com", "San Juan City", 12, "VIP Sneakerhead"],
-                ["Angela Mercado", "angela.m@email.com", "San Juan City", 7, "Gold Member"],
-                ["Jiro Reyes", "jiro.reyes@email.com", "Quezon City", 5, "Silver Member"],
-                ["Kaye Santos", "kaye.s@email.com", "Pasig City", 9, "Gold Member"]
-              ].map(([name, email, branch, pairs, tier]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: name }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: email }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: branch }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("td", { children: [
-                  pairs,
-                  " pairs"
+          tab === "CRM" && (() => {
+            const crmMap = /* @__PURE__ */ new Map();
+            usersList.filter((u) => u.role.toLowerCase().includes("customer")).forEach((u) => {
+              crmMap.set(u.email.toLowerCase(), {
+                name: u.name,
+                email: u.email,
+                branch: (u.branch || "Pasig City").replace("Wash My Kicks \u2013 ", ""),
+                pairs: 0
+              });
+            });
+            orders.forEach((o) => {
+              const key = (o.email || o.customer).toLowerCase();
+              const existing = crmMap.get(key);
+              if (existing) {
+                if (o.status === "Completed") existing.pairs += 1;
+              } else {
+                crmMap.set(key, {
+                  name: o.customer,
+                  email: o.email,
+                  branch: o.branch.replace("Wash My Kicks \u2013 ", ""),
+                  pairs: o.status === "Completed" ? 1 : 0
+                });
+              }
+            });
+            const crmProfiles = Array.from(crmMap.values()).map((c) => ({
+              ...c,
+              tier: c.pairs >= 10 ? "VIP Sneakerhead" : c.pairs >= 5 ? "Gold Member" : c.pairs >= 1 ? "Silver Member" : "Member"
+            }));
+            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER RELATIONSHIP MANAGEMENT" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "CRM" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Customer profiles, lifetime sneaker care value, and retention insights." })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-pill blue", children: tier }) })
-              ] }, String(email))) })
-            ] }) })
-          ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: "outline",
+                    style: { display: "inline-flex", alignItems: "center", gap: 6 },
+                    onClick: () => {
+                      const crmRows = crmProfiles.map((c) => [c.name, c.email, c.branch, c.pairs, c.tier]);
+                      const fileName = `WashMyKicks_CRM_Customers_${exportDateStamp()}.xlsx`;
+                      downloadExcel(fileName, [
+                        {
+                          name: "CRM Customers",
+                          headers: ["Customer Name", "Email", "Preferred Branch", "Completed Pairs", "Loyalty Tier"],
+                          rows: crmRows
+                        }
+                      ]);
+                      showToast(`Exported ${crmRows.length} CRM customer profiles to ${fileName}.`);
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 15 }),
+                      " Export Customers (.xlsx)"
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Customer" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Email" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Preferred Branch" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Completed Pairs" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Loyalty Tier" })
+                ] }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: crmProfiles.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 5, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No customer profiles recorded yet." }) }) : crmProfiles.map((c) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: c.name }) }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: c.email }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: c.branch }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("td", { children: [
+                    c.pairs,
+                    " pairs"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-pill blue", children: c.tier }) })
+                ] }, c.email)) })
+              ] }) })
+            ] });
+          })(),
           tab === "Job Orders" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 14 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
@@ -35316,105 +35332,117 @@ ${suffix}`;
               ] }, o.id)) })
             ] }) })
           ] }),
-          tab === "Reports" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ANALYTICS & EXPORTS" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Reports" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Financial summaries, turnaround efficiency, and branch KPI exports." }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-stats", style: { marginBottom: 20 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Gross Monthly Revenue" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "\u20B1784,820" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "+18.4% MoM" })
+          tab === "Reports" && (() => {
+            const avgTicket = orders.length > 0 ? Math.round(adminRevenueTotal / orders.length) : 0;
+            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ANALYTICS & EXPORTS" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Reports" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Financial summaries, turnaround efficiency, and branch KPI exports." }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-stats", style: { marginBottom: 20 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Gross Revenue" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                      "\u20B1",
+                      adminRevenueTotal.toLocaleString()
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: orders.length === 0 ? "No completed orders yet" : `From ${orders.length} live orders` })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Avg. Ticket Value" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                      "\u20B1",
+                      avgTicket.toLocaleString()
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: orders.length === 0 ? "Awaiting bookings" : "Live average order value" })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Completed Pairs" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                      adminCompletedCount,
+                      " pairs"
+                    ] }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Across all 7 branches" })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Registered Users" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: usersList.length }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Verified accounts" })
+                  ] })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Avg. Ticket Value" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "\u20B1685" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Driven by Deep Cleaning & Restoration" })
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "On-Time Turnaround" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "98.2%" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Across all 7 branches" })
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Customer CSAT" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "4.92 / 5.0" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Based on verified reviews" })
-                ] })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                "button",
-                {
-                  type: "button",
-                  className: "primary",
-                  style: { display: "inline-flex", alignItems: "center", gap: 8 },
-                  onClick: () => {
-                    const fileName = `WashMyKicks_Executive_Report_${exportDateStamp()}.xlsx`;
-                    downloadExcel(fileName, [
-                      {
-                        name: "Executive Summary",
-                        headers: ["Metric", "Value", "Notes"],
-                        rows: [
-                          ["Gross Monthly Revenue (PHP)", 784820, "+18.4% MoM"],
-                          ["Average Ticket Value (PHP)", 685, "Driven by Deep Cleaning & Restoration"],
-                          ["On-Time Turnaround", "98.2%", "Across all 7 branches"],
-                          ["Customer CSAT", "4.92 / 5.0", "Based on verified reviews"]
-                        ]
-                      },
-                      {
-                        name: "Job Orders",
-                        headers: ["Job Order ID", "Customer", "Email", "Sneaker Pair", "Service", "Branch", "Date", "Time", "Price (PHP)", "Specialist", "Status"],
-                        rows: orders.map((o) => [
-                          o.id,
-                          o.customer,
-                          o.email,
-                          o.shoe,
-                          o.service,
-                          o.branch,
-                          o.date,
-                          o.time,
-                          pesoToNumber(o.price),
-                          o.specialist,
-                          o.status
-                        ])
-                      },
-                      {
-                        name: "Services Catalog",
-                        headers: ["Code", "Service Name", "Description", "Price (PHP)", "Turnaround", "Status"],
-                        rows: servicesCatalog.map((s) => [
-                          s.id,
-                          s.title,
-                          s.copy,
-                          s.numericPrice,
-                          s.duration,
-                          s.archived ? "Archived" : "Active"
-                        ])
-                      },
-                      {
-                        name: "Branch Inventory",
-                        headers: ["Item ID", "Item Name", "Category", "Branch", "Current Stock", "Target Level", "Status"],
-                        rows: inventory.map((i) => [
-                          i.id,
-                          i.name,
-                          i.category,
-                          i.branch,
-                          i.stock,
-                          i.target,
-                          getInventoryStatus(i.stock, i.target)
-                        ])
-                      }
-                    ]);
-                    showToast(`Exported multi-sheet Excel workbook ${fileName}`);
-                  },
-                  children: [
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 16 }),
-                    " Export Full Financial & Operations Report (.xlsx)"
-                  ]
-                }
-              )
-            ] })
-          ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    className: "primary",
+                    style: { display: "inline-flex", alignItems: "center", gap: 8 },
+                    onClick: () => {
+                      const fileName = `WashMyKicks_Executive_Report_${exportDateStamp()}.xlsx`;
+                      downloadExcel(fileName, [
+                        {
+                          name: "Executive Summary",
+                          headers: ["Metric", "Value", "Notes"],
+                          rows: [
+                            ["Gross Revenue (PHP)", adminRevenueTotal, `From ${orders.length} live orders`],
+                            ["Average Ticket Value (PHP)", avgTicket, "Live average order value"],
+                            ["Completed Pairs", adminCompletedCount, "Across all 7 branches"],
+                            ["Registered Users", usersList.length, "Verified accounts"]
+                          ]
+                        },
+                        {
+                          name: "Job Orders",
+                          headers: ["Job Order ID", "Customer", "Email", "Sneaker Pair", "Service", "Branch", "Date", "Time", "Price (PHP)", "Specialist", "Status"],
+                          rows: orders.map((o) => [
+                            o.id,
+                            o.customer,
+                            o.email,
+                            o.shoe,
+                            o.service,
+                            o.branch,
+                            o.date,
+                            o.time,
+                            pesoToNumber(o.price),
+                            o.specialist,
+                            o.status
+                          ])
+                        },
+                        {
+                          name: "Services Catalog",
+                          headers: ["Code", "Service Name", "Description", "Price (PHP)", "Turnaround", "Status"],
+                          rows: servicesCatalog.map((s) => [
+                            s.id,
+                            s.title,
+                            s.copy,
+                            s.numericPrice,
+                            s.duration,
+                            s.archived ? "Archived" : "Active"
+                          ])
+                        },
+                        {
+                          name: "Branch Inventory",
+                          headers: ["Item ID", "Item Name", "Category", "Branch", "Current Stock", "Target Level", "Status"],
+                          rows: inventory.map((i) => [
+                            i.id,
+                            i.name,
+                            i.category,
+                            i.branch,
+                            i.stock,
+                            i.target,
+                            getInventoryStatus(i.stock, i.target)
+                          ])
+                        }
+                      ]);
+                      showToast(`Exported multi-sheet Excel workbook ${fileName}`);
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Download, { size: 16 }),
+                      " Export Full Financial & Operations Report (.xlsx)"
+                    ]
+                  }
+                )
+              ] })
+            ] });
+          })(),
           tab === "Audit Trail" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "SECURITY & COMPLIANCE LOGS" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Audit Trail" }),
@@ -35427,17 +35455,12 @@ ${suffix}`;
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Action" }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Target" })
               ] }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: [
-                ["2026-03-28 10:42 AM", "Mika Cruz", "Administrator", "Viewed Revenue & Branch Reports", "All Branches"],
-                ["2026-03-28 10:15 AM", "Carlo Mendoza (WMK-EMP-0104)", "Staff", "Uploaded Before & After Photos", "WMK-2026-01842"],
-                ["2026-03-28 09:50 AM", "Juan Dela Cruz", "Customer", "Booked Deep Cleaning Appointment", "San Juan City Branch"],
-                ["2026-03-28 09:12 AM", "Marco Santos (WMK-EMP-0109)", "Staff", "Updated Order Status to Ready for Pickup", "WMK-2026-01835"]
-              ].map(([time, actor, r, action, target], i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: time }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: actor }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-pill gray", children: r }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: action }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: target })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: auditLogs.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 5, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No audit trail entries recorded yet." }) }) : auditLogs.map((log, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: log.time }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: log.actor }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "status-pill gray", children: log.role }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: log.action }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: log.target })
               ] }, i)) })
             ] }) })
           ] }),

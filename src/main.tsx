@@ -2722,7 +2722,33 @@ function StaffDashboard({
   const staffPendingCount = orders.filter((o) => o.status === 'Pending Assessment').length
   const staffInProgressCount = orders.filter((o) => o.status === 'In Progress' || o.status === 'Quality Check').length
   const staffCompletedCount = orders.filter((o) => o.status === 'Completed').length
-  const staffUnreadCount = orders.filter((o) => o.status !== 'Completed').length
+  const staffLowStockItems = inventory.filter(
+    (i) => (!userMeta.branch || i.branch === userMeta.branch) && getInventoryStatus(i.stock, i.target) !== 'Healthy'
+  )
+  const staffAlerts: { id: string; title: string; body: string; targetTab: typeof tab; orderId?: string }[] = [
+    ...orders
+      .filter((o) => o.status !== 'Completed')
+      .map((o) => ({
+        id: `order-${o.id}`,
+        title:
+          o.status === 'Pending Assessment'
+            ? `New Drop-Off Assigned — ${o.id}`
+            : `Service Update Needed (${o.status}) — ${o.id}`,
+        body:
+          o.status === 'Pending Assessment'
+            ? `${o.customer} dropped off ${o.shoe} for ${o.service} at ${o.branch.replace('Wash My Kicks – ', '')}. Please complete initial Shoe Assessment.`
+            : `${o.shoe} (${o.service}) is currently "${o.status}". Update 4-Angle Documentation or service status.`,
+        targetTab: (o.status === 'Pending Assessment' ? 'Shoe Assessment' : 'Before & After Documentation') as typeof tab,
+        orderId: o.id,
+      })),
+    ...staffLowStockItems.map((item) => ({
+      id: `inv-${item.id}`,
+      title: `Branch Inventory Low Alert — ${item.branch.replace('Wash My Kicks – ', '')}`,
+      body: `${item.name} is down to ${item.stock} / ${item.target} units. Check the Inventory module to restock or transfer.`,
+      targetTab: 'Inventory' as typeof tab,
+    })),
+  ]
+  const staffUnreadCount = staffAlerts.length
   const staffInitials =
     userMeta.name
       .trim()
@@ -3036,50 +3062,41 @@ function StaffDashboard({
                   </div>
 
                   <div className="wmk-update-list">
-                    <div
-                      className="wmk-update-item"
-                      onClick={() => {
-                        setSelectedOrderId('WMK-2026-0045')
-                        setTab('Shoe Assessment')
-                      }}
-                    >
-                      <div className="wmk-update-icon">
-                        <Sparkles size={15} />
+                    {orders.length === 0 && staffLowStockItems.length === 0 ? (
+                      <div style={{ padding: '14px 4px', color: '#6b7280', fontSize: 13 }}>
+                        No branch updates yet. Updates will appear here as orders are booked or inventory changes.
                       </div>
-                      <div className="wmk-update-body">
-                        <b>Assessment requested</b>
-                        <span>WMK-2026-0045 · 8 min ago</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
-
-                    <div
-                      className="wmk-update-item"
-                      onClick={() => {
-                        setSelectedOrderId('WMK-2026-0046')
-                        setTab('Before & After Documentation')
-                      }}
-                    >
-                      <div className="wmk-update-icon">
-                        <Camera size={15} />
-                      </div>
-                      <div className="wmk-update-body">
-                        <b>After photos due</b>
-                        <span>WMK-2026-0046 · Today</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
-
-                    <div className="wmk-update-item" onClick={() => setTab('Job Orders')}>
-                      <div className="wmk-update-icon">
-                        <Check size={15} />
-                      </div>
-                      <div className="wmk-update-body">
-                        <b>Order completed</b>
-                        <span>WMK-2026-0041 · Yesterday</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
+                    ) : (
+                      <>
+                        {orders.slice(0, 3).map((ord) => (
+                          <div
+                            key={ord.id}
+                            className="wmk-update-item"
+                            onClick={() => {
+                              setSelectedOrderId(ord.id)
+                              setTab(ord.status === 'Pending Assessment' ? 'Shoe Assessment' : 'Before & After Documentation')
+                            }}
+                          >
+                            <div className="wmk-update-icon">
+                              {ord.status === 'Completed' ? (
+                                <Check size={15} />
+                              ) : ord.status === 'Pending Assessment' ? (
+                                <Sparkles size={15} />
+                              ) : (
+                                <Camera size={15} />
+                              )}
+                            </div>
+                            <div className="wmk-update-body">
+                              <b>{ord.status === 'Pending Assessment' ? 'Assessment requested' : ord.status}</b>
+                              <span>
+                                {ord.id} · {ord.date}
+                              </span>
+                            </div>
+                            <ChevronRight size={15} className="wmk-update-arrow" />
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3312,19 +3329,27 @@ function StaffDashboard({
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.map((o) => (
-                      <tr key={o.id}>
-                        <td>
-                          <b>{o.customer}</b>
-                        </td>
-                        <td>{o.email}</td>
-                        <td>{o.shoe}</td>
-                        <td>{o.service}</td>
-                        <td>
-                          <StatusBadge status={o.status} />
+                    {orders.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
+                          No customer orders recorded at your branch yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      orders.map((o) => (
+                        <tr key={o.id}>
+                          <td>
+                            <b>{o.customer}</b>
+                          </td>
+                          <td>{o.email}</td>
+                          <td>{o.shoe}</td>
+                          <td>{o.service}</td>
+                          <td>
+                            <StatusBadge status={o.status} />
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -3339,24 +3364,25 @@ function StaffDashboard({
               <p>Branch drop-off alerts, documentation checks, and low-stock notifications.</p>
 
               <div className="dash-panel" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ padding: 14, border: '1px solid #e5e7eb', borderRadius: 10 }}>
-                  <b>Outsole After-Photo Needed — WMK-2026-0046</b>
-                  <p style={{ fontSize: 12.5, color: '#6b7280', margin: '4px 0 0' }}>
-                    Upload final Sole after-photo in Before &amp; After Documentation to complete Quality Check.
-                  </p>
-                </div>
-                <div style={{ padding: 14, border: '1px solid #e5e7eb', borderRadius: 10 }}>
-                  <b>New Drop-Off Assigned — WMK-2026-01849</b>
-                  <p style={{ fontSize: 12.5, color: '#6b7280', margin: '4px 0 0' }}>
-                    Angela Mercado dropped off New Balance 2002R for Restoration. Please complete initial Shoe Assessment.
-                  </p>
-                </div>
-                <div style={{ padding: 14, border: '1px solid #e5e7eb', borderRadius: 10 }}>
-                  <b>Branch Inventory Low Alert — San Juan City</b>
-                  <p style={{ fontSize: 12.5, color: '#6b7280', margin: '4px 0 0' }}>
-                    Water Repellent 250ml is down to 7 / 25 units. Check the Inventory module to restock or transfer.
-                  </p>
-                </div>
+                {staffAlerts.length === 0 ? (
+                  <div style={{ padding: 18, textAlign: 'center', color: '#6b7280', fontSize: 13.5 }}>
+                    No branch notifications or alerts yet. Alerts will appear here when customers book appointments or stock runs low.
+                  </div>
+                ) : (
+                  staffAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      style={{ padding: 14, border: '1px solid #e5e7eb', borderRadius: 10, cursor: 'pointer' }}
+                      onClick={() => {
+                        if (alert.orderId) setSelectedOrderId(alert.orderId)
+                        setTab(alert.targetTab)
+                      }}
+                    >
+                      <b>{alert.title}</b>
+                      <p style={{ fontSize: 12.5, color: '#6b7280', margin: '4px 0 0' }}>{alert.body}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </>
           )}
@@ -3411,11 +3437,15 @@ function AdminDashboard({
   const [usersList, setUsersList] = useState<
     { id: string; name: string; email: string; role: string; branch: string; active: boolean }[]
   >([])
+  const [auditLogs, setAuditLogs] = useState<
+    { time: string; actor: string; role: string; action: string; target: string }[]
+  >([])
 
   useEffect(() => {
     fetchLiveProductionData()
       .then((res) => {
         if (res.users.length > 0) setUsersList(res.users)
+        if (res.auditLogs.length > 0) setAuditLogs(res.auditLogs)
       })
       .catch(() => {})
   }, [])
@@ -3711,38 +3741,40 @@ function AdminDashboard({
                   </div>
 
                   <div className="wmk-update-list">
-                    <div className="wmk-update-item" onClick={() => setTab('Inventory')}>
-                      <div className="wmk-update-icon">
-                        <Bell size={15} />
+                    {orders.length === 0 && lowStockCount === 0 ? (
+                      <div style={{ padding: '14px 4px', color: '#6b7280', fontSize: 13 }}>
+                        No network updates yet. Updates will appear here as orders are booked or inventory changes.
                       </div>
-                      <div className="wmk-update-body">
-                        <b>Low stock alert</b>
-                        <span>San Juan City · 8 min ago</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
-
-                    <div className="wmk-update-item" onClick={() => setTab('Job Orders')}>
-                      <div className="wmk-update-icon">
-                        <Camera size={15} />
-                      </div>
-                      <div className="wmk-update-body">
-                        <b>After photos due</b>
-                        <span>WMK-2026-0046 · Today</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
-
-                    <div className="wmk-update-item" onClick={() => setTab('Reports')}>
-                      <div className="wmk-update-icon">
-                        <Check size={15} />
-                      </div>
-                      <div className="wmk-update-body">
-                        <b>Daily revenue milestone</b>
-                        <span>₱784,820 MTD · Today</span>
-                      </div>
-                      <ChevronRight size={15} className="wmk-update-arrow" />
-                    </div>
+                    ) : (
+                      <>
+                        {lowStockCount > 0 && (
+                          <div className="wmk-update-item" onClick={() => setTab('Inventory')}>
+                            <div className="wmk-update-icon">
+                              <Bell size={15} />
+                            </div>
+                            <div className="wmk-update-body">
+                              <b>Low stock alert</b>
+                              <span>{lowStockCount} item(s) need restock</span>
+                            </div>
+                            <ChevronRight size={15} className="wmk-update-arrow" />
+                          </div>
+                        )}
+                        {orders.slice(0, 3).map((ord) => (
+                          <div key={ord.id} className="wmk-update-item" onClick={() => setTab('Job Orders')}>
+                            <div className="wmk-update-icon">
+                              {ord.status === 'Completed' ? <Check size={15} /> : <Camera size={15} />}
+                            </div>
+                            <div className="wmk-update-body">
+                              <b>{ord.status}</b>
+                              <span>
+                                {ord.id} · {ord.branch.replace('Wash My Kicks – ', '')}
+                              </span>
+                            </div>
+                            <ChevronRight size={15} className="wmk-update-arrow" />
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4131,75 +4163,104 @@ function AdminDashboard({
           )}
 
           {/* ADMIN TAB: CRM */}
-          {tab === 'CRM' && (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                <div>
-                  <span className="eyebrow">CUSTOMER RELATIONSHIP MANAGEMENT</span>
-                  <h1>CRM</h1>
-                  <p>Customer profiles, lifetime sneaker care value, and retention insights.</p>
+          {tab === 'CRM' && (() => {
+            const crmMap = new Map<string, { name: string; email: string; branch: string; pairs: number }>()
+            usersList
+              .filter((u) => u.role.toLowerCase().includes('customer'))
+              .forEach((u) => {
+                crmMap.set(u.email.toLowerCase(), {
+                  name: u.name,
+                  email: u.email,
+                  branch: (u.branch || 'Pasig City').replace('Wash My Kicks – ', ''),
+                  pairs: 0,
+                })
+              })
+            orders.forEach((o) => {
+              const key = (o.email || o.customer).toLowerCase()
+              const existing = crmMap.get(key)
+              if (existing) {
+                if (o.status === 'Completed') existing.pairs += 1
+              } else {
+                crmMap.set(key, {
+                  name: o.customer,
+                  email: o.email,
+                  branch: o.branch.replace('Wash My Kicks – ', ''),
+                  pairs: o.status === 'Completed' ? 1 : 0,
+                })
+              }
+            })
+            const crmProfiles = Array.from(crmMap.values()).map((c) => ({
+              ...c,
+              tier: c.pairs >= 10 ? 'VIP Sneakerhead' : c.pairs >= 5 ? 'Gold Member' : c.pairs >= 1 ? 'Silver Member' : 'Member',
+            }))
+            return (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                  <div>
+                    <span className="eyebrow">CUSTOMER RELATIONSHIP MANAGEMENT</span>
+                    <h1>CRM</h1>
+                    <p>Customer profiles, lifetime sneaker care value, and retention insights.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="outline"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => {
+                      const crmRows = crmProfiles.map((c) => [c.name, c.email, c.branch, c.pairs, c.tier])
+                      const fileName = `WashMyKicks_CRM_Customers_${exportDateStamp()}.xlsx`
+                      downloadExcel(fileName, [
+                        {
+                          name: 'CRM Customers',
+                          headers: ['Customer Name', 'Email', 'Preferred Branch', 'Completed Pairs', 'Loyalty Tier'],
+                          rows: crmRows,
+                        },
+                      ])
+                      showToast(`Exported ${crmRows.length} CRM customer profiles to ${fileName}.`)
+                    }}
+                  >
+                    <Download size={15} /> Export Customers (.xlsx)
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="outline"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  onClick={() => {
-                    const crmRows = [
-                      ['Juan Dela Cruz', 'juan.delacruz@email.com', 'Pasig City (Flagship)', 12, 'VIP Sneakerhead'],
-                      ['Angela Mercado', 'angela.m@email.com', 'San Juan City', 7, 'Gold Member'],
-                      ['Jiro Reyes', 'jiro.reyes@email.com', 'Quezon City', 5, 'Silver Member'],
-                      ['Kaye Santos', 'kaye.s@email.com', 'Pasig City (Flagship)', 9, 'Gold Member'],
-                    ]
-                    const fileName = `WashMyKicks_CRM_Customers_${exportDateStamp()}.xlsx`
-                    downloadExcel(fileName, [
-                      {
-                        name: 'CRM Customers',
-                        headers: ['Customer Name', 'Email', 'Preferred Branch', 'Completed Pairs', 'Loyalty Tier'],
-                        rows: crmRows,
-                      },
-                    ])
-                    showToast(`Exported ${crmRows.length} CRM customer profiles to ${fileName}.`)
-                  }}
-                >
-                  <Download size={15} /> Export Customers (.xlsx)
-                </button>
-              </div>
 
-              <div className="dash-panel">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Customer</th>
-                      <th>Email</th>
-                      <th>Preferred Branch</th>
-                      <th>Completed Pairs</th>
-                      <th>Loyalty Tier</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ['Juan Dela Cruz', 'juan.delacruz@email.com', 'San Juan City', 12, 'VIP Sneakerhead'],
-                      ['Angela Mercado', 'angela.m@email.com', 'San Juan City', 7, 'Gold Member'],
-                      ['Jiro Reyes', 'jiro.reyes@email.com', 'Quezon City', 5, 'Silver Member'],
-                      ['Kaye Santos', 'kaye.s@email.com', 'Pasig City', 9, 'Gold Member'],
-                    ].map(([name, email, branch, pairs, tier]) => (
-                      <tr key={String(email)}>
-                        <td>
-                          <b>{name}</b>
-                        </td>
-                        <td>{email}</td>
-                        <td>{branch}</td>
-                        <td>{pairs} pairs</td>
-                        <td>
-                          <span className="status-pill blue">{tier}</span>
-                        </td>
+                <div className="dash-panel">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Customer</th>
+                        <th>Email</th>
+                        <th>Preferred Branch</th>
+                        <th>Completed Pairs</th>
+                        <th>Loyalty Tier</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
+                    </thead>
+                    <tbody>
+                      {crmProfiles.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
+                            No customer profiles recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        crmProfiles.map((c) => (
+                          <tr key={c.email}>
+                            <td>
+                              <b>{c.name}</b>
+                            </td>
+                            <td>{c.email}</td>
+                            <td>{c.branch}</td>
+                            <td>{c.pairs} pairs</td>
+                            <td>
+                              <span className="status-pill blue">{c.tier}</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )
+          })()}
 
           {/* ADMIN TAB: JOB ORDERS */}
           {tab === 'Job Orders' && (
@@ -4307,103 +4368,106 @@ function AdminDashboard({
           )}
 
           {/* ADMIN TAB: REPORTS */}
-          {tab === 'Reports' && (
-            <>
-              <span className="eyebrow">ANALYTICS & EXPORTS</span>
-              <h1>Reports</h1>
-              <p>Financial summaries, turnaround efficiency, and branch KPI exports.</p>
+          {tab === 'Reports' && (() => {
+            const avgTicket = orders.length > 0 ? Math.round(adminRevenueTotal / orders.length) : 0
+            return (
+              <>
+                <span className="eyebrow">ANALYTICS & EXPORTS</span>
+                <h1>Reports</h1>
+                <p>Financial summaries, turnaround efficiency, and branch KPI exports.</p>
 
-              <div className="dash-panel">
-                <div className="dash-stats" style={{ marginBottom: 20 }}>
-                  <article>
-                    <span>Gross Monthly Revenue</span>
-                    <b>₱784,820</b>
-                    <small>+18.4% MoM</small>
-                  </article>
-                  <article>
-                    <span>Avg. Ticket Value</span>
-                    <b>₱685</b>
-                    <small>Driven by Deep Cleaning & Restoration</small>
-                  </article>
-                  <article>
-                    <span>On-Time Turnaround</span>
-                    <b>98.2%</b>
-                    <small>Across all 7 branches</small>
-                  </article>
-                  <article>
-                    <span>Customer CSAT</span>
-                    <b>4.92 / 5.0</b>
-                    <small>Based on verified reviews</small>
-                  </article>
+                <div className="dash-panel">
+                  <div className="dash-stats" style={{ marginBottom: 20 }}>
+                    <article>
+                      <span>Gross Revenue</span>
+                      <b>₱{adminRevenueTotal.toLocaleString()}</b>
+                      <small>{orders.length === 0 ? 'No completed orders yet' : `From ${orders.length} live orders`}</small>
+                    </article>
+                    <article>
+                      <span>Avg. Ticket Value</span>
+                      <b>₱{avgTicket.toLocaleString()}</b>
+                      <small>{orders.length === 0 ? 'Awaiting bookings' : 'Live average order value'}</small>
+                    </article>
+                    <article>
+                      <span>Completed Pairs</span>
+                      <b>{adminCompletedCount} pairs</b>
+                      <small>Across all 7 branches</small>
+                    </article>
+                    <article>
+                      <span>Registered Users</span>
+                      <b>{usersList.length}</b>
+                      <small>Verified accounts</small>
+                    </article>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                    onClick={() => {
+                      const fileName = `WashMyKicks_Executive_Report_${exportDateStamp()}.xlsx`
+                      downloadExcel(fileName, [
+                        {
+                          name: 'Executive Summary',
+                          headers: ['Metric', 'Value', 'Notes'],
+                          rows: [
+                            ['Gross Revenue (PHP)', adminRevenueTotal, `From ${orders.length} live orders`],
+                            ['Average Ticket Value (PHP)', avgTicket, 'Live average order value'],
+                            ['Completed Pairs', adminCompletedCount, 'Across all 7 branches'],
+                            ['Registered Users', usersList.length, 'Verified accounts'],
+                          ],
+                        },
+                        {
+                          name: 'Job Orders',
+                          headers: ['Job Order ID', 'Customer', 'Email', 'Sneaker Pair', 'Service', 'Branch', 'Date', 'Time', 'Price (PHP)', 'Specialist', 'Status'],
+                          rows: orders.map((o) => [
+                            o.id,
+                            o.customer,
+                            o.email,
+                            o.shoe,
+                            o.service,
+                            o.branch,
+                            o.date,
+                            o.time,
+                            pesoToNumber(o.price),
+                            o.specialist,
+                            o.status,
+                          ]),
+                        },
+                        {
+                          name: 'Services Catalog',
+                          headers: ['Code', 'Service Name', 'Description', 'Price (PHP)', 'Turnaround', 'Status'],
+                          rows: servicesCatalog.map((s) => [
+                            s.id,
+                            s.title,
+                            s.copy,
+                            s.numericPrice,
+                            s.duration,
+                            s.archived ? 'Archived' : 'Active',
+                          ]),
+                        },
+                        {
+                          name: 'Branch Inventory',
+                          headers: ['Item ID', 'Item Name', 'Category', 'Branch', 'Current Stock', 'Target Level', 'Status'],
+                          rows: inventory.map((i) => [
+                            i.id,
+                            i.name,
+                            i.category,
+                            i.branch,
+                            i.stock,
+                            i.target,
+                            getInventoryStatus(i.stock, i.target),
+                          ]),
+                        },
+                      ])
+                      showToast(`Exported multi-sheet Excel workbook ${fileName}`)
+                    }}
+                  >
+                    <Download size={16} /> Export Full Financial &amp; Operations Report (.xlsx)
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="primary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                  onClick={() => {
-                    const fileName = `WashMyKicks_Executive_Report_${exportDateStamp()}.xlsx`
-                    downloadExcel(fileName, [
-                      {
-                        name: 'Executive Summary',
-                        headers: ['Metric', 'Value', 'Notes'],
-                        rows: [
-                          ['Gross Monthly Revenue (PHP)', 784820, '+18.4% MoM'],
-                          ['Average Ticket Value (PHP)', 685, 'Driven by Deep Cleaning & Restoration'],
-                          ['On-Time Turnaround', '98.2%', 'Across all 7 branches'],
-                          ['Customer CSAT', '4.92 / 5.0', 'Based on verified reviews'],
-                        ],
-                      },
-                      {
-                        name: 'Job Orders',
-                        headers: ['Job Order ID', 'Customer', 'Email', 'Sneaker Pair', 'Service', 'Branch', 'Date', 'Time', 'Price (PHP)', 'Specialist', 'Status'],
-                        rows: orders.map((o) => [
-                          o.id,
-                          o.customer,
-                          o.email,
-                          o.shoe,
-                          o.service,
-                          o.branch,
-                          o.date,
-                          o.time,
-                          pesoToNumber(o.price),
-                          o.specialist,
-                          o.status,
-                        ]),
-                      },
-                      {
-                        name: 'Services Catalog',
-                        headers: ['Code', 'Service Name', 'Description', 'Price (PHP)', 'Turnaround', 'Status'],
-                        rows: servicesCatalog.map((s) => [
-                          s.id,
-                          s.title,
-                          s.copy,
-                          s.numericPrice,
-                          s.duration,
-                          s.archived ? 'Archived' : 'Active',
-                        ]),
-                      },
-                      {
-                        name: 'Branch Inventory',
-                        headers: ['Item ID', 'Item Name', 'Category', 'Branch', 'Current Stock', 'Target Level', 'Status'],
-                        rows: inventory.map((i) => [
-                          i.id,
-                          i.name,
-                          i.category,
-                          i.branch,
-                          i.stock,
-                          i.target,
-                          getInventoryStatus(i.stock, i.target),
-                        ]),
-                      },
-                    ])
-                    showToast(`Exported multi-sheet Excel workbook ${fileName}`)
-                  }}
-                >
-                  <Download size={16} /> Export Full Financial &amp; Operations Report (.xlsx)
-                </button>
-              </div>
-            </>
-          )}
+              </>
+            )
+          })()}
 
           {/* ADMIN TAB: AUDIT TRAIL */}
           {tab === 'Audit Trail' && (
@@ -4424,24 +4488,27 @@ function AdminDashboard({
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      ['2026-03-28 10:42 AM', 'Mika Cruz', 'Administrator', 'Viewed Revenue & Branch Reports', 'All Branches'],
-                      ['2026-03-28 10:15 AM', 'Carlo Mendoza (WMK-EMP-0104)', 'Staff', 'Uploaded Before & After Photos', 'WMK-2026-01842'],
-                      ['2026-03-28 09:50 AM', 'Juan Dela Cruz', 'Customer', 'Booked Deep Cleaning Appointment', 'San Juan City Branch'],
-                      ['2026-03-28 09:12 AM', 'Marco Santos (WMK-EMP-0109)', 'Staff', 'Updated Order Status to Ready for Pickup', 'WMK-2026-01835'],
-                    ].map(([time, actor, r, action, target], i) => (
-                      <tr key={i}>
-                        <td>{time}</td>
-                        <td>
-                          <b>{actor}</b>
+                    {auditLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
+                          No audit trail entries recorded yet.
                         </td>
-                        <td>
-                          <span className="status-pill gray">{r}</span>
-                        </td>
-                        <td>{action}</td>
-                        <td>{target}</td>
                       </tr>
-                    ))}
+                    ) : (
+                      auditLogs.map((log, i) => (
+                        <tr key={i}>
+                          <td>{log.time}</td>
+                          <td>
+                            <b>{log.actor}</b>
+                          </td>
+                          <td>
+                            <span className="status-pill gray">{log.role}</span>
+                          </td>
+                          <td>{log.action}</td>
+                          <td>{log.target}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
