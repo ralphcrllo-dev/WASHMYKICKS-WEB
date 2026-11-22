@@ -7,6 +7,8 @@ import {
   fetchLiveProductionData,
   registerCustomerAccount,
   requestPasswordResetEmail,
+  saveLiveProductionInventory,
+  saveLiveProductionOrders,
   signInWithRole,
   signOutSession,
   submitCustomerCrmInteraction,
@@ -4608,7 +4610,7 @@ function App() {
           setOrders(
             live.orders.map((o: any) => ({
               ...o,
-              docs: createDefaultDocumentation(),
+              docs: o.docs || createDefaultDocumentation(),
             }))
           )
         }
@@ -4618,6 +4620,14 @@ function App() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (orders.length > 0) saveLiveProductionOrders(orders)
+  }, [orders])
+
+  useEffect(() => {
+    if (inventory.length > 0) saveLiveProductionInventory(inventory)
+  }, [inventory])
 
   const handleBookBranchFromMap = (_branchName: string, branchId: number) => {
     setPreselectedBranchId(branchId)

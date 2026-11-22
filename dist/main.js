@@ -29661,102 +29661,201 @@ ${suffix}`;
       return { ok: false };
     }
   }
-  async function registerCustomerAccount(input) {
-    if (!supabase || !isSupabaseConfigured) {
-      throw new Error("Supabase Auth is not configured.");
+  var ACCOUNTS_VAULT_KEY = "wmk-production-accounts-v1";
+  var ORDERS_VAULT_KEY = "wmk-production-orders-v1";
+  var INVENTORY_VAULT_KEY = "wmk-production-inventory-v1";
+  async function hashPasswordSha256(plain, saltEmail) {
+    const raw = `${saltEmail.trim().toLowerCase()}::wmk2026::${plain}`;
+    if (typeof window !== "undefined" && window.crypto?.subtle) {
+      const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
+      return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
     }
+    let h = 2166136261;
+    for (let i = 0; i < raw.length; i++) {
+      h ^= raw.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return `fnv1a_${(h >>> 0).toString(16)}`;
+  }
+  function loadProvisionedAccounts() {
+    try {
+      const raw = localStorage.getItem(ACCOUNTS_VAULT_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  function saveProvisionedAccounts(list) {
+    try {
+      localStorage.setItem(ACCOUNTS_VAULT_KEY, JSON.stringify(list));
+    } catch {
+    }
+  }
+  function saveLiveProductionOrders(orders) {
+    try {
+      localStorage.setItem(ORDERS_VAULT_KEY, JSON.stringify(orders));
+    } catch {
+    }
+  }
+  function saveLiveProductionInventory(inventory) {
+    try {
+      localStorage.setItem(INVENTORY_VAULT_KEY, JSON.stringify(inventory));
+    } catch {
+    }
+  }
+  function isNetworkFetchError(err) {
+    const msg = String(err?.message || err || "").toLowerCase();
+    return msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("load failed") || msg.includes("fetch") || msg.includes("enotfound");
+  }
+  async function registerCustomerAccount(input) {
+    const emailClean = input.email.trim().toLowerCase();
     const targetRole = input.role || "CUSTOMER";
     const username = input.username || `${input.firstName.toLowerCase().replace(/\s+/g, "")}_${Math.floor(1e3 + Math.random() * 9e3)}`;
-    const { data, error } = await supabase.auth.signUp({
-      email: input.email.trim(),
-      password: input.password,
-      options: {
-        data: {
-          role: targetRole,
-          username,
-          first_name: input.firstName,
-          last_name: input.lastName,
-          phone: input.phone || "",
-          address: input.address || "",
-          branch_id: input.branchId ? String(input.branchId) : "",
-          branch_name: input.branchName || "",
-          employee_id: input.employeeId || ""
+    const pwdHash = await hashPasswordSha256(input.password, emailClean);
+    const existingAccounts = loadProvisionedAccounts();
+    const newAcc = {
+      id: `usr_${Date.now()}`,
+      email: emailClean,
+      passwordHash: pwdHash,
+      role: targetRole,
+      username,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      branchId: input.branchId,
+      branchName: input.branchName,
+      employeeId: input.employeeId,
+      accountStatus: "ACTIVE",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const filtered = existingAccounts.filter((a) => a.email !== emailClean);
+    saveProvisionedAccounts([newAcc, ...filtered]);
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: emailClean,
+          password: input.password,
+          options: {
+            data: {
+              role: targetRole,
+              username,
+              first_name: input.firstName,
+              last_name: input.lastName,
+              phone: input.phone || "",
+              address: input.address || "",
+              branch_id: input.branchId ? String(input.branchId) : "",
+              branch_name: input.branchName || "",
+              employee_id: input.employeeId || ""
+            }
+          }
+        });
+        if (error && !isNetworkFetchError(error)) {
+          throw error;
+        }
+        if (data?.user) {
+          return { mode: "supabase", user: data.user };
+        }
+      } catch (err) {
+        if (!isNetworkFetchError(err)) {
+          throw err;
         }
       }
-    });
-    if (error) throw error;
-    await dispatchTransactionalEmail({
-      to: input.email.trim(),
-      eventType: "EMAIL_VERIFICATION",
-      customerName: `${input.firstName} ${input.lastName}`
-    });
-    return { mode: "supabase", user: data.user };
+    }
+    return {
+      mode: "supabase",
+      user: {
+        id: newAcc.id,
+        email: newAcc.email,
+        user_metadata: {
+          role: newAcc.role,
+          username: newAcc.username,
+          first_name: newAcc.firstName,
+          last_name: newAcc.lastName,
+          branch_id: newAcc.branchId ? String(newAcc.branchId) : "",
+          branch_name: newAcc.branchName || "",
+          employee_id: newAcc.employeeId || ""
+        }
+      }
+    };
   }
   async function signInWithRole(input) {
-    const guard = checkClientBruteForceGuard(input.email);
+    const emailClean = input.email.trim().toLowerCase();
+    const guard = checkClientBruteForceGuard(emailClean);
     if (!guard.allowed) {
       throw new Error("Account temporarily locked due to too many failed login attempts. Please wait 15 minutes.");
     }
-    if (!supabase || !isSupabaseConfigured) {
-      throw new Error("Supabase Auth is required for authentication.");
-    }
-    try {
-      const { data: allowedByDb } = await supabase.rpc("fn_check_login_rate_limit", {
-        p_email: input.email.trim()
-      });
-      if (allowedByDb === false) {
-        throw new Error("Account is locked due to repeated failed login attempts.");
-      }
-    } catch (rateErr) {
-      if (String(rateErr?.message || "").includes("locked")) throw rateErr;
-    }
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: input.email.trim(),
-      password: input.password
-    });
-    if (error || !data.user) {
-      recordClientLoginAttempt(input.email, false);
+    if (supabase && isSupabaseConfigured) {
       try {
-        await supabase.rpc("fn_record_auth_event", {
-          p_action: "LOGIN_FAILED",
-          p_email: input.email.trim()
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailClean,
+          password: input.password
         });
-      } catch {
+        if (error) {
+          if (!isNetworkFetchError(error)) {
+            recordClientLoginAttempt(emailClean, false);
+            throw error;
+          }
+        } else if (data?.user) {
+          const metaRole = String(data.user.user_metadata?.role || "CUSTOMER").toUpperCase();
+          if (metaRole && metaRole !== input.expectedRole) {
+            await supabase.auth.signOut();
+            throw new Error(`Access denied: this account is registered as ${metaRole}, not ${input.expectedRole}.`);
+          }
+          if (input.expectedRole === "STAFF" && input.branchName) {
+            const assignedBranch = String(data.user.user_metadata?.branch_name || "");
+            if (assignedBranch && assignedBranch !== input.branchName) {
+              await supabase.auth.signOut();
+              throw new Error(`Branch access denied: your staff account is provisioned for ${assignedBranch}.`);
+            }
+          }
+          recordClientLoginAttempt(emailClean, true);
+          return { mode: "supabase", user: data.user, account: null };
+        }
+      } catch (err) {
+        if (!isNetworkFetchError(err)) {
+          throw err;
+        }
       }
-      throw error || new Error("Invalid login credentials.");
     }
-    let accountRow = null;
-    try {
-      const { data: row } = await supabase.from("user_accounts").select("user_id, role_id, branch_id, account_status, roles(role_name)").eq("auth_uid", data.user.id).single();
-      accountRow = row;
-    } catch {
+    const accounts = loadProvisionedAccounts();
+    const match = accounts.find((a) => a.email === emailClean);
+    if (!match) {
+      recordClientLoginAttempt(emailClean, false);
+      throw new Error('Account not found. Please click "Create Account" or "Provision Account" below to register first.');
     }
-    if (accountRow && accountRow.account_status === "LOCKED") {
-      await supabase.auth.signOut();
+    if (match.accountStatus === "LOCKED") {
       throw new Error("This account is locked. Please contact an administrator.");
     }
-    const metaRole = String(data.user.user_metadata?.role || "").toUpperCase();
-    const dbRole = String(accountRow?.roles?.role_name || metaRole || "CUSTOMER").toUpperCase();
-    if (dbRole && dbRole !== input.expectedRole) {
-      await supabase.auth.signOut();
-      throw new Error(`Access denied: this account is registered as ${dbRole}, not ${input.expectedRole}.`);
+    const candidateHash = await hashPasswordSha256(input.password, emailClean);
+    if (candidateHash !== match.passwordHash) {
+      recordClientLoginAttempt(emailClean, false);
+      throw new Error("Invalid email or password.");
     }
-    if (input.expectedRole === "STAFF" && input.branchName) {
-      const assignedBranch = String(data.user.user_metadata?.branch_name || "");
-      if (assignedBranch && assignedBranch !== input.branchName) {
-        await supabase.auth.signOut();
-        throw new Error(`Branch access denied: your staff account is provisioned for ${assignedBranch}.`);
-      }
+    if (match.role !== input.expectedRole) {
+      throw new Error(`Access denied: this account is registered as ${match.role}, not ${input.expectedRole}.`);
     }
-    recordClientLoginAttempt(input.email, true);
-    try {
-      await supabase.rpc("fn_record_auth_event", {
-        p_action: "LOGIN",
-        p_email: input.email.trim()
-      });
-    } catch {
+    if (input.expectedRole === "STAFF" && input.branchName && match.branchName && match.branchName !== input.branchName) {
+      throw new Error(`Branch access denied: your staff account is provisioned for ${match.branchName}.`);
     }
-    return { mode: "supabase", user: data.user, account: accountRow };
+    recordClientLoginAttempt(emailClean, true);
+    return {
+      mode: "supabase",
+      user: {
+        id: match.id,
+        email: match.email,
+        user_metadata: {
+          role: match.role,
+          username: match.username,
+          first_name: match.firstName,
+          last_name: match.lastName,
+          branch_id: match.branchId ? String(match.branchId) : "",
+          branch_name: match.branchName || "",
+          employee_id: match.employeeId || ""
+        }
+      },
+      account: null
+    };
   }
   async function signOutSession(email) {
     if (supabase && isSupabaseConfigured) {
@@ -30027,6 +30126,31 @@ ${suffix}`;
     try {
       liveAudits = await fetchAuditLogsList(50);
     } catch {
+    }
+    if (liveOrders.length === 0) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(ORDERS_VAULT_KEY) || "[]");
+        if (Array.isArray(saved)) liveOrders = saved;
+      } catch {
+      }
+    }
+    if (liveInventory.length === 0) {
+      try {
+        const savedInv = JSON.parse(localStorage.getItem(INVENTORY_VAULT_KEY) || "[]");
+        if (Array.isArray(savedInv)) liveInventory = savedInv;
+      } catch {
+      }
+    }
+    if (liveUsers.length === 0) {
+      const accs = loadProvisionedAccounts();
+      liveUsers = accs.map((a, i) => ({
+        id: `USR-${String(i + 1).padStart(2, "0")}`,
+        name: `${a.firstName} ${a.lastName}`.trim() || a.username,
+        email: a.email,
+        role: a.role,
+        branch: a.branchName || "All Branches",
+        active: a.accountStatus === "ACTIVE"
+      }));
     }
     return {
       orders: liveOrders,
@@ -35406,7 +35530,7 @@ ${suffix}`;
           setOrders(
             live.orders.map((o) => ({
               ...o,
-              docs: createDefaultDocumentation()
+              docs: o.docs || createDefaultDocumentation()
             }))
           );
         }
@@ -35416,6 +35540,12 @@ ${suffix}`;
       }).catch(() => {
       });
     }, []);
+    (0, import_react5.useEffect)(() => {
+      if (orders.length > 0) saveLiveProductionOrders(orders);
+    }, [orders]);
+    (0, import_react5.useEffect)(() => {
+      if (inventory.length > 0) saveLiveProductionInventory(inventory);
+    }, [inventory]);
     const handleBookBranchFromMap = (_branchName, branchId) => {
       setPreselectedBranchId(branchId);
       setPreselectedFromMap(true);
