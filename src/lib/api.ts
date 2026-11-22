@@ -108,25 +108,33 @@ export async function registerCustomerAccount(input: {
   lastName: string
   phone?: string
   address?: string
+  role?: RoleName
+  branchId?: number
+  branchName?: string
+  employeeId?: string
 }) {
   if (!supabase || !isSupabaseConfigured) {
-    return { mode: 'local' as const, email: input.email }
+    throw new Error('Supabase Auth is not configured.')
   }
 
+  const targetRole: RoleName = input.role || 'CUSTOMER'
   const username =
     input.username || `${input.firstName.toLowerCase().replace(/\s+/g, '')}_${Math.floor(1000 + Math.random() * 9000)}`
 
   const { data, error } = await supabase.auth.signUp({
-    email: input.email,
+    email: input.email.trim(),
     password: input.password,
     options: {
       data: {
-        role: 'CUSTOMER',
+        role: targetRole,
         username,
         first_name: input.firstName,
         last_name: input.lastName,
         phone: input.phone || '',
         address: input.address || '',
+        branch_id: input.branchId ? String(input.branchId) : '',
+        branch_name: input.branchName || '',
+        employee_id: input.employeeId || '',
       },
     },
   })
@@ -134,7 +142,7 @@ export async function registerCustomerAccount(input: {
   if (error) throw error
 
   await dispatchTransactionalEmail({
-    to: input.email,
+    to: input.email.trim(),
     eventType: 'EMAIL_VERIFICATION',
     customerName: `${input.firstName} ${input.lastName}`,
   })
@@ -147,6 +155,8 @@ export async function signInWithRole(input: {
   password: string
   expectedRole: RoleName
   branchId?: number
+  branchName?: string
+  employeeId?: string
 }) {
   const guard = checkClientBruteForceGuard(input.email)
   if (!guard.allowed) {
@@ -154,49 +164,75 @@ export async function signInWithRole(input: {
   }
 
   if (!supabase || !isSupabaseConfigured) {
-    recordClientLoginAttempt(input.email, true)
-    return { mode: 'local' as const, role: input.expectedRole }
+    throw new Error('Supabase Auth is required for authentication.')
   }
 
   // Check database-enforced rate limit before attempting sign-in
-  const { data: allowedByDb } = await supabase.rpc('fn_check_login_rate_limit', {
-    p_email: input.email,
-  })
-  if (allowedByDb === false) {
-    throw new Error('Account is locked due to repeated failed login attempts.')
+  try {
+    const { data: allowedByDb } = await supabase.rpc('fn_check_login_rate_limit', {
+      p_email: input.email.trim(),
+    })
+    if (allowedByDb === false) {
+      throw new Error('Account is locked due to repeated failed login attempts.')
+    }
+  } catch (rateErr: any) {
+    if (String(rateErr?.message || '').includes('locked')) throw rateErr
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({
-    email: input.email,
+    email: input.email.trim(),
     password: input.password,
   })
 
   if (error || !data.user) {
     recordClientLoginAttempt(input.email, false)
-    await supabase.rpc('fn_record_auth_event', {
-      p_action: 'LOGIN_FAILED',
-      p_email: input.email,
-    })
+    try {
+      await supabase.rpc('fn_record_auth_event', {
+        p_action: 'LOGIN_FAILED',
+        p_email: input.email.trim(),
+      })
+    } catch {}
     throw error || new Error('Invalid login credentials.')
   }
 
-  // Verify role in user_accounts -> roles
-  const { data: accountRow } = await supabase
-    .from('user_accounts')
-    .select('user_id, role_id, branch_id, account_status, roles(role_name)')
-    .eq('auth_uid', data.user.id)
-    .single()
+  // Verify role & branch assignment in user_accounts -> roles or auth metadata
+  let accountRow: any = null
+  try {
+    const { data: row } = await supabase
+      .from('user_accounts')
+      .select('user_id, role_id, branch_id, account_status, roles(role_name)')
+      .eq('auth_uid', data.user.id)
+      .single()
+    accountRow = row
+  } catch {}
 
   if (accountRow && accountRow.account_status === 'LOCKED') {
     await supabase.auth.signOut()
     throw new Error('This account is locked. Please contact an administrator.')
   }
 
+  const metaRole = String(data.user.user_metadata?.role || '').toUpperCase()
+  const dbRole = String(accountRow?.roles?.role_name || metaRole || 'CUSTOMER').toUpperCase()
+  if (dbRole && dbRole !== input.expectedRole) {
+    await supabase.auth.signOut()
+    throw new Error(`Access denied: this account is registered as ${dbRole}, not ${input.expectedRole}.`)
+  }
+
+  if (input.expectedRole === 'STAFF' && input.branchName) {
+    const assignedBranch = String(data.user.user_metadata?.branch_name || '')
+    if (assignedBranch && assignedBranch !== input.branchName) {
+      await supabase.auth.signOut()
+      throw new Error(`Branch access denied: your staff account is provisioned for ${assignedBranch}.`)
+    }
+  }
+
   recordClientLoginAttempt(input.email, true)
-  await supabase.rpc('fn_record_auth_event', {
-    p_action: 'LOGIN',
-    p_email: input.email,
-  })
+  try {
+    await supabase.rpc('fn_record_auth_event', {
+      p_action: 'LOGIN',
+      p_email: input.email.trim(),
+    })
+  } catch {}
 
   return { mode: 'supabase' as const, user: data.user, account: accountRow }
 }
@@ -664,4 +700,151 @@ export async function triggerDatabaseBackupManifest() {
   const { data, error } = await supabase.rpc('fn_generate_backup_manifest')
   if (error) throw error
   return data
+}
+
+/* ============================================================================
+   LIVE PRODUCTION DATA LOADER FROM SUPABASE POSTGRESQL
+   Fetches live service_orders, bookings, branch_inventory, user_accounts,
+   and audit_logs so dashboards display only real production rows.
+   ============================================================================ */
+
+export async function fetchLiveProductionData() {
+  if (!supabase || !isSupabaseConfigured) {
+    return { orders: [], inventory: [], users: [], auditLogs: [] }
+  }
+
+  const stageMap: Record<string, number> = {
+    'Pending Assessment': 1,
+    'In Progress': 2,
+    'Quality Check': 3,
+    'Ready for Pickup': 4,
+    Completed: 5,
+  }
+
+  let liveOrders: any[] = []
+  try {
+    const { data: soRows } = await supabase
+      .from('service_orders')
+      .select(
+        `
+        order_id,
+        order_number,
+        order_status,
+        work_instructions,
+        progress_notes,
+        received_at,
+        bookings (
+          booking_id,
+          scheduled_at,
+          price_at_booking,
+          customer_request,
+          customer_profiles (
+            first_name,
+            last_name,
+            user_accounts ( email )
+          ),
+          branch_services (
+            service_price,
+            branches ( branch_name ),
+            shoe_services ( service_name )
+          )
+        ),
+        shoe_assessments (
+          assessment_status,
+          damage_findings,
+          service_notes
+        )
+      `
+      )
+      .order('order_id', { ascending: false })
+
+    if (Array.isArray(soRows)) {
+      liveOrders = soRows.map((row: any) => {
+        const bk = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings
+        const cp = bk?.customer_profiles
+        const ua = Array.isArray(cp?.user_accounts) ? cp?.user_accounts[0] : cp?.user_accounts
+        const bs = bk?.branch_services
+        const br = bs?.branches
+        const ss = bs?.shoe_services
+        const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments
+
+        const rawReq = String(bk?.customer_request || row.work_instructions || '')
+        const shoeTitle = rawReq.split('—')[0]?.trim() || 'Sneaker Pair'
+        const email = ua?.email || ''
+        const fullName = cp ? `${cp.first_name || ''} ${cp.last_name || ''}`.trim() : 'Customer'
+        const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now())
+        const dateStr = sched.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        const timeStr = sched.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650)
+        const st = (row.order_status || 'Pending Assessment') as OrderStatus
+
+        return {
+          id: String(row.order_number || `WMK-2026-${String(row.order_id).padStart(4, '0')}`),
+          customer: fullName || 'Customer',
+          email: email || '',
+          shoe: shoeTitle,
+          service: ss?.service_name || 'Deep Cleaning',
+          branch: br?.branch_name || 'Wash My Kicks – Pasig City',
+          date: dateStr,
+          time: timeStr,
+          price: `₱${priceNum.toLocaleString()}`,
+          status: st,
+          stageIndex: stageMap[st] || 1,
+          specialist: 'Assigned Specialist',
+          assessed: sa?.assessment_status === 'Completed' || sa?.assessment_status === 'Approved',
+          assessmentNotes: sa?.damage_findings || sa?.service_notes || undefined,
+        }
+      })
+    }
+  } catch {}
+
+  let liveInventory: any[] = []
+  try {
+    const { data: invRows } = await supabase
+      .from('vw_branch_inventory_stock')
+      .select('*')
+      .order('branch_inventory_id', { ascending: true })
+
+    if (Array.isArray(invRows)) {
+      liveInventory = invRows.map((r: any) => ({
+        id: `inv-${r.branch_inventory_id}`,
+        name: String(r.item_name || 'Inventory Item'),
+        category: (r.category || 'Cleaning Chemicals') as any,
+        branch: String(r.branch_name || 'Wash My Kicks – Pasig City'),
+        stock: Number(r.current_stock ?? 0),
+        target: Math.max(10, Number(r.reorder_level ?? 10) * 2),
+      }))
+    }
+  } catch {}
+
+  let liveUsers: any[] = []
+  try {
+    const { data: usrRows } = await supabase
+      .from('user_accounts')
+      .select('user_id, username, email, account_status, roles(role_name), branches(branch_name)')
+      .order('user_id', { ascending: true })
+
+    if (Array.isArray(usrRows)) {
+      liveUsers = usrRows.map((u: any) => ({
+        id: `USR-${String(u.user_id).padStart(2, '0')}`,
+        name: String(u.username || u.email || 'User'),
+        email: String(u.email || ''),
+        role: String(u.roles?.role_name || 'CUSTOMER'),
+        branch: String(u.branches?.branch_name || 'All Branches'),
+        active: u.account_status === 'ACTIVE',
+      }))
+    }
+  } catch {}
+
+  let liveAudits: ErdAuditLog[] = []
+  try {
+    liveAudits = await fetchAuditLogsList(50)
+  } catch {}
+
+  return {
+    orders: liveOrders,
+    inventory: liveInventory,
+    users: liveUsers,
+    auditLogs: liveAudits,
+  }
 }

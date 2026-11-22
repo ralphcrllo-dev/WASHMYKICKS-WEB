@@ -4,6 +4,7 @@ import { BranchLocatorMap } from './components/BranchLocatorMap'
 import {
   createBookingRecord,
   dispatchTransactionalEmail,
+  fetchLiveProductionData,
   registerCustomerAccount,
   requestPasswordResetEmail,
   signInWithRole,
@@ -137,161 +138,7 @@ export type JobOrder = {
   docs: ShoeDocumentation
 }
 
-const initialOrders: JobOrder[] = [
-  {
-    id: 'WMK-2026-0046',
-    customer: 'Andrea Reyes',
-    email: 'andrea.reyes@email.com',
-    shoe: 'Nike Air Max 97 · Silver Bullet',
-    service: 'Restoration',
-    branch: 'Wash My Kicks – San Juan City',
-    date: 'March 27, 2026',
-    time: '02:00 PM',
-    price: '₱1,850',
-    status: 'In Progress',
-    stageIndex: 3,
-    specialist: 'Carlo Mendoza',
-    assessed: true,
-    assessmentNotes: 'Heavy dirt buildup on mesh panels. Mild yellowing along midsole. No structural tears.',
-    conditionTags: ['Heavy surface stains', 'Yellowed midsole', 'Strong odor'],
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-0045',
-    customer: 'Paolo Tan',
-    email: 'paolo.tan@email.com',
-    shoe: 'Jordan 4',
-    service: 'Deep Cleaning',
-    branch: 'Wash My Kicks – Quezon City',
-    date: 'March 26, 2026',
-    time: '01:00 PM',
-    price: '₱650',
-    status: 'Pending Assessment',
-    stageIndex: 2,
-    specialist: 'Carlo Mendoza',
-    assessed: false,
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-0044',
-    customer: 'Sam Lee',
-    email: 'sam.lee@email.com',
-    shoe: 'Adidas Samba',
-    service: 'Sole Repair',
-    branch: 'Wash My Kicks – Pasig City',
-    date: 'March 25, 2026',
-    time: '03:30 PM',
-    price: '₱800',
-    status: 'Quality Check',
-    stageIndex: 4,
-    specialist: 'Carlo Mendoza',
-    assessed: true,
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-0043',
-    customer: 'Nicole Cruz',
-    email: 'nicole.cruz@email.com',
-    shoe: 'New Balance 550',
-    service: 'Basic Clean',
-    branch: 'Wash My Kicks – Pateros',
-    date: 'March 24, 2026',
-    time: '11:00 AM',
-    price: '₱350',
-    status: 'Ready for Pickup',
-    stageIndex: 5,
-    specialist: 'Marco Santos',
-    assessed: true,
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-0042',
-    customer: 'John Uy',
-    email: 'john.uy@email.com',
-    shoe: 'Nike Dunk Low',
-    service: 'Restoration',
-    branch: 'Wash My Kicks – Montalban, Rizal',
-    date: 'March 24, 2026',
-    time: '09:30 AM',
-    price: '₱1,200',
-    status: 'Pending Assessment',
-    stageIndex: 1,
-    specialist: 'Carlo Mendoza',
-    assessed: false,
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-01842',
-    customer: 'Juan Dela Cruz',
-    email: 'juan.delacruz@email.com',
-    shoe: 'Air Jordan 1 Retro High OG "Chicago"',
-    service: 'Deep Cleaning',
-    branch: 'Wash My Kicks – San Juan City',
-    date: 'March 28, 2026',
-    time: '10:30 AM',
-    price: '₱650',
-    status: 'In Progress',
-    stageIndex: 3,
-    specialist: 'Carlo Mendoza',
-    assessed: true,
-    assessmentNotes: 'Light midsole oxidation, suede toebox scuffing, insole deep deodorizing required.',
-    conditionTags: ['Midsole Yellowing', 'Upper Stains', 'Lace Discoloration'],
-    beforePhoto: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80',
-    afterPhoto: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=600&q=80',
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-01849',
-    customer: 'Angela Mercado',
-    email: 'angela.m@email.com',
-    shoe: 'New Balance 2002R Protection Pack',
-    service: 'Restoration',
-    branch: 'Wash My Kicks – San Juan City',
-    date: 'March 24, 2026',
-    time: '01:00 PM',
-    price: '₱1,200',
-    status: 'Pending Assessment',
-    stageIndex: 2,
-    specialist: 'Carlo Mendoza',
-    assessed: false,
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-01835',
-    customer: 'Jiro Reyes',
-    email: 'jiro.reyes@email.com',
-    shoe: 'Nike Dunk Low Panda',
-    service: 'Basic Cleaning',
-    branch: 'Wash My Kicks – Quezon City',
-    date: 'March 22, 2026',
-    time: '11:00 AM',
-    price: '₱350',
-    status: 'Ready for Pickup',
-    stageIndex: 5,
-    specialist: 'Marco Santos',
-    assessed: true,
-    assessmentNotes: 'Standard mud and crease marks on leather upper.',
-    conditionTags: ['Creasing', 'Outsole Dirt'],
-    docs: createDefaultDocumentation(),
-  },
-  {
-    id: 'WMK-2026-01790',
-    customer: 'Juan Dela Cruz',
-    email: 'juan.delacruz@email.com',
-    shoe: 'Adidas Samba OG White',
-    service: 'Shoe Protection',
-    branch: 'Wash My Kicks – San Juan City',
-    date: 'March 10, 2026',
-    time: '03:00 PM',
-    price: '₱280',
-    status: 'Completed',
-    stageIndex: 5,
-    specialist: 'Carlo Mendoza',
-    assessed: true,
-    assessmentNotes: 'Applied 2 coats of water & stain repellent shield.',
-    docs: createDefaultDocumentation(),
-  },
-]
+const initialOrders: JobOrder[] = []
 
 export type ReviewItem = {
   id: string
@@ -630,26 +477,36 @@ function Services({
 }
 
 function Track({ orders, setPage }: { orders: JobOrder[]; setPage: (p: string) => void }) {
-  const [query, setQuery] = useState('WMK-2026-01842')
-  const matched = orders.find((o) => o.id.toLowerCase() === query.trim().toLowerCase()) || orders[0]
+  const [query, setQuery] = useState('')
+  const matched =
+    (query.trim() && orders.find((o) => o.id.toLowerCase() === query.trim().toLowerCase())) ||
+    (!query.trim() ? orders[0] : undefined)
   return (
     <Listing eyebrow="ORDER TRACKING" title="Know where your kicks are.">
       <p className="lead">Enter your job order number to see the latest update from your assigned specialist.</p>
       <div className="tracking-box">
         <label>
           Job order number
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. WMK-2026-01842" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. WMK-2026-0001" />
         </label>
-        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <b>{matched.id} — {matched.shoe}</b>
-            <StatusBadge status={matched.status} />
+        {matched ? (
+          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <b>{matched.id} — {matched.shoe}</b>
+              <StatusBadge status={matched.status} />
+            </div>
+            <p style={{ margin: '6px 0 12px', fontSize: 12 }}>
+              {matched.service} · {matched.branch} · Specialist: {matched.specialist}
+            </p>
+            <ServiceStatusTimeline currentStatus={matched.status} />
           </div>
-          <p style={{ margin: '6px 0 12px', fontSize: 12 }}>
-            {matched.service} · {matched.branch} · Specialist: {matched.specialist}
-          </p>
-          <ServiceStatusTimeline currentStatus={matched.status} />
-        </div>
+        ) : (
+          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 18, color: '#6b7280', fontSize: 13 }}>
+            {orders.length === 0
+              ? 'No live job orders in Supabase yet. Book an appointment to generate your first live Job Order.'
+              : 'No matching job order found for that reference number.'}
+          </div>
+        )}
         <button className="primary" onClick={() => setPage('login-customer')}>
           Sign in to Customer Portal for full tracking <ArrowRight size={16} />
         </button>
@@ -910,46 +767,91 @@ function RoleLogin({
   const isStaff = role === 'staff'
   const isAdmin = role === 'admin'
 
-  const [email, setEmail] = useState(
-    isCustomer ? 'juan.delacruz@email.com' : isStaff ? 'carlo.mendoza@washmykicks.com' : 'admin@washmykicks.com'
-  )
-  const [password, setPassword] = useState('••••••••••••')
-  const [employeeId, setEmployeeId] = useState('WMK-EMP-0104')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
   const [branch, setBranch] = useState(staffBranches[0])
   const [isCreatingAccount, setIsCreatingAccount] = useState(false)
-  const [fullName, setFullName] = useState('Juan Dela Cruz')
+  const [fullName, setFullName] = useState('')
   const [forgotMessage, setForgotMessage] = useState('')
+  const [isErrorMsg, setIsErrorMsg] = useState(false)
 
   const roleLabel = isAdmin ? 'Administrator' : isStaff ? 'Staff' : 'Customer'
   const perms = RBAC_PERMISSIONS[role]
 
+  const deriveDisplayName = (emailStr: string, providedName?: string) => {
+    if (providedName && providedName.trim()) return providedName.trim()
+    const local = (emailStr || '').split('@')[0] || ''
+    const cleaned = local.replace(/[0-9]+/g, ' ').replace(/[._-]+/g, ' ').trim()
+    if (!cleaned) return local || roleLabel
+    return cleaned
+      .split(/\s+/)
+      .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+      .join(' ')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setForgotMessage('')
+    setIsErrorMsg(false)
     try {
       const roleEnum = isAdmin ? 'ADMINISTRATOR' : isStaff ? 'STAFF' : 'CUSTOMER'
-      if (isCustomer && isCreatingAccount) {
-        const parts = fullName.trim().split(' ')
-        await registerCustomerAccount({
+      const branchIdx = Math.max(1, staffBranches.indexOf(branch) + 1)
+
+      if (isCreatingAccount) {
+        const parts = (fullName.trim() || deriveDisplayName(email)).split(' ')
+        const regRes = await registerCustomerAccount({
           email,
           password,
-          firstName: parts[0] || 'Customer',
-          lastName: parts.slice(1).join(' ') || 'User',
-        }).catch(() => null)
-      } else {
-        await signInWithRole({
+          firstName: parts[0] || roleLabel,
+          lastName: parts.slice(1).join(' ') || 'Account',
+          role: roleEnum,
+          branchId: isStaff ? branchIdx : undefined,
+          branchName: isStaff ? branch : undefined,
+          employeeId: isStaff ? employeeId : undefined,
+        })
+        const metaName = deriveDisplayName(
           email,
-          password,
-          expectedRole: roleEnum,
-        }).catch(() => null)
+          fullName ||
+            [regRes.user?.user_metadata?.first_name, regRes.user?.user_metadata?.last_name]
+              .filter(Boolean)
+              .join(' ')
+        )
+        onLoginSuccess(role, {
+          email: email.trim(),
+          employeeId: isStaff ? employeeId.trim() : undefined,
+          branch: isStaff ? branch : undefined,
+          name: metaName,
+        })
+        return
       }
-      onLoginSuccess(role, {
+
+      const authRes = await signInWithRole({
         email,
+        password,
+        expectedRole: roleEnum,
+        branchId: isStaff ? branchIdx : undefined,
+        branchName: isStaff ? branch : undefined,
         employeeId: isStaff ? employeeId : undefined,
-        branch: isStaff ? branch : undefined,
-        name: isCustomer ? fullName : isStaff ? 'Carlo Mendoza' : 'Mika Cruz',
+      })
+
+      const meta = authRes.user?.user_metadata || {}
+      const resolvedName = deriveDisplayName(
+        email,
+        [meta.first_name, meta.last_name].filter(Boolean).join(' ')
+      )
+      const resolvedBranch = isStaff ? String(meta.branch_name || branch) : undefined
+      const resolvedEmpId = isStaff ? String(meta.employee_id || employeeId) : undefined
+
+      onLoginSuccess(role, {
+        email: email.trim(),
+        employeeId: resolvedEmpId,
+        branch: resolvedBranch,
+        name: resolvedName,
       })
     } catch (err: any) {
-      setForgotMessage(err?.message || 'Unable to sign in.')
+      setIsErrorMsg(true)
+      setForgotMessage(err?.message || 'Invalid credentials or account not registered in Supabase Auth.')
     }
   }
 
@@ -991,24 +893,28 @@ function RoleLogin({
             <ArrowLeft size={14} /> Back to Account Selection
           </button>
 
-          <span className="eyebrow">{roleLabel.toUpperCase()} LOGIN</span>
-          <h1>{isCreatingAccount && isCustomer ? 'Create Customer Account' : `${roleLabel} Login`}</h1>
+          <span className="eyebrow">{roleLabel.toUpperCase()} PORTAL</span>
+          <h1>{isCreatingAccount ? `Register ${roleLabel} Account` : `${roleLabel} Login`}</h1>
           <p>
             {isCustomer
               ? isCreatingAccount
-                ? 'Register your WashMyKicks customer profile to book and track shoe orders.'
-                : 'Sign in to book appointments, track your kicks, and view service history.'
+                ? 'Register your WashMyKicks customer profile in Supabase Auth.'
+                : 'Sign in with your registered customer credentials.'
               : isStaff
-              ? 'Sign in with your Employee ID and assigned branch credentials.'
-              : 'Sign in with your administrator credentials to manage branches, inventory, and reports.'}
+              ? isCreatingAccount
+                ? 'Provision a branch staff account in Supabase Auth.'
+                : 'Sign in with your provisioned branch staff account.'
+              : isCreatingAccount
+              ? 'Provision an administrator account in Supabase Auth.'
+              : 'Sign in with your administrator credentials.'}
           </p>
 
           {forgotMessage && (
             <div
               style={{
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                color: '#065f46',
+                background: isErrorMsg ? '#fef2f2' : '#ecfdf5',
+                border: isErrorMsg ? '1px solid #fecaca' : '1px solid #a7f3d0',
+                color: isErrorMsg ? '#991b1b' : '#065f46',
                 padding: '10px 14px',
                 borderRadius: 8,
                 fontSize: 12,
@@ -1019,7 +925,7 @@ function RoleLogin({
             </div>
           )}
 
-          {isCustomer && isCreatingAccount && (
+          {isCreatingAccount && (
             <label>
               Full Name
               <input
@@ -1027,7 +933,7 @@ function RoleLogin({
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="Juan Dela Cruz"
+                placeholder="Enter your full name"
               />
             </label>
           )}
@@ -1041,12 +947,12 @@ function RoleLogin({
                   required
                   value={employeeId}
                   onChange={(e) => setEmployeeId(e.target.value)}
-                  placeholder="WMK-EMP-0104"
+                  placeholder="Enter your Employee ID (e.g. WMK-EMP-0104)"
                 />
               </label>
 
               <label>
-                Branch Dropdown
+                Assigned Branch
                 <select value={branch} onChange={(e) => setBranch(e.target.value)} required>
                   {staffBranches.map((b) => (
                     <option key={b} value={b}>
@@ -1063,9 +969,10 @@ function RoleLogin({
             <input
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={isAdmin ? 'admin@washmykicks.com' : 'you@email.com'}
+              placeholder={isAdmin ? 'Enter administrator email' : 'Enter your email address'}
             />
           </label>
 
@@ -1074,59 +981,50 @@ function RoleLogin({
             <input
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••••••"
+              placeholder="Enter your password"
             />
           </label>
 
           <button type="submit" className="primary auth-submit">
-            {isCustomer && isCreatingAccount ? 'Create Account & Continue' : 'Login'} <ArrowRight size={16} />
+            {isCreatingAccount ? `Register ${roleLabel} Account` : 'Sign In'} <ArrowRight size={16} />
           </button>
 
-          {isCustomer && (
+          <div className="auth-links-row">
             <button
               type="button"
-              className="outline auth-submit"
-              onClick={() =>
-                onLoginSuccess('customer', {
-                  email: 'juan.google@gmail.com',
-                  name: 'Juan Dela Cruz',
-                })
-              }
+              onClick={() => {
+                if (!email.trim()) {
+                  setIsErrorMsg(true)
+                  setForgotMessage('Enter your email address first to request a password reset.')
+                  return
+                }
+                void requestPasswordResetEmail(email.trim()).catch(() => null)
+                setIsErrorMsg(false)
+                setForgotMessage(`Password reset instructions sent to ${email.trim()}.`)
+              }}
             >
-              <Sparkles size={15} color="#dc2626" /> Continue with Google
+              Forgot Password?
             </button>
-          )}
-
-          {isCustomer ? (
-            <div className="auth-links-row">
-              <button
-                type="button"
-                onClick={() => setForgotMessage(`Password reset link sent to ${email || 'your email address'}.`)}
-              >
-                Forgot Password
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCreatingAccount(!isCreatingAccount)
-                  setForgotMessage('')
-                }}
-              >
-                {isCreatingAccount ? 'Already have an account? Login' : 'Create Account'}
-              </button>
-            </div>
-          ) : (
-            <div className="auth-links-row" style={{ justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => setForgotMessage(`Recovery instructions sent to ${email}.`)}
-              >
-                Forgot Password?
-              </button>
-            </div>
-          )}
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreatingAccount(!isCreatingAccount)
+                setForgotMessage('')
+                setIsErrorMsg(false)
+              }}
+            >
+              {isCreatingAccount
+                ? 'Already registered? Sign In'
+                : isStaff
+                ? 'Provision Staff Account'
+                : isAdmin
+                ? 'Provision Admin Account'
+                : 'Create Account'}
+            </button>
+          </div>
         </form>
       </div>
     </section>
@@ -2343,95 +2241,106 @@ function CustomerDashboard({
               <h1>Track Shoes</h1>
               <p>Real-time status updates and specialist documentation for your pairs.</p>
 
-              {/* Selected Order Live 5-Stage Timeline Card */}
-              <div className="dash-panel" style={{ marginBottom: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-                  <div>
-                    <span className="eyebrow">{trackedOrder.id}</span>
-                    <h2>{trackedOrder.shoe}</h2>
-                    <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
-                      Service: <b>{trackedOrder.service}</b> · Branch: <b>{trackedOrder.branch}</b> · Drop-off: {trackedOrder.date} ({trackedOrder.time})
-                    </p>
+              {trackedOrder ? (
+                <>
+                  {/* Selected Order Live 5-Stage Timeline Card */}
+                  <div className="dash-panel" style={{ marginBottom: 18 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <span className="eyebrow">{trackedOrder.id}</span>
+                        <h2>{trackedOrder.shoe}</h2>
+                        <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>
+                          Service: <b>{trackedOrder.service}</b> · Branch: <b>{trackedOrder.branch}</b> · Drop-off: {trackedOrder.date} ({trackedOrder.time})
+                        </p>
+                      </div>
+                      <StatusBadge status={trackedOrder.status} />
+                    </div>
+
+                    <ServiceStatusTimeline currentStatus={trackedOrder.status} />
+
+                    {trackedOrder.assessmentNotes && (
+                      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, marginTop: 14 }}>
+                        <b style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                          Specialist Assessment Notes ({trackedOrder.specialist}):
+                        </b>
+                        <p style={{ fontSize: 12.5, color: '#4b5563', margin: 0 }}>{trackedOrder.assessmentNotes}</p>
+                      </div>
+                    )}
+
+                    <div className="dash-actions">
+                      <button type="button" className="primary" onClick={() => setTab('Reviews')}>
+                        Proceed to Leave Feedback / Review <ArrowRight size={15} />
+                      </button>
+                      <button type="button" className="outline" onClick={() => setTab('Book Appointment')}>
+                        Book Another Pair
+                      </button>
+                    </div>
                   </div>
-                  <StatusBadge status={trackedOrder.status} />
-                </div>
 
-                <ServiceStatusTimeline currentStatus={trackedOrder.status} />
-
-                {trackedOrder.assessmentNotes && (
-                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, marginTop: 14 }}>
-                    <b style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                      Specialist Assessment Notes ({trackedOrder.specialist}):
-                    </b>
-                    <p style={{ fontSize: 12.5, color: '#4b5563', margin: 0 }}>{trackedOrder.assessmentNotes}</p>
-                  </div>
-                )}
-
-                <div className="dash-actions">
-                  <button type="button" className="primary" onClick={() => setTab('Reviews')}>
-                    Proceed to Leave Feedback / Review <ArrowRight size={15} />
-                  </button>
-                  <button type="button" className="outline" onClick={() => setTab('Book Appointment')}>
-                    Book Another Pair
-                  </button>
-                </div>
-              </div>
-
-              {/* Clean Service-History-Style Table to Select Any Order to Track */}
-              <div className="dash-panel">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Job Order</th>
-                      <th>Sneaker Pair</th>
-                      <th>Service</th>
-                      <th>Branch</th>
-                      <th>Date</th>
-                      <th>Total</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customerOrders.map((o) => {
-                      const isCurrent = trackedOrder.id === o.id
-                      return (
-                        <tr
-                          key={o.id}
-                          style={isCurrent ? { background: '#fef2f2' } : undefined}
-                        >
-                          <td>
-                            <b>{o.id}</b>
-                          </td>
-                          <td>{o.shoe}</td>
-                          <td>{o.service}</td>
-                          <td>{o.branch}</td>
-                          <td>{o.date}</td>
-                          <td>
-                            <b>{o.price}</b>
-                          </td>
-                          <td>
-                            <StatusBadge status={o.status} />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="confirm-change"
-                              style={isCurrent ? { fontWeight: 800, textDecoration: 'underline' } : undefined}
-                              onClick={() => {
-                                setSelectedOrderId(o.id)
-                                window.scrollTo({ top: 0, behavior: 'smooth' })
-                              }}
-                            >
-                              {isCurrent ? 'Tracking ✓' : 'Track / View'}
-                            </button>
-                          </td>
+                  {/* Clean Service-History-Style Table to Select Any Order to Track */}
+                  <div className="dash-panel">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Job Order</th>
+                          <th>Sneaker Pair</th>
+                          <th>Service</th>
+                          <th>Branch</th>
+                          <th>Date</th>
+                          <th>Total</th>
+                          <th>Status</th>
+                          <th>Action</th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {customerOrders.map((o) => {
+                          const isCurrent = trackedOrder.id === o.id
+                          return (
+                            <tr
+                              key={o.id}
+                              style={isCurrent ? { background: '#fef2f2' } : undefined}
+                            >
+                              <td>
+                                <b>{o.id}</b>
+                              </td>
+                              <td>{o.shoe}</td>
+                              <td>{o.service}</td>
+                              <td>{o.branch}</td>
+                              <td>{o.date}</td>
+                              <td>
+                                <b>{o.price}</b>
+                              </td>
+                              <td>
+                                <StatusBadge status={o.status} />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="confirm-change"
+                                  style={isCurrent ? { fontWeight: 800, textDecoration: 'underline' } : undefined}
+                                  onClick={() => {
+                                    setSelectedOrderId(o.id)
+                                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                                  }}
+                                >
+                                  {isCurrent ? 'Tracking ✓' : 'Track / View'}
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
+                  <p style={{ marginBottom: 14 }}>No live job orders in Supabase yet.</p>
+                  <button type="button" className="primary" onClick={() => setTab('Book Appointment')}>
+                    Book Your First Appointment <ArrowRight size={15} />
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -3017,61 +2926,14 @@ function StaffDashboard({
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        {
-                          id: 'WMK-2026-0046',
-                          customer: 'Andrea Reyes',
-                          shoe: 'Nike Air Max 97',
-                          service: 'Restoration',
-                          branch: 'San Juan City',
-                          priority: 'High',
-                          priorityClass: 'high',
-                          status: 'In Service',
-                        },
-                        {
-                          id: 'WMK-2026-0045',
-                          customer: 'Paolo Tan',
-                          shoe: 'Jordan 4',
-                          service: 'Deep Cleaning',
-                          branch: 'Quezon City',
-                          priority: 'Normal',
-                          priorityClass: 'normal',
-                          status: 'Assessment',
-                        },
-                        {
-                          id: 'WMK-2026-0044',
-                          customer: 'Sam Lee',
-                          shoe: 'Adidas Samba',
-                          service: 'Sole Repair',
-                          branch: 'Pasig City',
-                          priority: 'Urgent',
-                          priorityClass: 'urgent',
-                          status: 'Quality Check',
-                        },
-                        {
-                          id: 'WMK-2026-0043',
-                          customer: 'Nicole Cruz',
-                          shoe: 'New Balance 550',
-                          service: 'Basic Clean',
-                          branch: 'Pateros',
-                          priority: 'Normal',
-                          priorityClass: 'normal',
-                          status: 'Ready',
-                        },
-                        {
-                          id: 'WMK-2026-0042',
-                          customer: 'John Uy',
-                          shoe: 'Nike Dunk Low',
-                          service: 'Restoration',
-                          branch: 'Montalban, Rizal',
-                          priority: 'High',
-                          priorityClass: 'high',
-                          status: 'Received',
-                        },
-                      ].map((row) => {
-                        const liveOrder = orders.find((o) => o.id === row.id)
-                        const liveStatus = liveOrder ? liveOrder.status : row.status
-                        return (
+                      {orders.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
+                            No live orders in Supabase yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        orders.slice(0, 5).map((row, idx) => (
                           <tr key={row.id}>
                             <td>
                               <b>{row.id}</b>
@@ -3079,12 +2941,14 @@ function StaffDashboard({
                             <td>{row.customer}</td>
                             <td>{row.shoe}</td>
                             <td>{row.service}</td>
-                            <td>{row.branch}</td>
+                            <td>{row.branch.replace('Wash My Kicks – ', '')}</td>
                             <td>
-                              <span className={`wmk-priority-tag ${row.priorityClass}`}>{row.priority}</span>
+                              <span className={`wmk-priority-tag ${idx === 0 ? 'high' : 'normal'}`}>
+                                {idx === 0 ? 'High' : 'Normal'}
+                              </span>
                             </td>
                             <td>
-                              <StatusBadge status={liveStatus} />
+                              <StatusBadge status={row.status} />
                             </td>
                             <td>
                               <button
@@ -3100,8 +2964,8 @@ function StaffDashboard({
                               </button>
                             </td>
                           </tr>
-                        )
-                      })}
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -3487,12 +3351,17 @@ function AdminDashboard({
   const [newSvcPrice, setNewSvcPrice] = useState('₱500')
   const [newSvcDuration, setNewSvcDuration] = useState('2–4 days')
 
-  const [usersList, setUsersList] = useState([
-    { id: 'USR-01', name: 'Juan Dela Cruz', email: 'juan.delacruz@email.com', role: 'Customer', branch: 'Pasig City (Flagship)', active: true },
-    { id: 'USR-02', name: 'Carlo Mendoza', email: 'carlo.mendoza@washmykicks.com', role: 'Staff', branch: 'Pasig City (Flagship)', active: true },
-    { id: 'USR-03', name: 'Marco Santos', email: 'marco.santos@washmykicks.com', role: 'Staff', branch: 'Quezon City', active: true },
-    { id: 'USR-04', name: 'Mika Cruz', email: 'admin@washmykicks.com', role: 'Administrator', branch: 'HQ / All Branches', active: true },
-  ])
+  const [usersList, setUsersList] = useState<
+    { id: string; name: string; email: string; role: string; branch: string; active: boolean }[]
+  >([])
+
+  useEffect(() => {
+    fetchLiveProductionData()
+      .then((res) => {
+        if (res.users.length > 0) setUsersList(res.users)
+      })
+      .catch(() => {})
+  }, [])
 
   const sidebarItems: { key: typeof tab; icon: React.ReactNode }[] = [
     { key: 'Dashboard', icon: <LayoutDashboard size={17} /> },
@@ -3715,61 +3584,14 @@ function AdminDashboard({
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        {
-                          id: 'WMK-2026-0046',
-                          customer: 'Andrea Reyes',
-                          shoe: 'Nike Air Max 97',
-                          service: 'Restoration',
-                          branch: 'San Juan City',
-                          priority: 'High',
-                          priorityClass: 'high',
-                          status: 'In Service',
-                        },
-                        {
-                          id: 'WMK-2026-0045',
-                          customer: 'Paolo Tan',
-                          shoe: 'Jordan 4',
-                          service: 'Deep Cleaning',
-                          branch: 'Quezon City',
-                          priority: 'Normal',
-                          priorityClass: 'normal',
-                          status: 'Assessment',
-                        },
-                        {
-                          id: 'WMK-2026-0044',
-                          customer: 'Sam Lee',
-                          shoe: 'Adidas Samba',
-                          service: 'Sole Repair',
-                          branch: 'Pasig City',
-                          priority: 'Urgent',
-                          priorityClass: 'urgent',
-                          status: 'Quality Check',
-                        },
-                        {
-                          id: 'WMK-2026-0043',
-                          customer: 'Nicole Cruz',
-                          shoe: 'New Balance 550',
-                          service: 'Basic Clean',
-                          branch: 'Pateros',
-                          priority: 'Normal',
-                          priorityClass: 'normal',
-                          status: 'Ready',
-                        },
-                        {
-                          id: 'WMK-2026-0042',
-                          customer: 'John Uy',
-                          shoe: 'Nike Dunk Low',
-                          service: 'Restoration',
-                          branch: 'Montalban, Rizal',
-                          priority: 'High',
-                          priorityClass: 'high',
-                          status: 'Received',
-                        },
-                      ].map((row) => {
-                        const liveOrder = orders.find((o) => o.id === row.id)
-                        const liveStatus = liveOrder ? liveOrder.status : row.status
-                        return (
+                      {orders.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
+                            No live orders in Supabase yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        orders.slice(0, 5).map((row, idx) => (
                           <tr key={row.id}>
                             <td>
                               <b>{row.id}</b>
@@ -3777,12 +3599,14 @@ function AdminDashboard({
                             <td>{row.customer}</td>
                             <td>{row.shoe}</td>
                             <td>{row.service}</td>
-                            <td>{row.branch}</td>
+                            <td>{row.branch.replace('Wash My Kicks – ', '')}</td>
                             <td>
-                              <span className={`wmk-priority-tag ${row.priorityClass}`}>{row.priority}</span>
+                              <span className={`wmk-priority-tag ${idx === 0 ? 'high' : 'normal'}`}>
+                                {idx === 0 ? 'High' : 'Normal'}
+                              </span>
                             </td>
                             <td>
-                              <StatusBadge status={liveStatus} />
+                              <StatusBadge status={row.status} />
                             </td>
                             <td>
                               <button
@@ -3795,8 +3619,8 @@ function AdminDashboard({
                               </button>
                             </td>
                           </tr>
-                        )
-                      })}
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -4775,6 +4599,25 @@ function App() {
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
   const [inventory, setInventory] = useState<InventoryRecord[]>(INITIAL_INVENTORY_RECORDS)
   const [servicesCatalog, setServicesCatalog] = useState<Service[]>(services)
+
+  // Fetch live production rows from Supabase PostgreSQL on mount
+  useEffect(() => {
+    fetchLiveProductionData()
+      .then((live) => {
+        if (live.orders.length > 0) {
+          setOrders(
+            live.orders.map((o: any) => ({
+              ...o,
+              docs: createDefaultDocumentation(),
+            }))
+          )
+        }
+        if (live.inventory.length > 0) {
+          setInventory(live.inventory)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const handleBookBranchFromMap = (_branchName: string, branchId: number) => {
     setPreselectedBranchId(branchId)

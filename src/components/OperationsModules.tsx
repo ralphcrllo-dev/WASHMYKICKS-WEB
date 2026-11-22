@@ -73,72 +73,7 @@ export type InventoryRecord = {
   target: number
 }
 
-export const INITIAL_INVENTORY_RECORDS: InventoryRecord[] = [
-  {
-    id: 'inv-1',
-    name: 'Premium Cleaner 1L',
-    category: 'Cleaning Chemicals',
-    branch: 'Wash My Kicks – San Juan City',
-    stock: 18,
-    target: 40,
-  },
-  {
-    id: 'inv-2',
-    name: 'Water Repellent 250ml',
-    category: 'Shoe Protectors',
-    branch: 'Wash My Kicks – San Juan City',
-    stock: 7,
-    target: 25,
-  },
-  {
-    id: 'inv-3',
-    name: 'Soft Bristle Brush',
-    category: 'Brushes',
-    branch: 'Wash My Kicks – San Juan City',
-    stock: 42,
-    target: 30,
-  },
-  {
-    id: 'inv-4',
-    name: 'WMK Shoe Box',
-    category: 'Packaging Materials',
-    branch: 'Wash My Kicks – San Juan City',
-    stock: 86,
-    target: 100,
-  },
-  {
-    id: 'inv-5',
-    name: 'Angelus White Paint',
-    category: 'Restoration Supplies',
-    branch: 'Wash My Kicks – San Juan City',
-    stock: 14,
-    target: 20,
-  },
-  {
-    id: 'inv-6',
-    name: 'De-Yellowing UV Sole Sauce',
-    category: 'Restoration Supplies',
-    branch: 'Wash My Kicks – Quezon City',
-    stock: 9,
-    target: 30,
-  },
-  {
-    id: 'inv-7',
-    name: 'Premium Cleaner 1L',
-    category: 'Cleaning Chemicals',
-    branch: 'Wash My Kicks – Pasig City',
-    stock: 34,
-    target: 40,
-  },
-  {
-    id: 'inv-8',
-    name: 'Microfiber Towel Pack',
-    category: 'Brushes',
-    branch: 'Wash My Kicks – Pateros',
-    stock: 0,
-    target: 25,
-  },
-]
+export const INITIAL_INVENTORY_RECORDS: InventoryRecord[] = []
 
 export function getInventoryStatus(stock: number, target: number): 'Healthy' | 'Low' | 'Critical' | 'Out of Stock' {
   if (stock <= 0) return 'Out of Stock'
@@ -435,6 +370,18 @@ export function BeforeAfterDocumentationModule({
   const completedAnglesCount = ANGLE_META.filter(
     (a) => Boolean(currentDocs[a.key].before) && Boolean(currentDocs[a.key].after)
   ).length
+
+  if (!activeOrder) {
+    return (
+      <div>
+        <span className="eyebrow">BRANCH OPERATIONS</span>
+        <h1>Before &amp; after documentation</h1>
+        <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
+          No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -811,6 +758,18 @@ export function StaffShoeAssessmentModule({
       ? { service: 'Restoration + Deep Clean', total: '₱1,850', days: '7–10 days' }
       : { service: 'Deep Cleaning', total: '₱650', days: '3–5 days' }
 
+  if (!activeOrder) {
+    return (
+      <div>
+        <span className="eyebrow">BRANCH OPERATIONS</span>
+        <h1>Shoe assessment</h1>
+        <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
+          No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       {/* Direct file inputs for Add angle & Add sole */}
@@ -1032,6 +991,18 @@ export function StaffAssignedServicesModule({
   const activeOrder = orders.find((o) => o.id === selectedOrderId) || orders[0]
   const [statusChoice, setStatusChoice] = useState<string>(activeOrder?.status || 'In Progress')
 
+  if (!activeOrder) {
+    return (
+      <div>
+        <span className="eyebrow">BRANCH OPERATIONS</span>
+        <h1>Assigned services</h1>
+        <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
+          No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="breadcrumb">
@@ -1204,16 +1175,14 @@ export function InventoryManagementModule({
 
   const uniqueItemNames = Array.from(new Set(inventory.map((i) => i.name)))
 
-  // Compute KPI metrics
-  const totalSkus = 240 + inventory.length
-  const lowAlertsCount =
-    19 +
-    inventory.filter((i) => {
-      const st = getInventoryStatus(i.stock, i.target)
-      return st === 'Low' || st === 'Critical'
-    }).length
-  const outOfStockCount = 5 + inventory.filter((i) => i.stock <= 0).length
-  const healthyCount = totalSkus - lowAlertsCount - outOfStockCount
+  // Compute live KPI metrics directly from Supabase-backed inventory rows
+  const totalSkus = inventory.length
+  const lowAlertsCount = inventory.filter((i) => {
+    const st = getInventoryStatus(i.stock, i.target)
+    return st === 'Low' || st === 'Critical'
+  }).length
+  const outOfStockCount = inventory.filter((i) => i.stock <= 0).length
+  const healthyCount = Math.max(0, totalSkus - lowAlertsCount - outOfStockCount)
 
   const filtered = inventory.filter((item) => {
     const matchesSearch =
@@ -1399,7 +1368,7 @@ export function InventoryManagementModule({
           <div>
             <span>Healthy stock</span>
             <b>{healthyCount}</b>
-            <small>{Math.round((healthyCount / totalSkus) * 100)}% of inventory</small>
+            <small>{totalSkus === 0 ? 0 : Math.round((healthyCount / totalSkus) * 100)}% of inventory</small>
           </div>
         </article>
 

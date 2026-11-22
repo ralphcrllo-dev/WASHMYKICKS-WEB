@@ -29663,26 +29663,30 @@ ${suffix}`;
   }
   async function registerCustomerAccount(input) {
     if (!supabase || !isSupabaseConfigured) {
-      return { mode: "local", email: input.email };
+      throw new Error("Supabase Auth is not configured.");
     }
+    const targetRole = input.role || "CUSTOMER";
     const username = input.username || `${input.firstName.toLowerCase().replace(/\s+/g, "")}_${Math.floor(1e3 + Math.random() * 9e3)}`;
     const { data, error } = await supabase.auth.signUp({
-      email: input.email,
+      email: input.email.trim(),
       password: input.password,
       options: {
         data: {
-          role: "CUSTOMER",
+          role: targetRole,
           username,
           first_name: input.firstName,
           last_name: input.lastName,
           phone: input.phone || "",
-          address: input.address || ""
+          address: input.address || "",
+          branch_id: input.branchId ? String(input.branchId) : "",
+          branch_name: input.branchName || "",
+          employee_id: input.employeeId || ""
         }
       }
     });
     if (error) throw error;
     await dispatchTransactionalEmail({
-      to: input.email,
+      to: input.email.trim(),
       eventType: "EMAIL_VERIFICATION",
       customerName: `${input.firstName} ${input.lastName}`
     });
@@ -29694,37 +29698,64 @@ ${suffix}`;
       throw new Error("Account temporarily locked due to too many failed login attempts. Please wait 15 minutes.");
     }
     if (!supabase || !isSupabaseConfigured) {
-      recordClientLoginAttempt(input.email, true);
-      return { mode: "local", role: input.expectedRole };
+      throw new Error("Supabase Auth is required for authentication.");
     }
-    const { data: allowedByDb } = await supabase.rpc("fn_check_login_rate_limit", {
-      p_email: input.email
-    });
-    if (allowedByDb === false) {
-      throw new Error("Account is locked due to repeated failed login attempts.");
+    try {
+      const { data: allowedByDb } = await supabase.rpc("fn_check_login_rate_limit", {
+        p_email: input.email.trim()
+      });
+      if (allowedByDb === false) {
+        throw new Error("Account is locked due to repeated failed login attempts.");
+      }
+    } catch (rateErr) {
+      if (String(rateErr?.message || "").includes("locked")) throw rateErr;
     }
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: input.email,
+      email: input.email.trim(),
       password: input.password
     });
     if (error || !data.user) {
       recordClientLoginAttempt(input.email, false);
-      await supabase.rpc("fn_record_auth_event", {
-        p_action: "LOGIN_FAILED",
-        p_email: input.email
-      });
+      try {
+        await supabase.rpc("fn_record_auth_event", {
+          p_action: "LOGIN_FAILED",
+          p_email: input.email.trim()
+        });
+      } catch {
+      }
       throw error || new Error("Invalid login credentials.");
     }
-    const { data: accountRow } = await supabase.from("user_accounts").select("user_id, role_id, branch_id, account_status, roles(role_name)").eq("auth_uid", data.user.id).single();
+    let accountRow = null;
+    try {
+      const { data: row } = await supabase.from("user_accounts").select("user_id, role_id, branch_id, account_status, roles(role_name)").eq("auth_uid", data.user.id).single();
+      accountRow = row;
+    } catch {
+    }
     if (accountRow && accountRow.account_status === "LOCKED") {
       await supabase.auth.signOut();
       throw new Error("This account is locked. Please contact an administrator.");
     }
+    const metaRole = String(data.user.user_metadata?.role || "").toUpperCase();
+    const dbRole = String(accountRow?.roles?.role_name || metaRole || "CUSTOMER").toUpperCase();
+    if (dbRole && dbRole !== input.expectedRole) {
+      await supabase.auth.signOut();
+      throw new Error(`Access denied: this account is registered as ${dbRole}, not ${input.expectedRole}.`);
+    }
+    if (input.expectedRole === "STAFF" && input.branchName) {
+      const assignedBranch = String(data.user.user_metadata?.branch_name || "");
+      if (assignedBranch && assignedBranch !== input.branchName) {
+        await supabase.auth.signOut();
+        throw new Error(`Branch access denied: your staff account is provisioned for ${assignedBranch}.`);
+      }
+    }
     recordClientLoginAttempt(input.email, true);
-    await supabase.rpc("fn_record_auth_event", {
-      p_action: "LOGIN",
-      p_email: input.email
-    });
+    try {
+      await supabase.rpc("fn_record_auth_event", {
+        p_action: "LOGIN",
+        p_email: input.email.trim()
+      });
+    } catch {
+    }
     return { mode: "supabase", user: data.user, account: accountRow };
   }
   async function signOutSession(email) {
@@ -29735,6 +29766,15 @@ ${suffix}`;
       });
       await supabase.auth.signOut();
     }
+  }
+  async function requestPasswordResetEmail(email) {
+    if (supabase && isSupabaseConfigured) {
+      await supabase.auth.resetPasswordForEmail(email);
+    }
+    await dispatchTransactionalEmail({
+      to: email,
+      eventType: "PASSWORD_RESET"
+    });
   }
   async function createBookingRecord(input) {
     if (supabase && isSupabaseConfigured) {
@@ -29859,11 +29899,141 @@ ${suffix}`;
     if (error) throw error;
     return { filePath, record: data };
   }
+  async function fetchAuditLogsList(limit = 100) {
+    if (!supabase) return [];
+    const { data, error } = await supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(limit);
+    if (error) throw error;
+    return data || [];
+  }
   async function triggerDatabaseBackupManifest() {
     if (!supabase) return null;
     const { data, error } = await supabase.rpc("fn_generate_backup_manifest");
     if (error) throw error;
     return data;
+  }
+  async function fetchLiveProductionData() {
+    if (!supabase || !isSupabaseConfigured) {
+      return { orders: [], inventory: [], users: [], auditLogs: [] };
+    }
+    const stageMap = {
+      "Pending Assessment": 1,
+      "In Progress": 2,
+      "Quality Check": 3,
+      "Ready for Pickup": 4,
+      Completed: 5
+    };
+    let liveOrders = [];
+    try {
+      const { data: soRows } = await supabase.from("service_orders").select(
+        `
+        order_id,
+        order_number,
+        order_status,
+        work_instructions,
+        progress_notes,
+        received_at,
+        bookings (
+          booking_id,
+          scheduled_at,
+          price_at_booking,
+          customer_request,
+          customer_profiles (
+            first_name,
+            last_name,
+            user_accounts ( email )
+          ),
+          branch_services (
+            service_price,
+            branches ( branch_name ),
+            shoe_services ( service_name )
+          )
+        ),
+        shoe_assessments (
+          assessment_status,
+          damage_findings,
+          service_notes
+        )
+      `
+      ).order("order_id", { ascending: false });
+      if (Array.isArray(soRows)) {
+        liveOrders = soRows.map((row) => {
+          const bk = Array.isArray(row.bookings) ? row.bookings[0] : row.bookings;
+          const cp = bk?.customer_profiles;
+          const ua = Array.isArray(cp?.user_accounts) ? cp?.user_accounts[0] : cp?.user_accounts;
+          const bs = bk?.branch_services;
+          const br = bs?.branches;
+          const ss = bs?.shoe_services;
+          const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments;
+          const rawReq = String(bk?.customer_request || row.work_instructions || "");
+          const shoeTitle = rawReq.split("\u2014")[0]?.trim() || "Sneaker Pair";
+          const email = ua?.email || "";
+          const fullName = cp ? `${cp.first_name || ""} ${cp.last_name || ""}`.trim() : "Customer";
+          const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now());
+          const dateStr = sched.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          const timeStr = sched.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+          const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650);
+          const st = row.order_status || "Pending Assessment";
+          return {
+            id: String(row.order_number || `WMK-2026-${String(row.order_id).padStart(4, "0")}`),
+            customer: fullName || "Customer",
+            email: email || "",
+            shoe: shoeTitle,
+            service: ss?.service_name || "Deep Cleaning",
+            branch: br?.branch_name || "Wash My Kicks \u2013 Pasig City",
+            date: dateStr,
+            time: timeStr,
+            price: `\u20B1${priceNum.toLocaleString()}`,
+            status: st,
+            stageIndex: stageMap[st] || 1,
+            specialist: "Assigned Specialist",
+            assessed: sa?.assessment_status === "Completed" || sa?.assessment_status === "Approved",
+            assessmentNotes: sa?.damage_findings || sa?.service_notes || void 0
+          };
+        });
+      }
+    } catch {
+    }
+    let liveInventory = [];
+    try {
+      const { data: invRows } = await supabase.from("vw_branch_inventory_stock").select("*").order("branch_inventory_id", { ascending: true });
+      if (Array.isArray(invRows)) {
+        liveInventory = invRows.map((r) => ({
+          id: `inv-${r.branch_inventory_id}`,
+          name: String(r.item_name || "Inventory Item"),
+          category: r.category || "Cleaning Chemicals",
+          branch: String(r.branch_name || "Wash My Kicks \u2013 Pasig City"),
+          stock: Number(r.current_stock ?? 0),
+          target: Math.max(10, Number(r.reorder_level ?? 10) * 2)
+        }));
+      }
+    } catch {
+    }
+    let liveUsers = [];
+    try {
+      const { data: usrRows } = await supabase.from("user_accounts").select("user_id, username, email, account_status, roles(role_name), branches(branch_name)").order("user_id", { ascending: true });
+      if (Array.isArray(usrRows)) {
+        liveUsers = usrRows.map((u) => ({
+          id: `USR-${String(u.user_id).padStart(2, "0")}`,
+          name: String(u.username || u.email || "User"),
+          email: String(u.email || ""),
+          role: String(u.roles?.role_name || "CUSTOMER"),
+          branch: String(u.branches?.branch_name || "All Branches"),
+          active: u.account_status === "ACTIVE"
+        }));
+      }
+    } catch {
+    }
+    let liveAudits = [];
+    try {
+      liveAudits = await fetchAuditLogsList(50);
+    } catch {
+    }
+    return {
+      orders: liveOrders,
+      inventory: liveInventory,
+      users: liveUsers,
+      auditLogs: liveAudits
+    };
   }
 
   // src/lib/excelExport.ts
@@ -30064,72 +30234,7 @@ ${suffix}`;
       }
     };
   }
-  var INITIAL_INVENTORY_RECORDS = [
-    {
-      id: "inv-1",
-      name: "Premium Cleaner 1L",
-      category: "Cleaning Chemicals",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      stock: 18,
-      target: 40
-    },
-    {
-      id: "inv-2",
-      name: "Water Repellent 250ml",
-      category: "Shoe Protectors",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      stock: 7,
-      target: 25
-    },
-    {
-      id: "inv-3",
-      name: "Soft Bristle Brush",
-      category: "Brushes",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      stock: 42,
-      target: 30
-    },
-    {
-      id: "inv-4",
-      name: "WMK Shoe Box",
-      category: "Packaging Materials",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      stock: 86,
-      target: 100
-    },
-    {
-      id: "inv-5",
-      name: "Angelus White Paint",
-      category: "Restoration Supplies",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      stock: 14,
-      target: 20
-    },
-    {
-      id: "inv-6",
-      name: "De-Yellowing UV Sole Sauce",
-      category: "Restoration Supplies",
-      branch: "Wash My Kicks \u2013 Quezon City",
-      stock: 9,
-      target: 30
-    },
-    {
-      id: "inv-7",
-      name: "Premium Cleaner 1L",
-      category: "Cleaning Chemicals",
-      branch: "Wash My Kicks \u2013 Pasig City",
-      stock: 34,
-      target: 40
-    },
-    {
-      id: "inv-8",
-      name: "Microfiber Towel Pack",
-      category: "Brushes",
-      branch: "Wash My Kicks \u2013 Pateros",
-      stock: 0,
-      target: 25
-    }
-  ];
+  var INITIAL_INVENTORY_RECORDS = [];
   function getInventoryStatus(stock, target) {
     if (stock <= 0) return "Out of Stock";
     const ratio = stock / Math.max(target, 1);
@@ -30356,6 +30461,13 @@ ${suffix}`;
     const completedAnglesCount = ANGLE_META.filter(
       (a) => Boolean(currentDocs[a.key].before) && Boolean(currentDocs[a.key].after)
     ).length;
+    if (!activeOrder) {
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Before & after documentation" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically." })
+      ] });
+    }
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "input",
@@ -30717,6 +30829,13 @@ ${suffix}`;
     };
     const previewPhoto = activeOrder?.docs?.left?.before || "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=800&q=80";
     const recommended = checked.includes("Sole separation") || checked.includes("Torn upper") ? { service: "Shoe Repair + Deep Clean", total: "\u20B11,450", days: "5\u201310 days" } : checked.includes("Yellowed midsole") || checked.includes("Faded color") ? { service: "Restoration + Deep Clean", total: "\u20B11,850", days: "7\u201310 days" } : { service: "Deep Cleaning", total: "\u20B1650", days: "3\u20135 days" };
+    if (!activeOrder) {
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Shoe assessment" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically." })
+      ] });
+    }
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
         "input",
@@ -30933,6 +31052,13 @@ ${suffix}`;
   }) {
     const activeOrder = orders.find((o) => o.id === selectedOrderId) || orders[0];
     const [statusChoice, setStatusChoice] = (0, import_react4.useState)(activeOrder?.status || "In Progress");
+    if (!activeOrder) {
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Assigned services" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically." })
+      ] });
+    }
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "breadcrumb", children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("button", { type: "button", onClick: onBackToDashboard, children: "Dashboard" }),
@@ -31072,13 +31198,13 @@ ${suffix}`;
       "Restoration Supplies"
     ];
     const uniqueItemNames = Array.from(new Set(inventory.map((i) => i.name)));
-    const totalSkus = 240 + inventory.length;
-    const lowAlertsCount = 19 + inventory.filter((i) => {
+    const totalSkus = inventory.length;
+    const lowAlertsCount = inventory.filter((i) => {
       const st = getInventoryStatus(i.stock, i.target);
       return st === "Low" || st === "Critical";
     }).length;
-    const outOfStockCount = 5 + inventory.filter((i) => i.stock <= 0).length;
-    const healthyCount = totalSkus - lowAlertsCount - outOfStockCount;
+    const outOfStockCount = inventory.filter((i) => i.stock <= 0).length;
+    const healthyCount = Math.max(0, totalSkus - lowAlertsCount - outOfStockCount);
     const filtered = inventory.filter((item) => {
       const matchesSearch = !search.trim() || item.name.toLowerCase().includes(search.toLowerCase()) || item.category.toLowerCase().includes(search.toLowerCase()) || item.branch.toLowerCase().includes(search.toLowerCase());
       const matchesCat = categoryFilter === "All categories" || item.category === categoryFilter;
@@ -31240,7 +31366,7 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: "Healthy stock" }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: healthyCount }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("small", { children: [
-              Math.round(healthyCount / totalSkus * 100),
+              totalSkus === 0 ? 0 : Math.round(healthyCount / totalSkus * 100),
               "% of inventory"
             ] })
           ] })
@@ -31478,161 +31604,7 @@ ${suffix}`;
     { id: 7, name: "Wash My Kicks \u2013 Bacoor, Cavite", address: "Cerritos Trails Molino 3, Bacoor, Cavite", comingSoon: false },
     { id: 8, name: "Wash My Kicks \u2013 8th Branch", address: "Location to be announced", comingSoon: true }
   ];
-  var initialOrders = [
-    {
-      id: "WMK-2026-0046",
-      customer: "Andrea Reyes",
-      email: "andrea.reyes@email.com",
-      shoe: "Nike Air Max 97 \xB7 Silver Bullet",
-      service: "Restoration",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      date: "March 27, 2026",
-      time: "02:00 PM",
-      price: "\u20B11,850",
-      status: "In Progress",
-      stageIndex: 3,
-      specialist: "Carlo Mendoza",
-      assessed: true,
-      assessmentNotes: "Heavy dirt buildup on mesh panels. Mild yellowing along midsole. No structural tears.",
-      conditionTags: ["Heavy surface stains", "Yellowed midsole", "Strong odor"],
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-0045",
-      customer: "Paolo Tan",
-      email: "paolo.tan@email.com",
-      shoe: "Jordan 4",
-      service: "Deep Cleaning",
-      branch: "Wash My Kicks \u2013 Quezon City",
-      date: "March 26, 2026",
-      time: "01:00 PM",
-      price: "\u20B1650",
-      status: "Pending Assessment",
-      stageIndex: 2,
-      specialist: "Carlo Mendoza",
-      assessed: false,
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-0044",
-      customer: "Sam Lee",
-      email: "sam.lee@email.com",
-      shoe: "Adidas Samba",
-      service: "Sole Repair",
-      branch: "Wash My Kicks \u2013 Pasig City",
-      date: "March 25, 2026",
-      time: "03:30 PM",
-      price: "\u20B1800",
-      status: "Quality Check",
-      stageIndex: 4,
-      specialist: "Carlo Mendoza",
-      assessed: true,
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-0043",
-      customer: "Nicole Cruz",
-      email: "nicole.cruz@email.com",
-      shoe: "New Balance 550",
-      service: "Basic Clean",
-      branch: "Wash My Kicks \u2013 Pateros",
-      date: "March 24, 2026",
-      time: "11:00 AM",
-      price: "\u20B1350",
-      status: "Ready for Pickup",
-      stageIndex: 5,
-      specialist: "Marco Santos",
-      assessed: true,
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-0042",
-      customer: "John Uy",
-      email: "john.uy@email.com",
-      shoe: "Nike Dunk Low",
-      service: "Restoration",
-      branch: "Wash My Kicks \u2013 Montalban, Rizal",
-      date: "March 24, 2026",
-      time: "09:30 AM",
-      price: "\u20B11,200",
-      status: "Pending Assessment",
-      stageIndex: 1,
-      specialist: "Carlo Mendoza",
-      assessed: false,
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-01842",
-      customer: "Juan Dela Cruz",
-      email: "juan.delacruz@email.com",
-      shoe: 'Air Jordan 1 Retro High OG "Chicago"',
-      service: "Deep Cleaning",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      date: "March 28, 2026",
-      time: "10:30 AM",
-      price: "\u20B1650",
-      status: "In Progress",
-      stageIndex: 3,
-      specialist: "Carlo Mendoza",
-      assessed: true,
-      assessmentNotes: "Light midsole oxidation, suede toebox scuffing, insole deep deodorizing required.",
-      conditionTags: ["Midsole Yellowing", "Upper Stains", "Lace Discoloration"],
-      beforePhoto: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=600&q=80",
-      afterPhoto: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=600&q=80",
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-01849",
-      customer: "Angela Mercado",
-      email: "angela.m@email.com",
-      shoe: "New Balance 2002R Protection Pack",
-      service: "Restoration",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      date: "March 24, 2026",
-      time: "01:00 PM",
-      price: "\u20B11,200",
-      status: "Pending Assessment",
-      stageIndex: 2,
-      specialist: "Carlo Mendoza",
-      assessed: false,
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-01835",
-      customer: "Jiro Reyes",
-      email: "jiro.reyes@email.com",
-      shoe: "Nike Dunk Low Panda",
-      service: "Basic Cleaning",
-      branch: "Wash My Kicks \u2013 Quezon City",
-      date: "March 22, 2026",
-      time: "11:00 AM",
-      price: "\u20B1350",
-      status: "Ready for Pickup",
-      stageIndex: 5,
-      specialist: "Marco Santos",
-      assessed: true,
-      assessmentNotes: "Standard mud and crease marks on leather upper.",
-      conditionTags: ["Creasing", "Outsole Dirt"],
-      docs: createDefaultDocumentation()
-    },
-    {
-      id: "WMK-2026-01790",
-      customer: "Juan Dela Cruz",
-      email: "juan.delacruz@email.com",
-      shoe: "Adidas Samba OG White",
-      service: "Shoe Protection",
-      branch: "Wash My Kicks \u2013 San Juan City",
-      date: "March 10, 2026",
-      time: "03:00 PM",
-      price: "\u20B1280",
-      status: "Completed",
-      stageIndex: 5,
-      specialist: "Carlo Mendoza",
-      assessed: true,
-      assessmentNotes: "Applied 2 coats of water & stain repellent shield.",
-      docs: createDefaultDocumentation()
-    }
-  ];
+  var initialOrders = [];
   var initialReviews = [
     { id: "r1", author: "Angela M.", service: "Restoration", branch: "Wash My Kicks \u2013 San Juan City", rating: 5, quote: "My white pairs looked brand new\u2014honestly unreal.", date: "March 18, 2026" },
     { id: "r2", author: "Jiro R.", service: "Deep Cleaning", branch: "Wash My Kicks \u2013 Quezon City", rating: 5, quote: "The progress photos made the whole service feel premium.", date: "March 15, 2026" },
@@ -31891,16 +31863,16 @@ ${suffix}`;
     ] });
   }
   function Track({ orders, setPage }) {
-    const [query, setQuery] = (0, import_react5.useState)("WMK-2026-01842");
-    const matched = orders.find((o) => o.id.toLowerCase() === query.trim().toLowerCase()) || orders[0];
+    const [query, setQuery] = (0, import_react5.useState)("");
+    const matched = query.trim() && orders.find((o) => o.id.toLowerCase() === query.trim().toLowerCase()) || (!query.trim() ? orders[0] : void 0);
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "ORDER TRACKING", title: "Know where your kicks are.", children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Enter your job order number to see the latest update from your assigned specialist." }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "tracking-box", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { children: [
           "Job order number",
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { value: query, onChange: (e) => setQuery(e.target.value), placeholder: "e.g. WMK-2026-01842" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { value: query, onChange: (e) => setQuery(e.target.value), placeholder: "e.g. WMK-2026-0001" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 18 }, children: [
+        matched ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 18 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
               matched.id,
@@ -31917,7 +31889,7 @@ ${suffix}`;
             matched.specialist
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceStatusTimeline, { currentStatus: matched.status })
-        ] }),
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 18, color: "#6b7280", fontSize: 13 }, children: orders.length === 0 ? "No live job orders in Supabase yet. Book an appointment to generate your first live Job Order." : "No matching job order found for that reference number." }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "primary", onClick: () => setPage("login-customer"), children: [
           "Sign in to Customer Portal for full tracking ",
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
@@ -32147,44 +32119,78 @@ ${suffix}`;
     const isCustomer = role === "customer";
     const isStaff = role === "staff";
     const isAdmin = role === "admin";
-    const [email, setEmail] = (0, import_react5.useState)(
-      isCustomer ? "juan.delacruz@email.com" : isStaff ? "carlo.mendoza@washmykicks.com" : "admin@washmykicks.com"
-    );
-    const [password, setPassword] = (0, import_react5.useState)("\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022");
-    const [employeeId, setEmployeeId] = (0, import_react5.useState)("WMK-EMP-0104");
+    const [email, setEmail] = (0, import_react5.useState)("");
+    const [password, setPassword] = (0, import_react5.useState)("");
+    const [employeeId, setEmployeeId] = (0, import_react5.useState)("");
     const [branch, setBranch] = (0, import_react5.useState)(staffBranches[0]);
     const [isCreatingAccount, setIsCreatingAccount] = (0, import_react5.useState)(false);
-    const [fullName, setFullName] = (0, import_react5.useState)("Juan Dela Cruz");
+    const [fullName, setFullName] = (0, import_react5.useState)("");
     const [forgotMessage, setForgotMessage] = (0, import_react5.useState)("");
+    const [isErrorMsg, setIsErrorMsg] = (0, import_react5.useState)(false);
     const roleLabel = isAdmin ? "Administrator" : isStaff ? "Staff" : "Customer";
     const perms = RBAC_PERMISSIONS[role];
+    const deriveDisplayName = (emailStr, providedName) => {
+      if (providedName && providedName.trim()) return providedName.trim();
+      const local = (emailStr || "").split("@")[0] || "";
+      const cleaned = local.replace(/[0-9]+/g, " ").replace(/[._-]+/g, " ").trim();
+      if (!cleaned) return local || roleLabel;
+      return cleaned.split(/\s+/).map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(" ");
+    };
     const handleSubmit = async (e) => {
       e.preventDefault();
+      setForgotMessage("");
+      setIsErrorMsg(false);
       try {
         const roleEnum = isAdmin ? "ADMINISTRATOR" : isStaff ? "STAFF" : "CUSTOMER";
-        if (isCustomer && isCreatingAccount) {
-          const parts = fullName.trim().split(" ");
-          await registerCustomerAccount({
+        const branchIdx = Math.max(1, staffBranches.indexOf(branch) + 1);
+        if (isCreatingAccount) {
+          const parts = (fullName.trim() || deriveDisplayName(email)).split(" ");
+          const regRes = await registerCustomerAccount({
             email,
             password,
-            firstName: parts[0] || "Customer",
-            lastName: parts.slice(1).join(" ") || "User"
-          }).catch(() => null);
-        } else {
-          await signInWithRole({
+            firstName: parts[0] || roleLabel,
+            lastName: parts.slice(1).join(" ") || "Account",
+            role: roleEnum,
+            branchId: isStaff ? branchIdx : void 0,
+            branchName: isStaff ? branch : void 0,
+            employeeId: isStaff ? employeeId : void 0
+          });
+          const metaName = deriveDisplayName(
             email,
-            password,
-            expectedRole: roleEnum
-          }).catch(() => null);
+            fullName || [regRes.user?.user_metadata?.first_name, regRes.user?.user_metadata?.last_name].filter(Boolean).join(" ")
+          );
+          onLoginSuccess(role, {
+            email: email.trim(),
+            employeeId: isStaff ? employeeId.trim() : void 0,
+            branch: isStaff ? branch : void 0,
+            name: metaName
+          });
+          return;
         }
-        onLoginSuccess(role, {
+        const authRes = await signInWithRole({
           email,
-          employeeId: isStaff ? employeeId : void 0,
-          branch: isStaff ? branch : void 0,
-          name: isCustomer ? fullName : isStaff ? "Carlo Mendoza" : "Mika Cruz"
+          password,
+          expectedRole: roleEnum,
+          branchId: isStaff ? branchIdx : void 0,
+          branchName: isStaff ? branch : void 0,
+          employeeId: isStaff ? employeeId : void 0
+        });
+        const meta = authRes.user?.user_metadata || {};
+        const resolvedName = deriveDisplayName(
+          email,
+          [meta.first_name, meta.last_name].filter(Boolean).join(" ")
+        );
+        const resolvedBranch = isStaff ? String(meta.branch_name || branch) : void 0;
+        const resolvedEmpId = isStaff ? String(meta.employee_id || employeeId) : void 0;
+        onLoginSuccess(role, {
+          email: email.trim(),
+          employeeId: resolvedEmpId,
+          branch: resolvedBranch,
+          name: resolvedName
         });
       } catch (err) {
-        setForgotMessage(err?.message || "Unable to sign in.");
+        setIsErrorMsg(true);
+        setForgotMessage(err?.message || "Invalid credentials or account not registered in Supabase Auth.");
       }
     };
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "auth-screen", children: [
@@ -32226,17 +32232,17 @@ ${suffix}`;
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "eyebrow", children: [
           roleLabel.toUpperCase(),
-          " LOGIN"
+          " PORTAL"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: isCreatingAccount && isCustomer ? "Create Customer Account" : `${roleLabel} Login` }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: isCustomer ? isCreatingAccount ? "Register your WashMyKicks customer profile to book and track shoe orders." : "Sign in to book appointments, track your kicks, and view service history." : isStaff ? "Sign in with your Employee ID and assigned branch credentials." : "Sign in with your administrator credentials to manage branches, inventory, and reports." }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: isCreatingAccount ? `Register ${roleLabel} Account` : `${roleLabel} Login` }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: isCustomer ? isCreatingAccount ? "Register your WashMyKicks customer profile in Supabase Auth." : "Sign in with your registered customer credentials." : isStaff ? isCreatingAccount ? "Provision a branch staff account in Supabase Auth." : "Sign in with your provisioned branch staff account." : isCreatingAccount ? "Provision an administrator account in Supabase Auth." : "Sign in with your administrator credentials." }),
         forgotMessage && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
           "div",
           {
             style: {
-              background: "#ecfdf5",
-              border: "1px solid #a7f3d0",
-              color: "#065f46",
+              background: isErrorMsg ? "#fef2f2" : "#ecfdf5",
+              border: isErrorMsg ? "1px solid #fecaca" : "1px solid #a7f3d0",
+              color: isErrorMsg ? "#991b1b" : "#065f46",
               padding: "10px 14px",
               borderRadius: 8,
               fontSize: 12,
@@ -32245,7 +32251,7 @@ ${suffix}`;
             children: forgotMessage
           }
         ),
-        isCustomer && isCreatingAccount && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { children: [
+        isCreatingAccount && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { children: [
           "Full Name",
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "input",
@@ -32254,7 +32260,7 @@ ${suffix}`;
               required: true,
               value: fullName,
               onChange: (e) => setFullName(e.target.value),
-              placeholder: "Juan Dela Cruz"
+              placeholder: "Enter your full name"
             }
           )
         ] }),
@@ -32268,12 +32274,12 @@ ${suffix}`;
                 required: true,
                 value: employeeId,
                 onChange: (e) => setEmployeeId(e.target.value),
-                placeholder: "WMK-EMP-0104"
+                placeholder: "Enter your Employee ID (e.g. WMK-EMP-0104)"
               }
             )
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { children: [
-            "Branch Dropdown",
+            "Assigned Branch",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("select", { value: branch, onChange: (e) => setBranch(e.target.value), required: true, children: staffBranches.map((b) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("option", { value: b, children: b }, b)) })
           ] })
         ] }),
@@ -32284,9 +32290,10 @@ ${suffix}`;
             {
               type: "email",
               required: true,
+              autoComplete: "email",
               value: email,
               onChange: (e) => setEmail(e.target.value),
-              placeholder: isAdmin ? "admin@washmykicks.com" : "you@email.com"
+              placeholder: isAdmin ? "Enter administrator email" : "Enter your email address"
             }
           )
         ] }),
@@ -32297,39 +32304,34 @@ ${suffix}`;
             {
               type: "password",
               required: true,
+              autoComplete: "current-password",
               value: password,
               onChange: (e) => setPassword(e.target.value),
-              placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+              placeholder: "Enter your password"
             }
           )
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "submit", className: "primary auth-submit", children: [
-          isCustomer && isCreatingAccount ? "Create Account & Continue" : "Login",
+          isCreatingAccount ? `Register ${roleLabel} Account` : "Sign In",
           " ",
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
         ] }),
-        isCustomer && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-          "button",
-          {
-            type: "button",
-            className: "outline auth-submit",
-            onClick: () => onLoginSuccess("customer", {
-              email: "juan.google@gmail.com",
-              name: "Juan Dela Cruz"
-            }),
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 15, color: "#dc2626" }),
-              " Continue with Google"
-            ]
-          }
-        ),
-        isCustomer ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "auth-links-row", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "auth-links-row", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {
               type: "button",
-              onClick: () => setForgotMessage(`Password reset link sent to ${email || "your email address"}.`),
-              children: "Forgot Password"
+              onClick: () => {
+                if (!email.trim()) {
+                  setIsErrorMsg(true);
+                  setForgotMessage("Enter your email address first to request a password reset.");
+                  return;
+                }
+                void requestPasswordResetEmail(email.trim()).catch(() => null);
+                setIsErrorMsg(false);
+                setForgotMessage(`Password reset instructions sent to ${email.trim()}.`);
+              },
+              children: "Forgot Password?"
             }
           ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -32339,18 +32341,12 @@ ${suffix}`;
               onClick: () => {
                 setIsCreatingAccount(!isCreatingAccount);
                 setForgotMessage("");
+                setIsErrorMsg(false);
               },
-              children: isCreatingAccount ? "Already have an account? Login" : "Create Account"
+              children: isCreatingAccount ? "Already registered? Sign In" : isStaff ? "Provision Staff Account" : isAdmin ? "Provision Admin Account" : "Create Account"
             }
           )
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-links-row", style: { justifyContent: "center" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-          "button",
-          {
-            type: "button",
-            onClick: () => setForgotMessage(`Recovery instructions sent to ${email}.`),
-            children: "Forgot Password?"
-          }
-        ) })
+        ] })
       ] }) })
     ] });
   }
@@ -33411,86 +33407,94 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "LIVE ORDER TRACKING" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Track Shoes" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Real-time status updates and specialist documentation for your pairs." }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginBottom: 18 }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: trackedOrder.id }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: trackedOrder.shoe }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { style: { fontSize: 13, color: "#6b7280", margin: 0 }, children: [
-                    "Service: ",
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: trackedOrder.service }),
-                    " \xB7 Branch: ",
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: trackedOrder.branch }),
-                    " \xB7 Drop-off: ",
-                    trackedOrder.date,
-                    " (",
-                    trackedOrder.time,
-                    ")"
-                  ] })
+            trackedOrder ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginBottom: 18 }, children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: trackedOrder.id }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: trackedOrder.shoe }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { style: { fontSize: 13, color: "#6b7280", margin: 0 }, children: [
+                      "Service: ",
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: trackedOrder.service }),
+                      " \xB7 Branch: ",
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: trackedOrder.branch }),
+                      " \xB7 Drop-off: ",
+                      trackedOrder.date,
+                      " (",
+                      trackedOrder.time,
+                      ")"
+                    ] })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: trackedOrder.status })
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: trackedOrder.status })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceStatusTimeline, { currentStatus: trackedOrder.status }),
+                trackedOrder.assessmentNotes && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginTop: 14 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { style: { fontSize: 12, display: "block", marginBottom: 4 }, children: [
+                    "Specialist Assessment Notes (",
+                    trackedOrder.specialist,
+                    "):"
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#4b5563", margin: 0 }, children: trackedOrder.assessmentNotes })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-actions", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Reviews"), children: [
+                    "Proceed to Leave Feedback / Review ",
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 15 })
+                  ] }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", onClick: () => setTab("Book Appointment"), children: "Book Another Pair" })
+                ] })
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceStatusTimeline, { currentStatus: trackedOrder.status }),
-              trackedOrder.assessmentNotes && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, marginTop: 14 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { style: { fontSize: 12, display: "block", marginBottom: 4 }, children: [
-                  "Specialist Assessment Notes (",
-                  trackedOrder.specialist,
-                  "):"
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#4b5563", margin: 0 }, children: trackedOrder.assessmentNotes })
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-actions", children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Reviews"), children: [
-                  "Proceed to Leave Feedback / Review ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 15 })
-                ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", onClick: () => setTab("Book Appointment"), children: "Book Another Pair" })
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Job Order" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Sneaker Pair" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Service" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Branch" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Date" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Total" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Action" })
+                ] }) }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: customerOrders.map((o) => {
+                  const isCurrent = trackedOrder.id === o.id;
+                  return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                    "tr",
+                    {
+                      style: isCurrent ? { background: "#fef2f2" } : void 0,
+                      children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.id }) }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.shoe }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.service }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.branch }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.date }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.price }) }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: o.status }) }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                          "button",
+                          {
+                            type: "button",
+                            className: "confirm-change",
+                            style: isCurrent ? { fontWeight: 800, textDecoration: "underline" } : void 0,
+                            onClick: () => {
+                              setSelectedOrderId(o.id);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                            },
+                            children: isCurrent ? "Tracking \u2713" : "Track / View"
+                          }
+                        ) })
+                      ]
+                    },
+                    o.id
+                  );
+                }) })
+              ] }) })
+            ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { marginBottom: 14 }, children: "No live job orders in Supabase yet." }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Book Appointment"), children: [
+                "Book Your First Appointment ",
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 15 })
               ] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Job Order" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Sneaker Pair" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Service" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Branch" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Date" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Total" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Action" })
-              ] }) }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: customerOrders.map((o) => {
-                const isCurrent = trackedOrder.id === o.id;
-                return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                  "tr",
-                  {
-                    style: isCurrent ? { background: "#fef2f2" } : void 0,
-                    children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.id }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.shoe }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.service }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.branch }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.date }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.price }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: o.status }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                        "button",
-                        {
-                          type: "button",
-                          className: "confirm-change",
-                          style: isCurrent ? { fontWeight: 800, textDecoration: "underline" } : void 0,
-                          onClick: () => {
-                            setSelectedOrderId(o.id);
-                            window.scrollTo({ top: 0, behavior: "smooth" });
-                          },
-                          children: isCurrent ? "Tracking \u2713" : "Track / View"
-                        }
-                      ) })
-                    ]
-                  },
-                  o.id
-                );
-              }) })
-            ] }) })
+            ] })
           ] }),
           tab === "Notifications" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ALERTS & UPDATES" }),
@@ -34005,83 +34009,28 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", {})
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: [
-                    {
-                      id: "WMK-2026-0046",
-                      customer: "Andrea Reyes",
-                      shoe: "Nike Air Max 97",
-                      service: "Restoration",
-                      branch: "San Juan City",
-                      priority: "High",
-                      priorityClass: "high",
-                      status: "In Service"
-                    },
-                    {
-                      id: "WMK-2026-0045",
-                      customer: "Paolo Tan",
-                      shoe: "Jordan 4",
-                      service: "Deep Cleaning",
-                      branch: "Quezon City",
-                      priority: "Normal",
-                      priorityClass: "normal",
-                      status: "Assessment"
-                    },
-                    {
-                      id: "WMK-2026-0044",
-                      customer: "Sam Lee",
-                      shoe: "Adidas Samba",
-                      service: "Sole Repair",
-                      branch: "Pasig City",
-                      priority: "Urgent",
-                      priorityClass: "urgent",
-                      status: "Quality Check"
-                    },
-                    {
-                      id: "WMK-2026-0043",
-                      customer: "Nicole Cruz",
-                      shoe: "New Balance 550",
-                      service: "Basic Clean",
-                      branch: "Pateros",
-                      priority: "Normal",
-                      priorityClass: "normal",
-                      status: "Ready"
-                    },
-                    {
-                      id: "WMK-2026-0042",
-                      customer: "John Uy",
-                      shoe: "Nike Dunk Low",
-                      service: "Restoration",
-                      branch: "Montalban, Rizal",
-                      priority: "High",
-                      priorityClass: "high",
-                      status: "Received"
-                    }
-                  ].map((row) => {
-                    const liveOrder = orders.find((o) => o.id === row.id);
-                    const liveStatus = liveOrder ? liveOrder.status : row.status;
-                    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.id }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.customer }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.shoe }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.service }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.branch }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `wmk-priority-tag ${row.priorityClass}`, children: row.priority }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: liveStatus }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                        "button",
-                        {
-                          type: "button",
-                          className: "wmk-dots-btn",
-                          onClick: () => {
-                            setSelectedOrderId(row.id);
-                            setTab("Shoe Assessment");
-                          },
-                          title: "Open order actions",
-                          children: "\u2022\u2022\u2022"
-                        }
-                      ) })
-                    ] }, row.id);
-                  }) })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 8, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No live orders in Supabase yet." }) }) : orders.slice(0, 5).map((row, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.id }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.customer }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.shoe }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.service }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.branch.replace("Wash My Kicks \u2013 ", "") }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `wmk-priority-tag ${idx === 0 ? "high" : "normal"}`, children: idx === 0 ? "High" : "Normal" }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: row.status }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "wmk-dots-btn",
+                        onClick: () => {
+                          setSelectedOrderId(row.id);
+                          setTab("Shoe Assessment");
+                        },
+                        title: "Open order actions",
+                        children: "\u2022\u2022\u2022"
+                      }
+                    ) })
+                  ] }, row.id)) })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-updates-card", children: [
@@ -34399,12 +34348,13 @@ ${suffix}`;
     const [newSvcCopy, setNewSvcCopy] = (0, import_react5.useState)("");
     const [newSvcPrice, setNewSvcPrice] = (0, import_react5.useState)("\u20B1500");
     const [newSvcDuration, setNewSvcDuration] = (0, import_react5.useState)("2\u20134 days");
-    const [usersList, setUsersList] = (0, import_react5.useState)([
-      { id: "USR-01", name: "Juan Dela Cruz", email: "juan.delacruz@email.com", role: "Customer", branch: "Pasig City (Flagship)", active: true },
-      { id: "USR-02", name: "Carlo Mendoza", email: "carlo.mendoza@washmykicks.com", role: "Staff", branch: "Pasig City (Flagship)", active: true },
-      { id: "USR-03", name: "Marco Santos", email: "marco.santos@washmykicks.com", role: "Staff", branch: "Quezon City", active: true },
-      { id: "USR-04", name: "Mika Cruz", email: "admin@washmykicks.com", role: "Administrator", branch: "HQ / All Branches", active: true }
-    ]);
+    const [usersList, setUsersList] = (0, import_react5.useState)([]);
+    (0, import_react5.useEffect)(() => {
+      fetchLiveProductionData().then((res) => {
+        if (res.users.length > 0) setUsersList(res.users);
+      }).catch(() => {
+      });
+    }, []);
     const sidebarItems = [
       { key: "Dashboard", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LayoutDashboard, { size: 17 }) },
       { key: "Branches", icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Building2, { size: 17 }) },
@@ -34607,80 +34557,25 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", {})
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: [
-                    {
-                      id: "WMK-2026-0046",
-                      customer: "Andrea Reyes",
-                      shoe: "Nike Air Max 97",
-                      service: "Restoration",
-                      branch: "San Juan City",
-                      priority: "High",
-                      priorityClass: "high",
-                      status: "In Service"
-                    },
-                    {
-                      id: "WMK-2026-0045",
-                      customer: "Paolo Tan",
-                      shoe: "Jordan 4",
-                      service: "Deep Cleaning",
-                      branch: "Quezon City",
-                      priority: "Normal",
-                      priorityClass: "normal",
-                      status: "Assessment"
-                    },
-                    {
-                      id: "WMK-2026-0044",
-                      customer: "Sam Lee",
-                      shoe: "Adidas Samba",
-                      service: "Sole Repair",
-                      branch: "Pasig City",
-                      priority: "Urgent",
-                      priorityClass: "urgent",
-                      status: "Quality Check"
-                    },
-                    {
-                      id: "WMK-2026-0043",
-                      customer: "Nicole Cruz",
-                      shoe: "New Balance 550",
-                      service: "Basic Clean",
-                      branch: "Pateros",
-                      priority: "Normal",
-                      priorityClass: "normal",
-                      status: "Ready"
-                    },
-                    {
-                      id: "WMK-2026-0042",
-                      customer: "John Uy",
-                      shoe: "Nike Dunk Low",
-                      service: "Restoration",
-                      branch: "Montalban, Rizal",
-                      priority: "High",
-                      priorityClass: "high",
-                      status: "Received"
-                    }
-                  ].map((row) => {
-                    const liveOrder = orders.find((o) => o.id === row.id);
-                    const liveStatus = liveOrder ? liveOrder.status : row.status;
-                    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.id }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.customer }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.shoe }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.service }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.branch }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `wmk-priority-tag ${row.priorityClass}`, children: row.priority }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: liveStatus }) }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                        "button",
-                        {
-                          type: "button",
-                          className: "wmk-dots-btn",
-                          onClick: () => setTab("Job Orders"),
-                          title: "Manage order",
-                          children: "\u2022\u2022\u2022"
-                        }
-                      ) })
-                    ] }, row.id);
-                  }) })
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 8, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No live orders in Supabase yet." }) }) : orders.slice(0, 5).map((row, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.id }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.customer }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.shoe }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.service }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.branch.replace("Wash My Kicks \u2013 ", "") }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: `wmk-priority-tag ${idx === 0 ? "high" : "normal"}`, children: idx === 0 ? "High" : "Normal" }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: row.status }) }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                      "button",
+                      {
+                        type: "button",
+                        className: "wmk-dots-btn",
+                        onClick: () => setTab("Job Orders"),
+                        title: "Manage order",
+                        children: "\u2022\u2022\u2022"
+                      }
+                    ) })
+                  ] }, row.id)) })
                 ] })
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-updates-card", children: [
@@ -35505,6 +35400,22 @@ ${suffix}`;
     const [reviews, setReviews] = (0, import_react5.useState)(initialReviews);
     const [inventory, setInventory] = (0, import_react5.useState)(INITIAL_INVENTORY_RECORDS);
     const [servicesCatalog, setServicesCatalog] = (0, import_react5.useState)(services);
+    (0, import_react5.useEffect)(() => {
+      fetchLiveProductionData().then((live) => {
+        if (live.orders.length > 0) {
+          setOrders(
+            live.orders.map((o) => ({
+              ...o,
+              docs: createDefaultDocumentation()
+            }))
+          );
+        }
+        if (live.inventory.length > 0) {
+          setInventory(live.inventory);
+        }
+      }).catch(() => {
+      });
+    }, []);
     const handleBookBranchFromMap = (_branchName, branchId) => {
       setPreselectedBranchId(branchId);
       setPreselectedFromMap(true);
