@@ -1045,29 +1045,15 @@ export function StaffAssignedServicesModule({
       <h1 style={{ margin: '6px 0 4px' }}>Assigned services</h1>
       <p style={{ marginBottom: 24 }}>Update progress for work assigned to you.</p>
 
-      <div className="wmk-assess-layout">
+      <div className="wmk-assess-layout" style={{ marginBottom: 20 }}>
         <div className="wmk-doc-main-card">
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
-            {orders.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                className={o.id === activeOrder.id ? 'primary' : 'outline'}
-                style={{ padding: '6px 12px', fontSize: 11.5 }}
-                onClick={() => {
-                  onSelectOrder(o.id)
-                  setStatusChoice(o.status)
-                }}
-              >
-                {o.id}
-              </button>
-            ))}
-          </div>
-
           <div className="wmk-doc-card-head" style={{ marginBottom: 18 }}>
             <div>
               <span className="wmk-order-code">{activeOrder.id}</span>
               <h2 className="wmk-order-shoe">{activeOrder.shoe}</h2>
+              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#6b7280' }}>
+                Customer: <b>{activeOrder.customer}</b> · Service: <b>{activeOrder.service}</b> · Branch: <b>{activeOrder.branch}</b>
+              </p>
             </div>
             <StatusBadge status={activeOrder.status} />
           </div>
@@ -1117,6 +1103,56 @@ export function StaffAssignedServicesModule({
             </div>
           ))}
         </aside>
+      </div>
+
+      {/* Clean Service-History-Style Table for Selecting Assigned Orders */}
+      <div className="dash-panel">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Job Order</th>
+              <th>Customer</th>
+              <th>Sneaker Pair</th>
+              <th>Service</th>
+              <th>Branch</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => {
+              const isCurrent = o.id === activeOrder.id
+              return (
+                <tr key={o.id} style={isCurrent ? { background: '#fef2f2' } : undefined}>
+                  <td>
+                    <b>{o.id}</b>
+                  </td>
+                  <td>{o.customer}</td>
+                  <td>{o.shoe}</td>
+                  <td>{o.service}</td>
+                  <td>{o.branch}</td>
+                  <td>
+                    <StatusBadge status={o.status} />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="confirm-change"
+                      style={isCurrent ? { fontWeight: 800, textDecoration: 'underline' } : undefined}
+                      onClick={() => {
+                        onSelectOrder(o.id)
+                        setStatusChoice(o.status)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                    >
+                      {isCurrent ? 'Selected ✓' : 'Select / Update'}
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   )

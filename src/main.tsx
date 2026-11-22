@@ -2343,20 +2343,8 @@ function CustomerDashboard({
               <h1>Track Shoes</h1>
               <p>Real-time status updates and specialist documentation for your pairs.</p>
 
-              <div className="dash-panel">
-                <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-                  {customerOrders.map((o) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      className={trackedOrder.id === o.id ? 'primary' : 'outline'}
-                      onClick={() => setSelectedOrderId(o.id)}
-                    >
-                      {o.id} · {o.shoe}
-                    </button>
-                  ))}
-                </div>
-
+              {/* Selected Order Live 5-Stage Timeline Card */}
+              <div className="dash-panel" style={{ marginBottom: 18 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                   <div>
                     <span className="eyebrow">{trackedOrder.id}</span>
@@ -2387,6 +2375,62 @@ function CustomerDashboard({
                     Book Another Pair
                   </button>
                 </div>
+              </div>
+
+              {/* Clean Service-History-Style Table to Select Any Order to Track */}
+              <div className="dash-panel">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Job Order</th>
+                      <th>Sneaker Pair</th>
+                      <th>Service</th>
+                      <th>Branch</th>
+                      <th>Date</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerOrders.map((o) => {
+                      const isCurrent = trackedOrder.id === o.id
+                      return (
+                        <tr
+                          key={o.id}
+                          style={isCurrent ? { background: '#fef2f2' } : undefined}
+                        >
+                          <td>
+                            <b>{o.id}</b>
+                          </td>
+                          <td>{o.shoe}</td>
+                          <td>{o.service}</td>
+                          <td>{o.branch}</td>
+                          <td>{o.date}</td>
+                          <td>
+                            <b>{o.price}</b>
+                          </td>
+                          <td>
+                            <StatusBadge status={o.status} />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="confirm-change"
+                              style={isCurrent ? { fontWeight: 800, textDecoration: 'underline' } : undefined}
+                              onClick={() => {
+                                setSelectedOrderId(o.id)
+                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                              }}
+                            >
+                              {isCurrent ? 'Tracking ✓' : 'Track / View'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             </>
           )}

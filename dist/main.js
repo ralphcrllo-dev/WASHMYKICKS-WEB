@@ -30942,26 +30942,20 @@ ${suffix}`;
       /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
       /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { style: { margin: "6px 0 4px" }, children: "Assigned services" }),
       /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { style: { marginBottom: 24 }, children: "Update progress for work assigned to you." }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-assess-layout", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-assess-layout", style: { marginBottom: 20 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-doc-main-card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }, children: orders.map((o) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
-            "button",
-            {
-              type: "button",
-              className: o.id === activeOrder.id ? "primary" : "outline",
-              style: { padding: "6px 12px", fontSize: 11.5 },
-              onClick: () => {
-                onSelectOrder(o.id);
-                setStatusChoice(o.status);
-              },
-              children: o.id
-            },
-            o.id
-          )) }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-doc-card-head", style: { marginBottom: 18 }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
               /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "wmk-order-code", children: activeOrder.id }),
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { className: "wmk-order-shoe", children: activeOrder.shoe })
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { className: "wmk-order-shoe", children: activeOrder.shoe }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("p", { style: { margin: "4px 0 0", fontSize: 12.5, color: "#6b7280" }, children: [
+                "Customer: ",
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: activeOrder.customer }),
+                " \xB7 Service: ",
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: activeOrder.service }),
+                " \xB7 Branch: ",
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: activeOrder.branch })
+              ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(StatusBadge, { status: activeOrder.status })
           ] }),
@@ -31012,7 +31006,43 @@ ${suffix}`;
             ] })
           ] }, String(label)))
         ] })
-      ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("table", { className: "data-table", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("tr", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Job Order" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Customer" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Sneaker Pair" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Service" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Branch" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Status" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("th", { children: "Action" })
+        ] }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("tbody", { children: orders.map((o) => {
+          const isCurrent = o.id === activeOrder.id;
+          return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("tr", { style: isCurrent ? { background: "#fef2f2" } : void 0, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { children: o.id }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: o.customer }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: o.shoe }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: o.service }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: o.branch }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(StatusBadge, { status: o.status }) }),
+            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+              "button",
+              {
+                type: "button",
+                className: "confirm-change",
+                style: isCurrent ? { fontWeight: 800, textDecoration: "underline" } : void 0,
+                onClick: () => {
+                  onSelectOrder(o.id);
+                  setStatusChoice(o.status);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                },
+                children: isCurrent ? "Selected \u2713" : "Select / Update"
+              }
+            ) })
+          ] }, o.id);
+        }) })
+      ] }) })
     ] });
   }
   function InventoryManagementModule({
@@ -33381,21 +33411,7 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "LIVE ORDER TRACKING" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Track Shoes" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Real-time status updates and specialist documentation for your pairs." }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }, children: customerOrders.map((o) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                "button",
-                {
-                  type: "button",
-                  className: trackedOrder.id === o.id ? "primary" : "outline",
-                  onClick: () => setSelectedOrderId(o.id),
-                  children: [
-                    o.id,
-                    " \xB7 ",
-                    o.shoe
-                  ]
-                },
-                o.id
-              )) }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { marginBottom: 18 }, children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: trackedOrder.id }),
@@ -33430,7 +33446,51 @@ ${suffix}`;
                 ] }),
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", onClick: () => setTab("Book Appointment"), children: "Book Another Pair" })
               ] })
-            ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("table", { className: "data-table", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("thead", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Job Order" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Sneaker Pair" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Service" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Branch" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Date" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Total" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Action" })
+              ] }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: customerOrders.map((o) => {
+                const isCurrent = trackedOrder.id === o.id;
+                return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "tr",
+                  {
+                    style: isCurrent ? { background: "#fef2f2" } : void 0,
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.id }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.shoe }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.service }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.branch }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: o.date }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: o.price }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: o.status }) }),
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                        "button",
+                        {
+                          type: "button",
+                          className: "confirm-change",
+                          style: isCurrent ? { fontWeight: 800, textDecoration: "underline" } : void 0,
+                          onClick: () => {
+                            setSelectedOrderId(o.id);
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          },
+                          children: isCurrent ? "Tracking \u2713" : "Track / View"
+                        }
+                      ) })
+                    ]
+                  },
+                  o.id
+                );
+              }) })
+            ] }) })
           ] }),
           tab === "Notifications" && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ALERTS & UPDATES" }),
