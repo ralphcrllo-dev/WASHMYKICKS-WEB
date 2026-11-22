@@ -253,17 +253,9 @@ function Header({
             Return to {activeRole[0].toUpperCase() + activeRole.slice(1)} Dashboard
           </button>
         ) : (
-          <>
-            <button
-              className={page === 'login-customer' ? 'active' : ''}
-              onClick={() => go('login-customer')}
-            >
-              Log in
-            </button>
-            <button className="nav-cta" onClick={() => go('portals')}>
-              Select Account / Portal
-            </button>
-          </>
+          <button className="nav-cta" onClick={() => go('login-customer')}>
+            Log in
+          </button>
         )}
       </nav>
     </header>
@@ -304,11 +296,9 @@ function Footer({ setPage }: { setPage: (page: string) => void }) {
         <button onClick={() => setPage('branches')}>Branches</button>
       </div>
       <div>
-        <b>Portals</b>
-        <button onClick={() => setPage('portals')}>Account Selection</button>
+        <b>Account</b>
         <button onClick={() => setPage('login-customer')}>Customer Login</button>
-        <button onClick={() => setPage('login-staff')}>Staff Login</button>
-        <button onClick={() => setPage('login-admin')}>Administrator Login</button>
+        <button onClick={() => setPage('book')}>Book Appointment</button>
       </div>
       <form onSubmit={(e) => e.preventDefault()}>
         <b>Service updates</b>
@@ -610,161 +600,6 @@ function About() {
 }
 
 /* ============================================================================
-   SCREEN 1: ACCOUNT SELECTION PAGE
-   ============================================================================ */
-
-function AccountSelectionPage({ setPage }: { setPage: (page: string) => void }) {
-  const [forgotModal, setForgotModal] = useState(false)
-  const [resetEmail, setResetEmail] = useState('')
-  const [resetSent, setResetSent] = useState(false)
-
-  const cards = [
-    {
-      id: 'customer' as Role,
-      tag: 'CUSTOMER PORTAL',
-      title: 'Customer Portal',
-      routePath: '/login',
-      icon: <User size={26} />,
-      description:
-        'Book appointments, track shoe orders, receive notifications, manage service history, and submit reviews.',
-      buttonText: 'Continue as Customer',
-    },
-    {
-      id: 'staff' as Role,
-      tag: 'STAFF PORTAL',
-      title: 'Staff Portal',
-      routePath: '/staff/login',
-      icon: <Briefcase size={26} />,
-      description:
-        'Manage job orders, perform shoe assessments, upload documentation, update service progress, and manage assigned tasks.',
-      buttonText: 'Continue as Staff',
-    },
-    {
-      id: 'admin' as Role,
-      tag: 'ADMINISTRATOR PORTAL',
-      title: 'Administrator Portal',
-      routePath: '/admin/login',
-      icon: <Shield size={26} />,
-      description:
-        'Manage branches, monitor inventory, view reports, oversee staff activities, and control system settings.',
-      buttonText: 'Continue as Administrator',
-    },
-  ]
-
-  return (
-    <Listing eyebrow="ROLE-BASED LOGIN SYSTEM" title="Welcome to WashMyKicks">
-      <p className="lead">Choose how you want to access the system.</p>
-
-      <div className="portal-grid">
-        {cards.map((card) => (
-          <article
-            key={card.id}
-            className="portal-card"
-            onClick={() => setPage(`login-${card.id}`)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') setPage(`login-${card.id}`)
-            }}
-          >
-            <div className="portal-icon-box">{card.icon}</div>
-            <span className="eyebrow">{card.tag}</span>
-            <h2>{card.title}</h2>
-            <p>{card.description}</p>
-            <button
-              type="button"
-              className="primary"
-              onClick={(e) => {
-                e.stopPropagation()
-                setPage(`login-${card.id}`)
-              }}
-            >
-              {card.buttonText} <ArrowRight size={16} />
-            </button>
-          </article>
-        ))}
-      </div>
-
-      <div className="portal-links">
-        <button type="button" onClick={() => setPage('home')}>
-          ← Back to Home
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setResetSent(false)
-            setForgotModal(true)
-          }}
-        >
-          Forgot Password
-        </button>
-      </div>
-
-      {forgotModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            padding: 20,
-          }}
-          onClick={() => setForgotModal(false)}
-        >
-          <div
-            style={{ background: '#fff', borderRadius: 16, padding: 32, maxWidth: 420, width: '100%' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="eyebrow">ACCOUNT RECOVERY</span>
-            <h3 style={{ fontSize: 22, margin: '8px 0 8px' }}>Reset your password</h3>
-            {resetSent ? (
-              <>
-                <p style={{ fontSize: 13, color: '#4b5563', lineHeight: 1.6 }}>
-                  Password reset instructions have been sent to <b>{resetEmail || 'your email'}</b>.
-                </p>
-                <button className="primary" style={{ width: '100%', justifyContent: 'center', marginTop: 12 }} onClick={() => setForgotModal(false)}>
-                  Back to Account Selection
-                </button>
-              </>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  setResetSent(true)
-                }}
-              >
-                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
-                  Enter your registered email address and we'll send a recovery link.
-                </p>
-                <input
-                  type="email"
-                  required
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="you@washmykicks.com"
-                  style={{ width: '100%', padding: 12, border: '1px solid #d1d5db', borderRadius: 8, marginBottom: 16 }}
-                />
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button type="button" className="outline" style={{ flex: 1 }} onClick={() => setForgotModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="primary" style={{ flex: 1, justifyContent: 'center' }}>
-                    Send Reset Link
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-    </Listing>
-  )
-}
-
-/* ============================================================================
    ROLE-SPECIFIC LOGIN PAGES (CUSTOMER, STAFF, ADMIN)
    ============================================================================ */
 
@@ -903,8 +738,8 @@ function RoleLogin({
 
       <div className="auth-form-wrap">
         <form className="auth-form" onSubmit={handleSubmit}>
-          <button type="button" className="back-link" onClick={() => setPage('portals')}>
-            <ArrowLeft size={14} /> Back to Account Selection
+          <button type="button" className="back-link" onClick={() => setPage('home')}>
+            <ArrowLeft size={14} /> Back to Home
           </button>
 
           <span className="eyebrow">{roleLabel.toUpperCase()} PORTAL</span>
@@ -4965,11 +4800,10 @@ function urlPathToPage(rawPathname: string): string {
       return 'reviews'
     case '/about':
       return 'about'
-    case '/portals':
-    case '/select-account':
-      return 'portals'
     case '/login':
     case '/customer/login':
+    case '/portals':
+    case '/select-account':
       return 'login-customer'
     case '/staff/login':
     case '/staff':
@@ -5014,11 +4848,9 @@ function pageToUrlPath(pageKey: string): string {
     case 'about':
       sub = '/about'
       break
-    case 'portals':
-      sub = '/portals'
-      break
     case 'login':
     case 'login-customer':
+    case 'portals':
       sub = '/login'
       break
     case 'login-staff':
@@ -5320,7 +5152,7 @@ function App() {
     ) : page === 'about' ? (
       <About />
     ) : (
-      <AccountSelectionPage setPage={setPage} />
+      <Home setPage={setPage} onBookBranch={handleBookBranchFromMap} servicesCatalog={servicesCatalog} />
     )
 
   return (

@@ -7692,17 +7692,6 @@
     ["path", { d: "m9 12 2 2 4-4", key: "dzmm74" }]
   ]);
 
-  // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/shield.js
-  var Shield = createLucideIcon("Shield", [
-    [
-      "path",
-      {
-        d: "M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z",
-        key: "oel41y"
-      }
-    ]
-  ]);
-
   // node_modules/.pnpm/lucide-react@0.468.0_react@18.3.1/node_modules/lucide-react/dist/esm/icons/sparkles.js
   var Sparkles = createLucideIcon("Sparkles", [
     [
@@ -31903,17 +31892,7 @@ ${suffix}`;
           "Return to ",
           activeRole[0].toUpperCase() + activeRole.slice(1),
           " Dashboard"
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-            "button",
-            {
-              className: page === "login-customer" ? "active" : "",
-              onClick: () => go("login-customer"),
-              children: "Log in"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "nav-cta", onClick: () => go("portals"), children: "Select Account / Portal" })
-        ] })
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "nav-cta", onClick: () => go("login-customer"), children: "Log in" })
       ] })
     ] });
   }
@@ -31947,11 +31926,9 @@ ${suffix}`;
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("branches"), children: "Branches" })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Portals" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("portals"), children: "Account Selection" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Account" }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-customer"), children: "Customer Login" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-staff"), children: "Staff Login" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login-admin"), children: "Administrator Login" })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("book"), children: "Book Appointment" })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { onSubmit: (e) => e.preventDefault(), children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Service updates" }),
@@ -32208,153 +32185,6 @@ ${suffix}`;
       ] })
     ] });
   }
-  function AccountSelectionPage({ setPage }) {
-    const [forgotModal, setForgotModal] = (0, import_react5.useState)(false);
-    const [resetEmail, setResetEmail] = (0, import_react5.useState)("");
-    const [resetSent, setResetSent] = (0, import_react5.useState)(false);
-    const cards = [
-      {
-        id: "customer",
-        tag: "CUSTOMER PORTAL",
-        title: "Customer Portal",
-        routePath: "/login",
-        icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(User, { size: 26 }),
-        description: "Book appointments, track shoe orders, receive notifications, manage service history, and submit reviews.",
-        buttonText: "Continue as Customer"
-      },
-      {
-        id: "staff",
-        tag: "STAFF PORTAL",
-        title: "Staff Portal",
-        routePath: "/staff/login",
-        icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Briefcase, { size: 26 }),
-        description: "Manage job orders, perform shoe assessments, upload documentation, update service progress, and manage assigned tasks.",
-        buttonText: "Continue as Staff"
-      },
-      {
-        id: "admin",
-        tag: "ADMINISTRATOR PORTAL",
-        title: "Administrator Portal",
-        routePath: "/admin/login",
-        icon: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Shield, { size: 26 }),
-        description: "Manage branches, monitor inventory, view reports, oversee staff activities, and control system settings.",
-        buttonText: "Continue as Administrator"
-      }
-    ];
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "ROLE-BASED LOGIN SYSTEM", title: "Welcome to WashMyKicks", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Choose how you want to access the system." }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-grid", children: cards.map((card) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-        "article",
-        {
-          className: "portal-card",
-          onClick: () => setPage(`login-${card.id}`),
-          role: "button",
-          tabIndex: 0,
-          onKeyDown: (e) => {
-            if (e.key === "Enter" || e.key === " ") setPage(`login-${card.id}`);
-          },
-          children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "portal-icon-box", children: card.icon }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: card.tag }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: card.title }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: card.description }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-              "button",
-              {
-                type: "button",
-                className: "primary",
-                onClick: (e) => {
-                  e.stopPropagation();
-                  setPage(`login-${card.id}`);
-                },
-                children: [
-                  card.buttonText,
-                  " ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
-                ]
-              }
-            )
-          ]
-        },
-        card.id
-      )) }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "portal-links", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", onClick: () => setPage("home"), children: "\u2190 Back to Home" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-          "button",
-          {
-            type: "button",
-            onClick: () => {
-              setResetSent(false);
-              setForgotModal(true);
-            },
-            children: "Forgot Password"
-          }
-        )
-      ] }),
-      forgotModal && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-        "div",
-        {
-          style: {
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 20
-          },
-          onClick: () => setForgotModal(false),
-          children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            "div",
-            {
-              style: { background: "#fff", borderRadius: 16, padding: 32, maxWidth: 420, width: "100%" },
-              onClick: (e) => e.stopPropagation(),
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ACCOUNT RECOVERY" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 22, margin: "8px 0 8px" }, children: "Reset your password" }),
-                resetSent ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { style: { fontSize: 13, color: "#4b5563", lineHeight: 1.6 }, children: [
-                    "Password reset instructions have been sent to ",
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: resetEmail || "your email" }),
-                    "."
-                  ] }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "primary", style: { width: "100%", justifyContent: "center", marginTop: 12 }, onClick: () => setForgotModal(false), children: "Back to Account Selection" })
-                ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-                  "form",
-                  {
-                    onSubmit: (e) => {
-                      e.preventDefault();
-                      setResetSent(true);
-                    },
-                    children: [
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 13, color: "#6b7280", marginBottom: 16 }, children: "Enter your registered email address and we'll send a recovery link." }),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                        "input",
-                        {
-                          type: "email",
-                          required: true,
-                          value: resetEmail,
-                          onChange: (e) => setResetEmail(e.target.value),
-                          placeholder: "you@washmykicks.com",
-                          style: { width: "100%", padding: 12, border: "1px solid #d1d5db", borderRadius: 8, marginBottom: 16 }
-                        }
-                      ),
-                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 10 }, children: [
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", style: { flex: 1 }, onClick: () => setForgotModal(false), children: "Cancel" }),
-                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "submit", className: "primary", style: { flex: 1, justifyContent: "center" }, children: "Send Reset Link" })
-                      ] })
-                    ]
-                  }
-                )
-              ]
-            }
-          )
-        }
-      )
-    ] });
-  }
   function RoleLogin({
     role,
     setPage,
@@ -32470,9 +32300,9 @@ ${suffix}`;
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-form-wrap", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { className: "auth-form", onSubmit: handleSubmit, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", onClick: () => setPage("portals"), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", onClick: () => setPage("home"), children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
-          " Back to Account Selection"
+          " Back to Home"
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "eyebrow", children: [
           roleLabel.toUpperCase(),
@@ -35908,11 +35738,10 @@ ${suffix}`;
         return "reviews";
       case "/about":
         return "about";
-      case "/portals":
-      case "/select-account":
-        return "portals";
       case "/login":
       case "/customer/login":
+      case "/portals":
+      case "/select-account":
         return "login-customer";
       case "/staff/login":
       case "/staff":
@@ -35956,11 +35785,9 @@ ${suffix}`;
       case "about":
         sub = "/about";
         break;
-      case "portals":
-        sub = "/portals";
-        break;
       case "login":
       case "login-customer":
+      case "portals":
         sub = "/login";
         break;
       case "login-staff":
@@ -36200,7 +36027,7 @@ ${suffix}`;
         onCompleteBooking: (newOrder) => setOrders((prev) => [newOrder, ...prev]),
         setPage
       }
-    ) : page === "reviews" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Reviews, { reviews }) : page === "about" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(About, {}) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(AccountSelectionPage, { setPage });
+    ) : page === "reviews" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Reviews, { reviews }) : page === "about" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(About, {}) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Home, { setPage, onBookBranch: handleBookBranchFromMap, servicesCatalog });
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Header, { page, setPage, activeRole }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("main", { children: content }),
@@ -36300,7 +36127,6 @@ lucide-react/dist/esm/icons/search.js:
 lucide-react/dist/esm/icons/settings.js:
 lucide-react/dist/esm/icons/shield-alert.js:
 lucide-react/dist/esm/icons/shield-check.js:
-lucide-react/dist/esm/icons/shield.js:
 lucide-react/dist/esm/icons/sparkles.js:
 lucide-react/dist/esm/icons/star.js:
 lucide-react/dist/esm/icons/upload.js:
