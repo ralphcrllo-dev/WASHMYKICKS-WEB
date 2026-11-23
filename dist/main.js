@@ -7948,19 +7948,15 @@
     const [mapReady, setMapReady] = (0, import_react3.useState)(false);
     const [currentZoom, setCurrentZoom] = (0, import_react3.useState)(11);
     const branchesWithMeta = (0, import_react3.useMemo)(() => {
-      const list = BRANCH_LOCATIONS.map((b) => {
+      return BRANCH_LOCATIONS.map((b) => {
         const dist = userCoords ? calculateDistanceKm(userCoords.lat, userCoords.lng, b.lat, b.lng) : null;
         const status = getBranchOpenStatus(b.openHour, b.closeHour);
         return { ...b, distanceKm: dist, ...status };
-      });
-      if (userCoords) {
-        return [...list].sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999));
-      }
-      return list;
+      }).sort((a, b) => a.id - b.id);
     }, [userCoords]);
     const nearestBranch = (0, import_react3.useMemo)(() => {
-      if (!userCoords) return null;
-      return branchesWithMeta[0] || null;
+      if (!userCoords || branchesWithMeta.length === 0) return null;
+      return [...branchesWithMeta].sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))[0] || null;
     }, [userCoords, branchesWithMeta]);
     const filteredBranches = (0, import_react3.useMemo)(() => {
       const q = searchQuery.trim().toLowerCase();
@@ -7979,7 +7975,7 @@
       loadLeaflet().then((L) => {
         if (cancelled || !mapContainerRef.current || mapInstanceRef.current) return;
         const map = L.map(mapContainerRef.current, {
-          center: [14.585, 121.065],
+          center: [14.565, 121.105],
           zoom: 11,
           zoomControl: false,
           attributionControl: true
@@ -8074,10 +8070,10 @@
       const map = mapInstanceRef.current;
       const group = markersLayerRef.current;
       group.clearLayers();
-      const shouldCluster = currentZoom <= 10;
+      const shouldCluster = currentZoom <= 9;
       const buckets = [];
       if (shouldCluster) {
-        const thresholdPx = 56;
+        const thresholdPx = 42;
         branchesWithMeta.forEach((branch) => {
           const pt = map.latLngToContainerPoint([branch.lat, branch.lng]);
           let added = false;
@@ -8283,7 +8279,12 @@
     const handleResetOverview = () => {
       if (mapInstanceRef.current && window.L) {
         const bounds = window.L.latLngBounds(BRANCH_LOCATIONS.map((b) => [b.lat, b.lng]));
-        mapInstanceRef.current.flyToBounds(bounds.pad(0.18), { duration: 0.8 });
+        mapInstanceRef.current.flyToBounds(bounds, {
+          paddingTopLeft: [40, 62],
+          paddingBottomRight: [40, 40],
+          maxZoom: 11,
+          duration: 0.8
+        });
       }
     };
     const getDirectionsUrl = (branch) => {
@@ -8304,7 +8305,7 @@
                 type: "text",
                 value: searchQuery,
                 onChange: (e) => setSearchQuery(e.target.value),
-                placeholder: "Search city, street, or WashMyKicks branch...",
+                placeholder: "Search city or branch...",
                 "aria-label": "Search branch or location"
               }
             ),
@@ -8438,6 +8439,10 @@
               }
             ),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "wmk-pin-card-badges", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "wmk-dist-pill", style: { background: "#151515", color: "#fff" }, children: [
+                "0",
+                selectedBranch.id
+              ] }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: `wmk-open-pill ${selectedBranch.isOpen ? "open" : "closed"}`, children: [
                 "\u25CF ",
                 selectedBranch.statusText
@@ -8465,7 +8470,14 @@
                 selectedBranch.hoursLabel
               ] })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "wmk-pin-services", children: selectedBranch.services.map((svc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "wmk-svc-chip", children: svc }, svc)) }),
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "wmk-pin-services", children: [
+              selectedBranch.services.slice(0, 3).map((svc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "wmk-svc-chip", children: svc }, svc)),
+              selectedBranch.services.length > 3 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "wmk-svc-chip", children: [
+                "+",
+                selectedBranch.services.length - 3,
+                " more"
+              ] })
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "wmk-pin-actions", children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
                 "a",
@@ -8476,7 +8488,7 @@
                   className: "outline wmk-btn-sm",
                   children: [
                     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Navigation, { size: 13 }),
-                    " Get Directions"
+                    " Directions"
                   ]
                 }
               ),
@@ -8500,7 +8512,7 @@
                   onClick: () => setDetailsModalBranch(selectedBranch),
                   children: [
                     /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Info, { size: 13 }),
-                    " View Details"
+                    " Details"
                   ]
                 }
               )

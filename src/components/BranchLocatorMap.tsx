@@ -256,22 +256,18 @@ export function BranchLocatorMap({
   const [mapReady, setMapReady] = useState<boolean>(false)
   const [currentZoom, setCurrentZoom] = useState<number>(11)
 
-  // Compute distances & nearest branch when userCoords is available
+  // Keep branches strictly arranged 01 to 07, and compute distances when userCoords is available
   const branchesWithMeta = useMemo(() => {
-    const list = BRANCH_LOCATIONS.map((b) => {
+    return BRANCH_LOCATIONS.map((b) => {
       const dist = userCoords ? calculateDistanceKm(userCoords.lat, userCoords.lng, b.lat, b.lng) : null
       const status = getBranchOpenStatus(b.openHour, b.closeHour)
       return { ...b, distanceKm: dist, ...status }
-    })
-    if (userCoords) {
-      return [...list].sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))
-    }
-    return list
+    }).sort((a, b) => a.id - b.id)
   }, [userCoords])
 
   const nearestBranch = useMemo(() => {
-    if (!userCoords) return null
-    return branchesWithMeta[0] || null
+    if (!userCoords || branchesWithMeta.length === 0) return null
+    return [...branchesWithMeta].sort((a, b) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))[0] || null
   }, [userCoords, branchesWithMeta])
 
   const filteredBranches = useMemo(() => {
@@ -300,7 +296,7 @@ export function BranchLocatorMap({
         if (cancelled || !mapContainerRef.current || mapInstanceRef.current) return
 
         const map = L.map(mapContainerRef.current, {
-          center: [14.585, 121.065],
+          center: [14.565, 121.105],
           zoom: 11,
           zoomControl: false,
           attributionControl: true,
@@ -412,13 +408,13 @@ export function BranchLocatorMap({
     const group = markersLayerRef.current
     group.clearLayers()
 
-    // Zoom-based marker clustering when zoomed out (zoom <= 10)
-    const shouldCluster = currentZoom <= 10
+    // Cluster only when zoomed far out (zoom <= 9) so branches 01–07 stay individually visible across Metro Manila
+    const shouldCluster = currentZoom <= 9
     type ClusterBucket = { latSum: number; lngSum: number; items: typeof branchesWithMeta }
     const buckets: ClusterBucket[] = []
 
     if (shouldCluster) {
-      const thresholdPx = 56
+      const thresholdPx = 42
       branchesWithMeta.forEach((branch) => {
         const pt = map.latLngToContainerPoint([branch.lat, branch.lng])
         let added = false
@@ -651,7 +647,12 @@ export function BranchLocatorMap({
   const handleResetOverview = () => {
     if (mapInstanceRef.current && window.L) {
       const bounds = window.L.latLngBounds(BRANCH_LOCATIONS.map((b) => [b.lat, b.lng]))
-      mapInstanceRef.current.flyToBounds(bounds.pad(0.18), { duration: 0.8 })
+      mapInstanceRef.current.flyToBounds(bounds, {
+        paddingTopLeft: [40, 62],
+        paddingBottomRight: [40, 40],
+        maxZoom: 11,
+        duration: 0.8,
+      })
     }
   }
 
@@ -674,7 +675,7 @@ export function BranchLocatorMap({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search city, street, or WashMyKicks branch..."
+              placeholder="Search city or branch..."
               aria-label="Search branch or location"
             />
             {searchQuery && (
@@ -803,6 +804,9 @@ export function BranchLocatorMap({
               </button>
 
               <div className="wmk-pin-card-badges">
+                <span className="wmk-dist-pill" style={{ background: '#151515', color: '#fff' }}>
+                  0{selectedBranch.id}
+                </span>
                 <span className={`wmk-open-pill ${selectedBranch.isOpen ? 'open' : 'closed'}`}>
                   ● {selectedBranch.statusText}
                 </span>
@@ -826,11 +830,14 @@ export function BranchLocatorMap({
               </div>
 
               <div className="wmk-pin-services">
-                {selectedBranch.services.map((svc) => (
+                {selectedBranch.services.slice(0, 3).map((svc) => (
                   <span key={svc} className="wmk-svc-chip">
                     {svc}
                   </span>
                 ))}
+                {selectedBranch.services.length > 3 && (
+                  <span className="wmk-svc-chip">+{selectedBranch.services.length - 3} more</span>
+                )}
               </div>
 
               <div className="wmk-pin-actions">
@@ -840,7 +847,7 @@ export function BranchLocatorMap({
                   rel="noopener noreferrer"
                   className="outline wmk-btn-sm"
                 >
-                  <Navigation size={13} /> Get Directions
+                  <Navigation size={13} /> Directions
                 </a>
                 <button
                   type="button"
@@ -854,7 +861,7 @@ export function BranchLocatorMap({
                   className="outline wmk-btn-sm"
                   onClick={() => setDetailsModalBranch(selectedBranch)}
                 >
-                  <Info size={13} /> View Details
+                  <Info size={13} /> Details
                 </button>
               </div>
             </aside>
