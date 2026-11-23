@@ -38,24 +38,27 @@ export const ANGLE_META: {
   { key: 'sole', tabLabel: 'SOLE', setTitle: 'Outsole', shortLabel: 'Sole' },
 ]
 
+export function isStockPlaceholderPhoto(url: string | null | undefined): boolean {
+  if (!url) return true
+  return url.includes('images.unsplash.com')
+}
+
+export function sanitizeOrderDocumentation(docs?: ShoeDocumentation): ShoeDocumentation {
+  const cleanSide = (val: string | null | undefined) => (val && !isStockPlaceholderPhoto(val) ? val : null)
+  return {
+    left: { before: cleanSide(docs?.left?.before), after: cleanSide(docs?.left?.after) },
+    right: { before: cleanSide(docs?.right?.before), after: cleanSide(docs?.right?.after) },
+    toe: { before: cleanSide(docs?.toe?.before), after: cleanSide(docs?.toe?.after) },
+    sole: { before: cleanSide(docs?.sole?.before), after: cleanSide(docs?.sole?.after) },
+  }
+}
+
 export function createDefaultDocumentation(): ShoeDocumentation {
   return {
-    left: {
-      before: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80',
-      after: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=900&q=80',
-    },
-    right: {
-      before: 'https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=900&q=80',
-      after: 'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=900&q=80',
-    },
-    toe: {
-      before: 'https://images.unsplash.com/photo-1514989940723-e8e51635b782?auto=format&fit=crop&w=900&q=80',
-      after: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=900&q=80',
-    },
-    sole: {
-      before: 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=900&q=80',
-      after: null, // Matches screenshot: "Outsole — After photo needed — Upload"
-    },
+    left: { before: null, after: null },
+    right: { before: null, after: null },
+    toe: { before: null, after: null },
+    sole: { before: null, after: null },
   }
 }
 
@@ -341,7 +344,7 @@ export function BeforeAfterDocumentationModule({
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const activeOrder = orders.find((o) => o.id === selectedOrderId) || orders[0]
-  const currentDocs = activeOrder?.docs || createDefaultDocumentation()
+  const currentDocs = sanitizeOrderDocumentation(activeOrder?.docs)
   const activePair = currentDocs[activeAngle]
   const activeMeta = ANGLE_META.find((a) => a.key === activeAngle) || ANGLE_META[2]
 
@@ -377,10 +380,9 @@ export function BeforeAfterDocumentationModule({
   if (!activeOrder) {
     return (
       <div>
-        <span className="eyebrow">BRANCH OPERATIONS</span>
-        <h1>Before &amp; after documentation</h1>
+        <h1>Before &amp; After Photos</h1>
         <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
-          No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically.
+          No job orders yet. Once a customer books a drop-off, their pair will appear here.
         </div>
       </div>
     )
@@ -805,16 +807,10 @@ export function StaffShoeAssessmentModule({
 
   const [brand, setBrand] = useState(initialParsed.brand)
   const [model, setModel] = useState(initialParsed.model)
-  const [material, setMaterial] = useState('Mesh / Synthetic leather')
+  const [material, setMaterial] = useState('')
   const [colorway, setColorway] = useState(initialParsed.colorway)
-  const [checked, setChecked] = useState<string[]>([
-    'Heavy surface stains',
-    'Yellowed midsole',
-    'Strong odor',
-  ])
-  const [damageNotes, setDamageNotes] = useState(
-    'Heavy dirt buildup on mesh panels. Mild yellowing along midsole. No structural tears.'
-  )
+  const [checked, setChecked] = useState<string[]>([])
+  const [damageNotes, setDamageNotes] = useState('')
 
   // Sync Shoe Brand & Model with what the customer inputted whenever the selected order changes
   useEffect(() => {
@@ -831,9 +827,8 @@ export function StaffShoeAssessmentModule({
     setChecked((prev) => (prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]))
   }
 
-  const previewPhoto =
-    activeOrder?.docs?.left?.before ||
-    'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=800&q=80'
+  const sanitizedDocs = sanitizeOrderDocumentation(activeOrder?.docs)
+  const previewPhoto = sanitizedDocs.left.before || sanitizedDocs.sole.before || null
 
   const recommended =
     checked.includes('Sole separation') || checked.includes('Torn upper')
@@ -845,10 +840,9 @@ export function StaffShoeAssessmentModule({
   if (!activeOrder) {
     return (
       <div>
-        <span className="eyebrow">BRANCH OPERATIONS</span>
-        <h1>Shoe assessment</h1>
+        <h1>Shoe Assessment</h1>
         <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
-          No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically.
+          No job orders yet. Once a customer books a drop-off, their pair will appear here for intake inspection.
         </div>
       </div>
     )
@@ -1030,12 +1024,37 @@ export function StaffShoeAssessmentModule({
 
         {/* RIGHT PHOTOS & RECOMMENDED SUMMARY CARD */}
         <aside className="wmk-doc-side-card">
-          <b style={{ fontSize: 12.5, display: 'block', marginBottom: 10 }}>Before photos</b>
-          <img
-            src={previewPhoto}
-            alt="Intake sneaker preview"
-            style={{ width: '100%', height: 195, objectFit: 'cover', borderRadius: 12, marginBottom: 12 }}
-          />
+          <b style={{ fontSize: 12.5, display: 'block', marginBottom: 10 }}>Intake photos</b>
+          {previewPhoto ? (
+            <img
+              src={previewPhoto}
+              alt="Intake sneaker preview"
+              style={{ width: '100%', height: 195, objectFit: 'cover', borderRadius: 12, marginBottom: 12 }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '100%',
+                height: 195,
+                borderRadius: 12,
+                marginBottom: 12,
+                border: '1.5px dashed #d1d5db',
+                background: '#f9fafb',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                padding: 16,
+                textAlign: 'center',
+                color: '#6b7280',
+              }}
+            >
+              <Camera size={24} color="#9ca3af" />
+              <b style={{ fontSize: 12.5, color: '#374151' }}>No photo uploaded yet</b>
+              <small style={{ fontSize: 11.5 }}>Use the buttons below to upload the actual pair at drop-off.</small>
+            </div>
+          )}
 
           <div className="wizard-grid-2" style={{ gap: 10, marginBottom: 16 }}>
             <button
@@ -1164,20 +1183,23 @@ export function StaffAssignedServicesModule({
         </div>
 
         <aside className="wmk-doc-side-card">
-          <h3 style={{ marginBottom: 18 }}>My workload</h3>
+          <h3 style={{ marginBottom: 18 }}>Active queue breakdown</h3>
           {[
-            ['Cleaning', 82],
-            ['Restoration', 64],
-            ['Repair', 48],
-          ].map(([label, pct]) => (
-            <div key={String(label)} className="wmk-workload-row">
-              <span>{label}</span>
-              <div className="wmk-workload-bar">
-                <div style={{ width: `${pct}%` }} />
+            ['Cleaning', orders.filter((o) => o.service.toLowerCase().includes('clean')).length],
+            ['Restoration', orders.filter((o) => o.service.toLowerCase().includes('restor')).length],
+            ['Repair & Protection', orders.filter((o) => !o.service.toLowerCase().includes('clean') && !o.service.toLowerCase().includes('restor')).length],
+          ].map(([label, count]) => {
+            const pct = orders.length > 0 ? Math.round((Number(count) / orders.length) * 100) : 0
+            return (
+              <div key={String(label)} className="wmk-workload-row">
+                <span>{label}</span>
+                <div className="wmk-workload-bar">
+                  <div style={{ width: `${pct}%` }} />
+                </div>
+                <b>{count} pairs</b>
               </div>
-              <b>{pct}%</b>
-            </div>
-          ))}
+            )
+          })}
         </aside>
       </div>
 

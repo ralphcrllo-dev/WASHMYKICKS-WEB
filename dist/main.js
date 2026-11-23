@@ -30400,25 +30400,25 @@ ${suffix}`;
     { key: "toe", tabLabel: "TOE BOX", setTitle: "Toe box", shortLabel: "Toe box" },
     { key: "sole", tabLabel: "SOLE", setTitle: "Outsole", shortLabel: "Sole" }
   ];
+  function isStockPlaceholderPhoto(url) {
+    if (!url) return true;
+    return url.includes("images.unsplash.com");
+  }
+  function sanitizeOrderDocumentation(docs) {
+    const cleanSide = (val) => val && !isStockPlaceholderPhoto(val) ? val : null;
+    return {
+      left: { before: cleanSide(docs?.left?.before), after: cleanSide(docs?.left?.after) },
+      right: { before: cleanSide(docs?.right?.before), after: cleanSide(docs?.right?.after) },
+      toe: { before: cleanSide(docs?.toe?.before), after: cleanSide(docs?.toe?.after) },
+      sole: { before: cleanSide(docs?.sole?.before), after: cleanSide(docs?.sole?.after) }
+    };
+  }
   function createDefaultDocumentation() {
     return {
-      left: {
-        before: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80",
-        after: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=900&q=80"
-      },
-      right: {
-        before: "https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=900&q=80",
-        after: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=900&q=80"
-      },
-      toe: {
-        before: "https://images.unsplash.com/photo-1514989940723-e8e51635b782?auto=format&fit=crop&w=900&q=80",
-        after: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=900&q=80"
-      },
-      sole: {
-        before: "https://images.unsplash.com/photo-1608231387042-66d1773070a5?auto=format&fit=crop&w=900&q=80",
-        after: null
-        // Matches screenshot: "Outsole — After photo needed — Upload"
-      }
+      left: { before: null, after: null },
+      right: { before: null, after: null },
+      toe: { before: null, after: null },
+      sole: { before: null, after: null }
     };
   }
   var INITIAL_INVENTORY_RECORDS = [];
@@ -30620,7 +30620,7 @@ ${suffix}`;
     const [statusModalOpen, setStatusModalOpen] = (0, import_react4.useState)(false);
     const fileInputRef = (0, import_react4.useRef)(null);
     const activeOrder = orders.find((o) => o.id === selectedOrderId) || orders[0];
-    const currentDocs = activeOrder?.docs || createDefaultDocumentation();
+    const currentDocs = sanitizeOrderDocumentation(activeOrder?.docs);
     const activePair = currentDocs[activeAngle];
     const activeMeta = ANGLE_META.find((a) => a.key === activeAngle) || ANGLE_META[2];
     const triggerFilePicker = (angle, side) => {
@@ -30650,9 +30650,8 @@ ${suffix}`;
     ).length;
     if (!activeOrder) {
       return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Before & after documentation" }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically." })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Before & After Photos" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No job orders yet. Once a customer books a drop-off, their pair will appear here." })
       ] });
     }
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
@@ -31052,16 +31051,10 @@ ${suffix}`;
     const initialParsed = parseCustomerShoeFields(activeOrder);
     const [brand, setBrand] = (0, import_react4.useState)(initialParsed.brand);
     const [model, setModel] = (0, import_react4.useState)(initialParsed.model);
-    const [material, setMaterial] = (0, import_react4.useState)("Mesh / Synthetic leather");
+    const [material, setMaterial] = (0, import_react4.useState)("");
     const [colorway, setColorway] = (0, import_react4.useState)(initialParsed.colorway);
-    const [checked, setChecked] = (0, import_react4.useState)([
-      "Heavy surface stains",
-      "Yellowed midsole",
-      "Strong odor"
-    ]);
-    const [damageNotes, setDamageNotes] = (0, import_react4.useState)(
-      "Heavy dirt buildup on mesh panels. Mild yellowing along midsole. No structural tears."
-    );
+    const [checked, setChecked] = (0, import_react4.useState)([]);
+    const [damageNotes, setDamageNotes] = (0, import_react4.useState)("");
     (0, import_react4.useEffect)(() => {
       const parsed = parseCustomerShoeFields(activeOrder);
       setBrand(parsed.brand);
@@ -31073,13 +31066,13 @@ ${suffix}`;
     const toggleItem = (item) => {
       setChecked((prev) => prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]);
     };
-    const previewPhoto = activeOrder?.docs?.left?.before || "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=800&q=80";
+    const sanitizedDocs = sanitizeOrderDocumentation(activeOrder?.docs);
+    const previewPhoto = sanitizedDocs.left.before || sanitizedDocs.sole.before || null;
     const recommended = checked.includes("Sole separation") || checked.includes("Torn upper") ? { service: "Shoe Repair + Deep Clean", total: "\u20B11,450", days: "5\u201310 days" } : checked.includes("Yellowed midsole") || checked.includes("Faded color") ? { service: "Restoration + Deep Clean", total: "\u20B11,850", days: "7\u201310 days" } : { service: "Deep Cleaning", total: "\u20B1650", days: "3\u20135 days" };
     if (!activeOrder) {
       return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Shoe assessment" }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No live job orders in Supabase yet. Once a customer books an appointment, it will appear here automatically." })
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { children: "Shoe Assessment" }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: "No job orders yet. Once a customer books a drop-off, their pair will appear here for intake inspection." })
       ] });
     }
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
@@ -31258,13 +31251,38 @@ ${suffix}`;
           }
         ),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("aside", { className: "wmk-doc-side-card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { style: { fontSize: 12.5, display: "block", marginBottom: 10 }, children: "Before photos" }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { style: { fontSize: 12.5, display: "block", marginBottom: 10 }, children: "Intake photos" }),
+          previewPhoto ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "img",
             {
               src: previewPhoto,
               alt: "Intake sneaker preview",
               style: { width: "100%", height: 195, objectFit: "cover", borderRadius: 12, marginBottom: 12 }
+            }
+          ) : /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
+            "div",
+            {
+              style: {
+                width: "100%",
+                height: 195,
+                borderRadius: 12,
+                marginBottom: 12,
+                border: "1.5px dashed #d1d5db",
+                background: "#f9fafb",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: 16,
+                textAlign: "center",
+                color: "#6b7280"
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(Camera, { size: 24, color: "#9ca3af" }),
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("b", { style: { fontSize: 12.5, color: "#374151" }, children: "No photo uploaded yet" }),
+                /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("small", { style: { fontSize: 11.5 }, children: "Use the buttons below to upload the actual pair at drop-off." })
+              ]
             }
           ),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wizard-grid-2", style: { gap: 10, marginBottom: 16 }, children: [
@@ -31385,19 +31403,22 @@ ${suffix}`;
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("aside", { className: "wmk-doc-side-card", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { style: { marginBottom: 18 }, children: "My workload" }),
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { style: { marginBottom: 18 }, children: "Active queue breakdown" }),
           [
-            ["Cleaning", 82],
-            ["Restoration", 64],
-            ["Repair", 48]
-          ].map(([label, pct]) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-workload-row", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: label }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "wmk-workload-bar", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { width: `${pct}%` } }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("b", { children: [
-              pct,
-              "%"
-            ] })
-          ] }, String(label)))
+            ["Cleaning", orders.filter((o) => o.service.toLowerCase().includes("clean")).length],
+            ["Restoration", orders.filter((o) => o.service.toLowerCase().includes("restor")).length],
+            ["Repair & Protection", orders.filter((o) => !o.service.toLowerCase().includes("clean") && !o.service.toLowerCase().includes("restor")).length]
+          ].map(([label, count]) => {
+            const pct = orders.length > 0 ? Math.round(Number(count) / orders.length * 100) : 0;
+            return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "wmk-workload-row", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { children: label }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "wmk-workload-bar", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { style: { width: `${pct}%` } }) }),
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("b", { children: [
+                count,
+                " pairs"
+              ] })
+            ] }, String(label));
+          })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "dash-panel", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("table", { className: "data-table", children: [
@@ -31873,9 +31894,9 @@ ${suffix}`;
   ];
   var initialOrders = [];
   var initialReviews = [
-    { id: "r1", author: "Angela M.", service: "Restoration", branch: "Wash My Kicks \u2013 San Juan City", rating: 5, quote: "My white pairs looked brand new\u2014honestly unreal.", date: "March 18, 2026" },
-    { id: "r2", author: "Jiro R.", service: "Deep Cleaning", branch: "Wash My Kicks \u2013 Quezon City", rating: 5, quote: "The progress photos made the whole service feel premium.", date: "March 15, 2026" },
-    { id: "r3", author: "Kaye S.", service: "Shoe Repair", branch: "Wash My Kicks \u2013 Pasig City", rating: 5, quote: "Fast, meticulous, and totally worth it.", date: "March 11, 2026" }
+    { id: "r1", author: "Angela M.", service: "Restoration", branch: "Wash My Kicks \u2013 San Juan City", rating: 5, quote: "Brought in my beat-up white AF1s at San Juan. Midsoles came back clean and the smell is gone.", date: "March 18, 2026" },
+    { id: "r2", author: "Jiro R.", service: "Deep Cleaning", branch: "Wash My Kicks \u2013 Quezon City", rating: 5, quote: "Got before-and-after photos of my Dunk Lows before pickup at Tomas Morato. Worth the \u20B1650.", date: "March 15, 2026" },
+    { id: "r3", author: "Kaye S.", service: "Shoe Repair", branch: "Wash My Kicks \u2013 Pasig City", rating: 5, quote: "Sole reglue on my Jordan 4s held up through three runs already. Quick turnaround at Pasig.", date: "March 11, 2026" }
   ];
   var RBAC_PERMISSIONS = {
     customer: {
@@ -31912,7 +31933,7 @@ ${suffix}`;
       ),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "WASHMYKICKS" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "SNEAKER CARE SYSTEM" })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "SHOE CLEANING & RESTORATION" })
       ] })
     ] });
   }
@@ -31968,7 +31989,7 @@ ${suffix}`;
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("footer", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "footer-brand", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, { onClick: () => setPage("home") }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Premium sneaker care, now organized from booking to pickup." })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Hand-washed, reglued, and restored across 7 branches in Metro Manila, Rizal, and Cavite." })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Explore" }),
@@ -32001,17 +32022,16 @@ ${suffix}`;
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "hero", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "hero-copy", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "MANILA'S TRUSTED SNEAKER CARE" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
             "WE BRING YOUR",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
             "KICKS ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("em", { children: "BACK." })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Professional shoe cleaning, repair, and restoration from sneaker specialists who treat every pair like their own." }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Hand-cleaned, reglued, and restored by sneaker techs across 7 Metro Manila, Rizal, and Cavite branches. Book a drop-off and pay at the shop after inspection." }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "actions", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "primary", onClick: () => setPage("book"), children: [
-              "Book an appointment ",
+              "Book a drop-off ",
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { className: "text-button", onClick: () => setPage("track"), children: "Track my shoes" })
@@ -32020,15 +32040,15 @@ ${suffix}`;
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "avatars", children: "A M J" }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "4.9/5" }),
-              " from 2,800+ sneakerheads"
+              " from 2,800+ Metro Manila pairs cleaned"
             ] })
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "hero-image", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "quality-card", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16 }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Quality checked" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Every pair. Every time." })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Pay at the branch" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "After we inspect your pair" })
           ] })
         ] }) })
       ] }),
@@ -32037,22 +32057,19 @@ ${suffix}`;
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("i", {}),
         " RESTORATION ",
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("i", {}),
-        " SOLE REPAIR ",
+        " SOLE REGLUE ",
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("i", {}),
-        " PROTECTION ",
+        " WATER REPELLENT ",
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("i", {}),
-        " COLOR REVIVAL ",
+        " DE-YELLOWING ",
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("i", {}),
-        " BUILT FOR EVERY PAIR"
+        " 7 ACTIVE BRANCHES"
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "section", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "section-heading", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BUILT FOR SNEAKERS" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Sneaker care, done right." })
-          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Services & Rates" }) }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "text-button", onClick: () => setPage("services"), children: [
-            "View all services ",
+            "See all services ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
           ] })
         ] }),
@@ -32061,30 +32078,29 @@ ${suffix}`;
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "standard", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "standard-image", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "RESTORED" }) }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "standard-copy", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "THE WMK STANDARD" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h2", { children: [
-            "Results you can see.",
+            "No guesswork.",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
-            "Care you can trust."
+            "You see the work."
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Every pair goes through a documented multi-step process\u2014from assessment and before photos to final quality control." }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "We check your pair at the counter, take before-and-after photos of all four angles, and message you the moment it is ready for pickup." }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("ul", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Photo-documented service" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Specialist assigned to every pair" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Live status notifications" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Final 5-point quality check" })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "4-angle before & after photos (left, right, toe box, sole)" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Dedicated shoe tech per pair" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Real-time status tracking by Job Order ID" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("li", { children: "Pay at the branch after final check" })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "primary", onClick: () => setPage("reviews"), children: [
-            "See customer results ",
+            "Read customer reviews ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
           ] })
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("section", { className: "stats", children: [
-        ["12K+", "PAIRS REVIVED"],
-        ["4.9", "AVERAGE RATING"],
-        ["7+", "METRO BRANCHES"],
-        ["96%", "RETURN CUSTOMERS"]
+        ["12K+", "PAIRS CLEANED"],
+        ["4.9", "SHOP RATING"],
+        ["7", "ACTIVE BRANCHES"],
+        ["96%", "REPEAT CUSTOMERS"]
       ].map(([number, label]) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: number }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: label })
@@ -32092,23 +32108,21 @@ ${suffix}`;
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "section branch-section", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "section-heading", children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "NEAR YOU" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Find your closest branch." }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Seven active locations across Metro Manila, Rizal, and Cavite \u2014 one consistent standard of care." })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "7 Branches Near You" }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Drop off at Pasig Kapitolyo (Flagship), San Juan, Quezon City, Pateros, Montalban, Morong, or Bacoor." })
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "text-button", onClick: () => setPage("branches"), children: [
-            "Explore all branches ",
+            "View all branches ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
           ] })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(BranchLocatorMap, { onBookBranch })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "cta", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "YOUR KICKS DESERVE BETTER" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Ready for a fresh start?" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Sign in to your portal and book in under two minutes." }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "primary light", onClick: () => setPage("login"), children: [
-          "Log in / Book appointment ",
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Got a pair sitting in the box?" }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Book a drop-off slot in under a minute. Pay at the branch after we inspect your shoes." }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "primary light", onClick: () => setPage("book"), children: [
+          "Book a drop-off ",
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
         ] })
       ] })
@@ -32116,7 +32130,7 @@ ${suffix}`;
   }
   function Listing({ title, eyebrow, children }) {
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "listing", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: eyebrow }),
+      eyebrow && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: eyebrow }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: title }),
       children
     ] });
@@ -32126,26 +32140,26 @@ ${suffix}`;
     servicesCatalog = services
   }) {
     const activeServices = servicesCatalog.filter((s) => !s.archived);
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "OUR SERVICES", title: "Care for every kind of kick.", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Transparent pricing, expert hands, and progress updates from drop-off to pickup." }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "services-grid full", children: activeServices.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceCard, { service: s, onClick: () => setPage("login") }, s.id)) })
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { title: "Services & Rates", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Straightforward pricing and turnaround times. Pay at the shop after our tech checks your pair." }),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "services-grid full", children: activeServices.map((s) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceCard, { service: s, onClick: () => setPage("book") }, s.id)) })
     ] });
   }
   function Track({ orders, setPage }) {
     const [query, setQuery] = (0, import_react5.useState)("");
     const matched = query.trim() && orders.find((o) => o.id.toLowerCase() === query.trim().toLowerCase()) || (!query.trim() ? orders[0] : void 0);
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "ORDER TRACKING", title: "Know where your kicks are.", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Enter your job order number to see the latest update from your assigned specialist." }),
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { title: "Track Your Shoes", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Enter your job order number to check the current stage of your pair." }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "tracking-box", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { children: [
           "Job order number",
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { value: query, onChange: (e) => setQuery(e.target.value), placeholder: "e.g. WMK-2026-0001" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { value: query, onChange: (e) => setQuery(e.target.value), placeholder: "e.g. WMK-2026-2553" })
         ] }),
         matched ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 18 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
               matched.id,
-              " \u2014 ",
+              " \xB7 ",
               matched.shoe
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(StatusBadge, { status: matched.status })
@@ -32154,18 +32168,18 @@ ${suffix}`;
             matched.service,
             " \xB7 ",
             matched.branch,
-            " \xB7 Specialist: ",
+            " \xB7 Tech: ",
             matched.specialist
           ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ServiceStatusTimeline, { currentStatus: matched.status })
-        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 18, color: "#6b7280", fontSize: 13 }, children: orders.length === 0 ? "No live job orders in Supabase yet. Book an appointment to generate your first live Job Order." : "No matching job order found for that reference number." }),
+        ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16, marginBottom: 18, color: "#6b7280", fontSize: 13 }, children: orders.length === 0 ? "No orders yet. Book a drop-off to get your job order number." : "No matching job order found for that reference number." }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { className: "primary", onClick: () => setPage("login-customer"), children: [
-          "Sign in to Customer Portal for full tracking ",
+          "Log in to view full order history ",
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 16 })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { children: [
-          "Don't have an order yet? ",
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("login"), children: "Book an appointment" })
+          "Need a clean? ",
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { onClick: () => setPage("book"), children: "Book a drop-off" })
         ] })
       ] })
     ] });
@@ -32173,8 +32187,8 @@ ${suffix}`;
   function Branches({
     onBookBranch
   }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "OUR LOCATIONS", title: "Care that\u2019s close to home.", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Locate the nearest WashMyKicks branch in real time, switch between Satellite, Hybrid, and Standard views, and book directly." }),
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { title: "Our Branches", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Find the closest Wash My Kicks shop, check opening hours, and book your drop-off directly." }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { marginBottom: 40 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(BranchLocatorMap, { onBookBranch }) }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "branch-cards", children: wizardBranches.map((branch, i) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
@@ -32190,7 +32204,7 @@ ${suffix}`;
             disabled: branch.comingSoon,
             onClick: () => !branch.comingSoon && onBookBranch(branch.name, branch.id),
             children: [
-              branch.comingSoon ? "Coming Soon" : "Book Appointment",
+              branch.comingSoon ? "Coming Soon" : "Book Here",
               " ",
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 15 })
             ]
@@ -32200,7 +32214,7 @@ ${suffix}`;
     ] });
   }
   function Reviews({ reviews }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Listing, { eyebrow: "CUSTOMER STORIES", title: "The results speak loud.", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "review-grid", children: reviews.map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Listing, { title: "Customer Reviews", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "review-grid", children: reviews.map((r) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("article", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: Array.from({ length: r.rating }).map((_, x) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Star, { fill: "currentColor", size: 15 }, x)) }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("blockquote", { children: [
         "\u201C",
@@ -32218,12 +32232,12 @@ ${suffix}`;
     ] }, r.id)) }) });
   }
   function About() {
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { eyebrow: "ABOUT WASHMYKICKS", title: "Built by sneakerheads, for sneakerheads.", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "We started with a simple belief: every pair deserves skilled, careful work. Today, our specialists combine proven methods with a customer experience that keeps every step clear." }),
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(Listing, { title: "About Wash My Kicks", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { className: "lead", children: "Started in Metro Manila by people who wear and collect sneakers every day. Whether it is a daily beater, suede runners, or deadstock Jordans, we clean and repair every pair by hand and document the job before you pick it up." }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "about-strip", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "12K+" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "pairs revived" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "pairs cleaned" })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "7" }),
@@ -32231,7 +32245,7 @@ ${suffix}`;
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "4.9/5" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "customer rating" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "shop rating" })
         ] })
       ] })
     ] });
@@ -32322,31 +32336,28 @@ ${suffix}`;
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "auth-story", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, { onClick: () => setPage("home") }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "eyebrow", children: [
-            roleLabel.toUpperCase(),
-            " PORTAL ACCESS"
-          ] }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
-            "Every pair has a story.",
+            "Clean pairs.",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("br", {}),
-            "We keep it moving."
+            "Zero guesswork."
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Connected sneaker care workflows across all WashMyKicks branches\u2014from booking and assessment to final pickup." })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Drop off your sneakers at any of our 7 branches, get 4-angle before-and-after photos, and pay at the counter after we check your pair." })
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "auth-rbac-preview", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h4", { children: [
-            "Role-Based Access Control (",
-            roleLabel,
-            ")"
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-rbac-list", children: perms.allowed.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "auth-rbac-chip", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 12, color: "#22c55e" }),
-            " ",
-            item
-          ] }, item)) }),
-          perms.restricted.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginTop: 10, fontSize: 11, color: "#9ca3af" }, children: [
-            "Restricted modules: ",
-            perms.restricted.join(" \xB7 ")
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h4", { children: "Shop Hours & Locations" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "#d1d5db" }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { color: "#fff" }, children: "Flagship Store:" }),
+              " West Capitol Dr., Brgy. Kapitolyo, Pasig City"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { color: "#fff" }, children: "Store Hours:" }),
+              " Open Daily, 10:00 AM \u2013 8:00 PM"
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { color: "#fff" }, children: "Branches:" }),
+              " Pasig \xB7 San Juan \xB7 Quezon City \xB7 Pateros \xB7 Montalban \xB7 Morong \xB7 Bacoor"
+            ] })
           ] })
         ] })
       ] }),
@@ -32355,12 +32366,8 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
           " Back to Home"
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "eyebrow", children: [
-          roleLabel.toUpperCase(),
-          " PORTAL"
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: isCreatingAccount ? `Register ${roleLabel} Account` : `${roleLabel} Login` }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: isCustomer ? isCreatingAccount ? "Register your WashMyKicks customer profile in Supabase Auth." : "Sign in with your registered customer credentials." : isStaff ? isCreatingAccount ? "Provision a branch staff account in Supabase Auth." : "Sign in with your provisioned branch staff account." : isCreatingAccount ? "Provision an administrator account in Supabase Auth." : "Sign in with your administrator credentials." }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: isCreatingAccount ? `Create ${roleLabel} Account` : `${roleLabel} Sign In` }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: isCustomer ? isCreatingAccount ? "Create an account to book drop-offs and track your pairs." : "Sign in to book a drop-off or check on your shoes." : isStaff ? isCreatingAccount ? "Create a branch staff account for your assigned shop." : "Sign in with your branch staff account." : isCreatingAccount ? "Create an administrator account for Wash My Kicks." : "Sign in to manage branches, orders, and inventory." }),
         forgotMessage && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
           "div",
           {
@@ -32480,6 +32487,7 @@ ${suffix}`;
     preselectedFromMap = false,
     existingOrders = initialOrders,
     servicesCatalog = services,
+    defaultEmail = "",
     onCompleteBooking,
     onCancel
   }) {
@@ -32488,16 +32496,15 @@ ${suffix}`;
     const todayMonth = today.getMonth();
     const todayDate = today.getDate();
     const activeServices = servicesCatalog.filter((s) => !s.archived);
-    const [step, setStep] = (0, import_react5.useState)(1);
     const [selectedBranchId, setSelectedBranchId] = (0, import_react5.useState)(initialBranchId);
     const [selectedServiceId, setSelectedServiceId] = (0, import_react5.useState)("02");
     const [calendarYear, setCalendarYear] = (0, import_react5.useState)(todayYear);
     const [calendarMonth, setCalendarMonth] = (0, import_react5.useState)(todayMonth);
     const [selectedDay, setSelectedDay] = (0, import_react5.useState)(todayDate);
     const [selectedTime, setSelectedTime] = (0, import_react5.useState)("10:30 AM");
-    const [shoeBrand, setShoeBrand] = (0, import_react5.useState)("Nike");
-    const [shoeModel, setShoeModel] = (0, import_react5.useState)("Air Jordan 1 Retro High");
-    const [customerEmail, setCustomerEmail] = (0, import_react5.useState)("juan.delacruz@email.com");
+    const [shoeBrand, setShoeBrand] = (0, import_react5.useState)("");
+    const [shoeModel, setShoeModel] = (0, import_react5.useState)("");
+    const [customerEmail, setCustomerEmail] = (0, import_react5.useState)(defaultEmail);
     const [otpSent, setOtpSent] = (0, import_react5.useState)(false);
     const [otpSending, setOtpSending] = (0, import_react5.useState)(false);
     const [otpMode, setOtpMode] = (0, import_react5.useState)("server-hmac");
@@ -32507,6 +32514,11 @@ ${suffix}`;
     const [otpVerified, setOtpVerified] = (0, import_react5.useState)(false);
     const [otpNotice, setOtpNotice] = (0, import_react5.useState)("");
     const [remoteSlotCounts, setRemoteSlotCounts] = (0, import_react5.useState)({});
+    (0, import_react5.useEffect)(() => {
+      if (defaultEmail && !customerEmail) {
+        setCustomerEmail(defaultEmail);
+      }
+    }, [defaultEmail]);
     const monthNames = [
       "January",
       "February",
@@ -32557,7 +32569,6 @@ ${suffix}`;
     const selectedBranch = wizardBranches.find((b) => b.id === selectedBranchId) || wizardBranches[0];
     const selectedService = activeServices.find((s) => s.id === selectedServiceId) || activeServices[0] || services[1];
     (0, import_react5.useEffect)(() => {
-      if (step !== 4) return;
       const q = new URLSearchParams({
         branch: selectedBranch.name,
         date: formattedDate
@@ -32572,14 +32583,7 @@ ${suffix}`;
         }
       }).catch(() => {
       });
-    }, [step, selectedBranch.name, formattedDate]);
-    const steps = [
-      { num: 1, label: "Branch" },
-      { num: 2, label: "Service" },
-      { num: 3, label: "Date" },
-      { num: 4, label: "Schedule" },
-      { num: 5, label: "Confirm" }
-    ];
+    }, [selectedBranch.name, formattedDate]);
     const timeSlots = [
       "10:00 AM",
       "10:30 AM",
@@ -32610,19 +32614,19 @@ ${suffix}`;
       if (cleaned) {
         return cleaned.split(/\s+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
       }
-      return local || "Valued Customer";
+      return local || "Customer";
     };
     const handleSendBookingOtp = async () => {
       const emailTarget = customerEmail.trim();
       if (!emailTarget || !emailTarget.includes("@")) {
-        setOtpNotice("Please enter a valid email address first.");
+        setOtpNotice("Enter a valid email address first.");
         return;
       }
       const derivedName = getCustomerNameFromEmail(emailTarget);
       setOtpSending(true);
       setEnteredOtp("");
       setOtpVerified(false);
-      setOtpNotice(`Sending verification code to ${emailTarget}...`);
+      setOtpNotice(`Sending 6-digit code to ${emailTarget}...`);
       try {
         const res = await fetch("/api/booking-otp", {
           method: "POST",
@@ -32642,7 +32646,7 @@ ${suffix}`;
           setOtpToken(String(data.token || ""));
           setOtpExpiresAt(Number(data.expiresAt || 0));
           setOtpSent(true);
-          setOtpNotice(`A 6-digit verification code has been sent to ${emailTarget}. Please check your Inbox (and Spam folder).`);
+          setOtpNotice(`Code sent to ${emailTarget}. Check your Inbox or Spam folder.`);
           setOtpSending(false);
           return;
         }
@@ -32656,22 +32660,22 @@ ${suffix}`;
         if (!error) {
           setOtpMode("supabase-auth");
           setOtpSent(true);
-          setOtpNotice(`A verification email has been sent to ${emailTarget} via Supabase Auth. Check your Inbox or Spam folder and enter the code below.`);
+          setOtpNotice(`Verification code sent to ${emailTarget}. Check your Inbox or Spam folder.`);
           setOtpSending(false);
           return;
         }
         setOtpSending(false);
-        setOtpNotice(`Could not send email (${error.message}). Configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables for instant Gmail SMTP delivery.`);
+        setOtpNotice(`Could not send email (${error.message}).`);
         return;
       }
       setOtpSending(false);
-      setOtpNotice("Email service unavailable. Please configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables.");
+      setOtpNotice("Email verification service unavailable. Try again in a moment.");
     };
     const handleVerifyOtp = async () => {
       const candidate = enteredOtp.trim();
       const emailTarget = customerEmail.trim();
       if (!candidate || candidate.length < 6) {
-        setOtpNotice("Please enter the 6-digit verification code sent to your email.");
+        setOtpNotice("Enter the 6-digit code from your email.");
         return false;
       }
       if (otpMode === "server-hmac" && otpToken) {
@@ -32690,13 +32694,13 @@ ${suffix}`;
           const data = await res.json();
           if (res.ok && data?.verified) {
             setOtpVerified(true);
-            setOtpNotice("\u2713 Email verification code confirmed!");
+            setOtpNotice("Email verified.");
             return true;
           }
-          setOtpNotice(data?.error || "Invalid verification code. Please check your email and try again.");
+          setOtpNotice(data?.error || "Wrong code. Check your email and try again.");
           return false;
         } catch {
-          setOtpNotice("Could not verify code with server. Please try again.");
+          setOtpNotice("Could not verify code. Try again.");
           return false;
         }
       }
@@ -32708,7 +32712,7 @@ ${suffix}`;
         });
         if (!firstTry.error) {
           setOtpVerified(true);
-          setOtpNotice("\u2713 Email verification code confirmed!");
+          setOtpNotice("Email verified.");
           return true;
         }
         const secondTry = await supabase.auth.verifyOtp({
@@ -32718,16 +32722,22 @@ ${suffix}`;
         });
         if (!secondTry.error) {
           setOtpVerified(true);
-          setOtpNotice("\u2713 Email verification code confirmed!");
+          setOtpNotice("Email verified.");
           return true;
         }
-        setOtpNotice(firstTry.error?.message || "Invalid verification code. Please check your email and try again.");
+        setOtpNotice(firstTry.error?.message || "Wrong code. Check your email and try again.");
         return false;
       }
-      setOtpNotice('Please click "Send Verification Code" first.');
+      setOtpNotice('Click "Send Code" first.');
       return false;
     };
     const handleConfirm = async () => {
+      const cleanBrand = shoeBrand.trim();
+      const cleanModel = shoeModel.trim();
+      if (!cleanBrand && !cleanModel) {
+        setOtpNotice("Enter your shoe brand and model before booking.");
+        return;
+      }
       if (!otpVerified) {
         if (!otpSent) {
           await handleSendBookingOtp();
@@ -32736,11 +32746,10 @@ ${suffix}`;
         const ok = await handleVerifyOtp();
         if (!ok) return;
       }
-      const derivedName = getCustomerNameFromEmail(customerEmail);
+      const emailFinal = customerEmail.trim();
+      const derivedName = getCustomerNameFromEmail(emailFinal);
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
-      const cleanBrand = shoeBrand.trim();
-      const cleanModel = shoeModel.trim();
       const combinedShoe = cleanBrand && cleanModel && !cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase()) ? `${cleanBrand} ${cleanModel}` : cleanModel || cleanBrand || "Sneaker Pair";
       void createBookingRecord({
         customerId: 1,
@@ -32748,7 +32757,7 @@ ${suffix}`;
         scheduledAt: scheduledIso,
         priceAtBooking: numericPrice,
         customerRequest: `${combinedShoe} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
-        customerEmail: customerEmail || "juan.delacruz@email.com",
+        customerEmail: emailFinal,
         customerName: derivedName,
         serviceName: selectedService.title,
         branchName: selectedBranch.name
@@ -32756,7 +32765,7 @@ ${suffix}`;
       const newOrder = {
         id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
         customer: derivedName,
-        email: customerEmail || "juan.delacruz@email.com",
+        email: emailFinal,
         shoe: combinedShoe,
         shoeBrand: cleanBrand,
         shoeModel: cleanModel,
@@ -32773,485 +32782,372 @@ ${suffix}`;
       };
       onCompleteBooking(newOrder);
     };
-    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "breadcrumb", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", onClick: onCancel, children: "Dashboard" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: ">" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Book an appointment" })
+    const previewShoeLabel = [shoeBrand.trim(), shoeModel.trim()].filter(Boolean).join(" ") || "Enter shoe brand & model above";
+    return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { maxWidth: 880, margin: "0 auto" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 12, marginBottom: 20 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { style: { margin: "0 0 6px" }, children: "Book a Drop-Off" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { margin: 0, color: "#6b7280", fontSize: 14 }, children: "Pick a branch, service, and time slot below. You only pay at the shop after our tech inspects your pair." })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", onClick: onCancel, style: { padding: "8px 14px", fontSize: 12.5 }, children: "Cancel" })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "SHOE BOOKING MANAGEMENT MODULE" }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h1", { children: "Book an appointment" }),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Schedule your pair in five simple steps." }),
       preselectedFromMap && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
         "div",
         {
           style: {
-            maxWidth: 780,
-            margin: "0 auto 18px",
-            padding: "12px 18px",
-            borderRadius: 12,
+            marginBottom: 18,
+            padding: "12px 16px",
+            borderRadius: 10,
             background: "#ecfdf5",
             border: "1px solid #a7f3d0",
             color: "#065f46",
-            fontSize: 12.5,
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap"
+            fontSize: 13,
+            fontWeight: 600
           },
           children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { children: [
-              "\u2713 Branch pre-selected from Branch Locator: ",
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedBranch.name })
-            ] }),
-            step === 1 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-              "button",
-              {
-                type: "button",
-                className: "primary",
-                style: { padding: "7px 13px", fontSize: 11.5 },
-                onClick: () => setStep(2),
-                children: [
-                  "Continue with ",
-                  selectedBranch.name.replace("Wash My Kicks \u2013 ", ""),
-                  " ",
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 14 })
-                ]
-              }
-            )
+            "\u2713 Selected from map: ",
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedBranch.name })
           ]
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "stepper-bar", children: steps.map((s, idx) => {
-        const isDone = step > s.num;
-        const isActive = step === s.num;
-        return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_react5.default.Fragment, { children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            "button",
-            {
-              type: "button",
-              onClick: () => {
-                if (s.num <= step) setStep(s.num);
-              },
-              className: `stepper-item ${isActive ? "active" : ""} ${isDone ? "done" : ""}`,
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "stepper-circle", children: isDone ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 13 }) : s.num }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: s.label })
-              ]
-            }
-          ),
-          idx < steps.length - 1 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: `stepper-line ${step > s.num ? "done" : ""}` })
-        ] }, s.num);
-      }) }),
-      step === 1 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "step-tag", children: "STEP 1 OF 5" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Choose a branch" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Where would you like to drop off your pair?" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", children: wizardBranches.map((b) => {
-          const isSelected = selectedBranchId === b.id;
-          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            "button",
-            {
-              type: "button",
-              disabled: b.comingSoon,
-              className: `choice-card ${isSelected ? "selected" : ""}`,
-              onClick: () => setSelectedBranchId(b.id),
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "choice-num", children: b.id }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: b.name }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: b.address }),
-                  b.comingSoon && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "price-tag", children: "COMING SOON" })
-                ] }),
-                isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16, className: "choice-check" })
-              ]
-            },
-            b.id
-          );
-        }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: onCancel, children: "\u2190 Cancel" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setStep(2), children: [
-            "Continue ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15 })
-          ] })
-        ] })
-      ] }),
-      step === 2 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "step-tag", children: "STEP 2 OF 5" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Select your service" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "What does your pair need?" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", children: activeServices.map((s) => {
-          const isSelected = selectedServiceId === s.id;
-          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            "button",
-            {
-              type: "button",
-              className: `choice-card ${isSelected ? "selected" : ""}`,
-              onClick: () => setSelectedServiceId(s.id),
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { color: "#dc2626", flexShrink: 0 }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ShieldCheck, { size: 20 }) }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: s.title }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: s.copy }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "price-tag", children: [
-                    s.price,
-                    " \xB7 ",
-                    s.duration
-                  ] })
-                ] }),
-                isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16, className: "choice-check" })
-              ]
-            },
-            s.id
-          );
-        }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: () => setStep(1), children: "\u2190 Back" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setStep(3), children: [
-            "Continue ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15 })
-          ] })
-        ] })
-      ] }),
-      step === 3 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "step-tag", children: "STEP 3 OF 5" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Choose a date" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Select your preferred drop-off date." })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-box", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-nav", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", style: { maxWidth: "100%", padding: "28px 28px 32px" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: 28 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 16, margin: "0 0 4px" }, children: "1. Choose Branch" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 13, color: "#6b7280", margin: "0 0 14px" }, children: "All active branches are open daily, 10:00 AM \u2013 8:00 PM." }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", children: wizardBranches.filter((b) => !b.comingSoon).map((b) => {
+            const isSelected = selectedBranchId === b.id;
+            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
               "button",
               {
                 type: "button",
-                "aria-label": "Previous month",
-                disabled: !canGoPrevMonth,
-                style: !canGoPrevMonth ? { opacity: 0.35, cursor: "not-allowed" } : void 0,
-                onClick: handlePrevMonth,
-                children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronLeft, { size: 14 })
-              }
-            ),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-              currentMonthName,
-              " ",
-              calendarYear
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Next month", onClick: handleNextMonth, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 14 }) })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-grid", children: [
-            ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "calendar-dow", children: d }, d)),
-            prevMonthTrailingDays.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", disabled: true, className: "calendar-day muted", children: d }, `prev-${d}`)),
-            Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => {
-              const isPastDay = calendarYear < todayYear || calendarYear === todayYear && calendarMonth < todayMonth || isCurrentMonth && day < todayDate;
-              return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                "button",
+                className: `choice-card ${isSelected ? "selected" : ""}`,
+                onClick: () => setSelectedBranchId(b.id),
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "choice-num", children: b.id }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: b.name.replace("Wash My Kicks \u2013 ", "") }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: b.address })
+                  ] }),
+                  isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16, className: "choice-check" })
+                ]
+              },
+              b.id
+            );
+          }) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("hr", { style: { border: "none", borderTop: "1px solid #eceae6", margin: "0 0 28px" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: 28 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 16, margin: "0 0 4px" }, children: "2. Choose Service" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 13, color: "#6b7280", margin: "0 0 14px" }, children: "Final price is confirmed at the counter after we check the material and condition." }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", children: activeServices.map((s) => {
+            const isSelected = selectedServiceId === s.id;
+            return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+              "button",
+              {
+                type: "button",
+                className: `choice-card ${isSelected ? "selected" : ""}`,
+                onClick: () => setSelectedServiceId(s.id),
+                children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: s.title }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: s.copy }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "price-tag", children: [
+                      s.price,
+                      " \xB7 ",
+                      s.duration
+                    ] })
+                  ] }),
+                  isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16, className: "choice-check" })
+                ]
+              },
+              s.id
+            );
+          }) })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("hr", { style: { border: "none", borderTop: "1px solid #eceae6", margin: "0 0 28px" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: 28 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 16, margin: "0 0 4px" }, children: "3. Shoe Pair & Drop-Off Time" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 13, color: "#6b7280", margin: "0 0 14px" }, children: "Tell us what pair you are bringing and pick an available drop-off date and time." }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-grid-2", style: { marginBottom: 20 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Shoe Brand" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "input",
                 {
-                  type: "button",
-                  disabled: isPastDay,
-                  className: `calendar-day ${isPastDay ? "muted" : ""} ${!isPastDay && activeSelectedDay === day ? "selected" : ""}`,
-                  style: isPastDay ? { opacity: 0.35, cursor: "not-allowed" } : void 0,
-                  onClick: () => {
-                    if (!isPastDay) setSelectedDay(day);
+                  type: "text",
+                  value: shoeBrand,
+                  onChange: (e) => setShoeBrand(e.target.value),
+                  placeholder: "e.g. Nike, Jordan, Adidas, New Balance",
+                  style: {
+                    width: "100%",
+                    padding: "11px 13px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 10,
+                    fontSize: 13
+                  }
+                }
+              )
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Shoe Model" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                "input",
+                {
+                  type: "text",
+                  value: shoeModel,
+                  onChange: (e) => setShoeModel(e.target.value),
+                  placeholder: "e.g. Air Jordan 1, Dunk Low, Samba OG",
+                  style: {
+                    width: "100%",
+                    padding: "11px 13px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: 10,
+                    fontSize: 13
+                  }
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-grid-2", style: { alignItems: "start", gap: 20 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-box", style: { margin: 0, maxWidth: "100%" }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-nav", children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "button",
+                  {
+                    type: "button",
+                    "aria-label": "Previous month",
+                    disabled: !canGoPrevMonth,
+                    style: !canGoPrevMonth ? { opacity: 0.35, cursor: "not-allowed" } : void 0,
+                    onClick: handlePrevMonth,
+                    children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronLeft, { size: 14 })
+                  }
+                ),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                  currentMonthName,
+                  " ",
+                  calendarYear
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", "aria-label": "Next month", onClick: handleNextMonth, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 14 }) })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "calendar-grid", children: [
+                ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "calendar-dow", children: d }, d)),
+                prevMonthTrailingDays.map((d) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", disabled: true, className: "calendar-day muted", children: d }, `prev-${d}`)),
+                Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => {
+                  const isPastDay = calendarYear < todayYear || calendarYear === todayYear && calendarMonth < todayMonth || isCurrentMonth && day < todayDate;
+                  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      disabled: isPastDay,
+                      className: `calendar-day ${isPastDay ? "muted" : ""} ${!isPastDay && activeSelectedDay === day ? "selected" : ""}`,
+                      style: isPastDay ? { opacity: 0.35, cursor: "not-allowed" } : void 0,
+                      onClick: () => {
+                        if (!isPastDay) setSelectedDay(day);
+                      },
+                      children: day
+                    },
+                    day
+                  );
+                })
+              ] })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 12, fontWeight: 700, marginBottom: 10 }, children: [
+                "Available slots for ",
+                formattedDate
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }, children: timeSlots.map((slot) => {
+                const { remaining, isFull } = getSlotAvailability(slot);
+                const isSelected = selectedTime === slot && !isFull;
+                return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                  "button",
+                  {
+                    type: "button",
+                    disabled: isFull,
+                    className: `choice-card ${isSelected ? "selected" : ""}`,
+                    style: {
+                      padding: "10px 12px",
+                      ...isFull ? { opacity: 0.5, cursor: "not-allowed", background: "#f9fafb" } : {}
+                    },
+                    onClick: () => {
+                      if (!isFull) setSelectedTime(slot);
+                    },
+                    children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { fontSize: 13 }, children: slot }),
+                        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { style: { fontSize: 11, color: isFull ? "#b91c1c" : "#6b7280" }, children: isFull ? "Full" : `${remaining} of ${MAX_SLOT_CAPACITY} left` })
+                      ] }),
+                      isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 14, className: "choice-check" })
+                    ]
                   },
-                  children: day
-                },
-                day
-              );
-            })
+                  slot
+                );
+              }) })
+            ] })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: () => setStep(2), children: "\u2190 Back" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setStep(4), children: [
-            "Continue ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15 })
-          ] })
-        ] })
-      ] }),
-      step === 4 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "step-tag", children: "STEP 4 OF 5" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Select a schedule" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { children: [
-            "Pick your preferred time slot on ",
-            currentMonthName,
-            " ",
-            activeSelectedDay,
-            ", ",
-            calendarYear,
-            "."
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wizard-grid-2", style: { marginBottom: 20 }, children: timeSlots.map((slot) => {
-          const { remaining, isFull } = getSlotAvailability(slot);
-          const isSelected = selectedTime === slot && !isFull;
-          return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-            "button",
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("hr", { style: { border: "none", borderTop: "1px solid #eceae6", margin: "0 0 28px" } }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 16, margin: "0 0 12px" }, children: "4. Verify Email & Confirm" }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+            "div",
             {
-              type: "button",
-              disabled: isFull,
-              className: `choice-card ${isSelected ? "selected" : ""}`,
-              style: isFull ? { opacity: 0.55, cursor: "not-allowed", background: "#f9fafb" } : void 0,
-              onClick: () => {
-                if (!isFull) setSelectedTime(slot);
+              style: {
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                gap: 12,
+                padding: 16,
+                borderRadius: 12,
+                background: "#f9fafb",
+                border: "1px solid #e5e7eb",
+                marginBottom: 16,
+                fontSize: 12.5
               },
               children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Clock3, { size: 18, color: isFull ? "#9ca3af" : "#dc2626" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("span", { className: "choice-body", children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: slot }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: isFull ? "Slot full \u2014 no remaining capacity" : `${remaining} of ${MAX_SLOT_CAPACITY} drop-off slots available` }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "block", fontSize: 11, color: "#6b7280", fontWeight: 700 }, children: "BRANCH" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedBranch.name.replace("Wash My Kicks \u2013 ", "") })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "block", fontSize: 11, color: "#6b7280", fontWeight: 700 }, children: "SERVICE" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedService.title })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "block", fontSize: 11, color: "#6b7280", fontWeight: 700 }, children: "DROP-OFF" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
+                    formattedDate,
+                    " \xB7 ",
+                    selectedTime
+                  ] })
+                ] }),
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { display: "block", fontSize: 11, color: "#6b7280", fontWeight: 700 }, children: "PAIR" }),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: previewShoeLabel })
+                ] })
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-total-bar", style: { marginBottom: 16 }, children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "ESTIMATED TOTAL" }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Pay at the branch after inspection" })
+            ] }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedService.price.replace("From ", "") })
+          ] }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+            "div",
+            {
+              style: {
+                padding: "16px 18px",
+                borderRadius: 12,
+                border: otpVerified ? "1px solid #86efac" : "1px solid #e5e7eb",
+                background: otpVerified ? "#f0fdf4" : "#ffffff",
+                marginBottom: 20
+              },
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Mail, { size: 16, color: otpVerified ? "#16a34a" : "#dc2626" }),
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { fontSize: 13 }, children: "Email Verification Code" })
+                  ] }),
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "span",
                     {
                       style: {
-                        display: "inline-block",
-                        marginTop: 4,
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: 700,
-                        background: isFull ? "#fee2e2" : remaining === 1 ? "#fef3c7" : "#dcfce7",
-                        color: isFull ? "#991b1b" : remaining === 1 ? "#b45309" : "#166534"
+                        padding: "3px 9px",
+                        borderRadius: 999,
+                        background: otpVerified ? "#dcfce7" : "#fee2e2",
+                        color: otpVerified ? "#166534" : "#991b1b"
                       },
-                      children: isFull ? "FULL \xB7 BOOKED" : remaining === 1 ? "1 SLOT LEFT" : "AVAILABLE"
+                      children: otpVerified ? "\u2713 Verified" : "Required"
                     }
                   )
                 ] }),
-                isSelected && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Check, { size: 16, className: "choice-check" })
-              ]
-            },
-            slot
-          );
-        }) }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-grid-2", style: { maxWidth: 640, margin: "0 auto" }, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Shoe Brand" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "input",
-              {
-                type: "text",
-                value: shoeBrand,
-                onChange: (e) => setShoeBrand(e.target.value),
-                placeholder: "e.g. Nike, Jordan, Adidas, New Balance",
-                style: {
-                  width: "100%",
-                  padding: "12px 14px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 10,
-                  fontSize: 13
-                }
-              }
-            )
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }, children: "Shoe Model" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-              "input",
-              {
-                type: "text",
-                value: shoeModel,
-                onChange: (e) => setShoeModel(e.target.value),
-                placeholder: "e.g. Air Jordan 1 Retro High, Dunk Low, Samba",
-                style: {
-                  width: "100%",
-                  padding: "12px 14px",
-                  border: "1px solid #d1d5db",
-                  borderRadius: 10,
-                  fontSize: 13
-                }
-              }
-            )
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: () => setStep(3), children: "\u2190 Back" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setStep(5), children: [
-            "Continue ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15 })
-          ] })
-        ] })
-      ] }),
-      step === 5 && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "step-tag", children: "STEP 5 OF 5" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Confirm your booking" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { children: "Review the details before confirming." })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-list", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "confirm-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(MapPin, { size: 18 }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-text", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "BRANCH" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedBranch.name }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: selectedBranch.address })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "confirm-change", onClick: () => setStep(1), children: "Change" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "confirm-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 18 }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-text", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "SERVICE" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedService.title }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
-                "Estimated service time: ",
-                selectedService.duration
-              ] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "confirm-change", onClick: () => setStep(2), children: "Change" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-item", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "confirm-icon", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Calendar, { size: 18 }) }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-text", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "DROP-OFF" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("b", { children: [
-                currentMonthName,
-                " ",
-                activeSelectedDay,
-                ", ",
-                calendarYear,
-                " \xB7 ",
-                selectedTime
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
-                "Selected appointment date \xB7 ",
-                [shoeBrand.trim(), shoeModel.trim()].filter(Boolean).join(" ") || "Sneaker Pair"
-              ] })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "confirm-change", onClick: () => setStep(3), children: "Change" })
-          ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "confirm-total-bar", children: [
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "ESTIMATED TOTAL" }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { children: "Pay at branch after assessment" })
-            ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: selectedService.price.replace("From ", "") })
-          ] })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
-          "div",
-          {
-            style: {
-              maxWidth: 540,
-              margin: "18px auto 0",
-              padding: "16px 18px",
-              borderRadius: 12,
-              border: otpVerified ? "1px solid #86efac" : "1px solid #e5e7eb",
-              background: otpVerified ? "#f0fdf4" : "#f9fafb"
-            },
-            children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Mail, { size: 16, color: otpVerified ? "#16a34a" : "#dc2626" }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { fontSize: 13 }, children: "Booking Email Verification (OTP)" })
+                /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "email",
+                      value: customerEmail,
+                      onChange: (e) => setCustomerEmail(e.target.value),
+                      placeholder: "Enter your email address",
+                      style: {
+                        flex: 1,
+                        minWidth: 200,
+                        padding: "10px 12px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        background: "#fff"
+                      }
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "outline",
+                      disabled: otpSending,
+                      style: { padding: "10px 14px", fontSize: 12.5 },
+                      onClick: handleSendBookingOtp,
+                      children: otpSending ? "Sending..." : otpSent ? "Resend Code" : "Send Code"
+                    }
+                  )
                 ] }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "span",
+                otpSent && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "input",
+                    {
+                      type: "text",
+                      maxLength: 6,
+                      value: enteredOtp,
+                      onChange: (e) => setEnteredOtp(e.target.value),
+                      placeholder: "6-digit code",
+                      style: {
+                        width: 170,
+                        padding: "10px 12px",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        letterSpacing: 3,
+                        background: "#fff"
+                      }
+                    }
+                  ),
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                    "button",
+                    {
+                      type: "button",
+                      className: "primary",
+                      style: { padding: "10px 16px", fontSize: 12.5 },
+                      onClick: () => void handleVerifyOtp(),
+                      children: "Verify Code"
+                    }
+                  )
+                ] }),
+                otpNotice && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "div",
                   {
                     style: {
-                      fontSize: 11,
-                      fontWeight: 700,
-                      padding: "3px 9px",
-                      borderRadius: 999,
-                      background: otpVerified ? "#dcfce7" : "#fee2e2",
-                      color: otpVerified ? "#166534" : "#991b1b"
+                      marginTop: 8,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: otpVerified ? "#166534" : "#b91c1c"
                     },
-                    children: otpVerified ? "\u2713 VERIFIED" : "VERIFICATION REQUIRED"
+                    children: otpNotice
                   }
                 )
-              ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "input",
-                  {
-                    type: "email",
-                    value: customerEmail,
-                    onChange: (e) => setCustomerEmail(e.target.value),
-                    placeholder: "Enter your email for booking verification",
-                    style: {
-                      flex: 1,
-                      minWidth: 200,
-                      padding: "9px 12px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 8,
-                      fontSize: 12.5,
-                      background: "#fff"
-                    }
-                  }
-                ),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "button",
-                  {
-                    type: "button",
-                    className: "outline",
-                    disabled: otpSending,
-                    style: { padding: "9px 14px", fontSize: 12 },
-                    onClick: handleSendBookingOtp,
-                    children: otpSending ? "Sending..." : otpSent ? "Resend Code" : "Send Verification Code"
-                  }
-                )
-              ] }),
-              otpSent && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "input",
-                  {
-                    type: "text",
-                    maxLength: 6,
-                    value: enteredOtp,
-                    onChange: (e) => setEnteredOtp(e.target.value),
-                    placeholder: "Enter 6-digit code",
-                    style: {
-                      width: 170,
-                      padding: "9px 12px",
-                      border: "1px solid #d1d5db",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      letterSpacing: 3,
-                      background: "#fff"
-                    }
-                  }
-                ),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                  "button",
-                  {
-                    type: "button",
-                    className: "primary",
-                    style: { padding: "9px 14px", fontSize: 12 },
-                    onClick: () => void handleVerifyOtp(),
-                    children: "Verify Code"
-                  }
-                )
-              ] }),
-              otpNotice && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
-                "div",
-                {
-                  style: {
-                    marginTop: 8,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: otpVerified ? "#166534" : "#b91c1c"
-                  },
-                  children: otpNotice
-                }
-              )
-            ]
-          }
-        ),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-footer", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "wizard-back", onClick: () => setStep(4), children: "\u2190 Back" }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: handleConfirm, children: [
-            otpVerified ? "Confirm appointment" : "Verify & Confirm appointment",
+              ]
+            }
+          ),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", justifyContent: "flex-end" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", style: { padding: "13px 24px", fontSize: 14 }, onClick: handleConfirm, children: [
+            otpVerified ? "Confirm Drop-Off" : "Send Code & Confirm Drop-Off",
             " ",
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 15 })
-          ] })
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 16 })
+          ] }) })
         ] })
       ] })
     ] });
@@ -33411,8 +33307,7 @@ ${suffix}`;
               profileName.split(" ")[0],
               "."
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER PORTAL" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { style: { marginTop: 4 }, children: [
               "Welcome, ",
               profileName.split(" ")[0],
               "."
@@ -33466,10 +33361,7 @@ ${suffix}`;
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-action-banner", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "CUSTOMER ACTIONS" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Continue your sneaker care workflow." })
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Quick Actions" }) }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-action-banner-btns", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Book Appointment"), children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Calendar, { size: 15 }),
@@ -33564,6 +33456,7 @@ ${suffix}`;
               preselectedFromMap,
               existingOrders: orders,
               servicesCatalog,
+              defaultEmail: userMeta.email,
               onCancel: () => setTab("Dashboard"),
               onCompleteBooking: (newOrder) => {
                 const enrichedOrder = {
@@ -33677,7 +33570,7 @@ ${suffix}`;
                 }) })
               ] }) })
             ] }) : /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-panel", style: { padding: 28, textAlign: "center", color: "#6b7280" }, children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { marginBottom: 14 }, children: "No live job orders in Supabase yet." }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { marginBottom: 14 }, children: "No job orders yet." }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Book Appointment"), children: [
                 "Book Your First Appointment ",
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 15 })
@@ -34145,8 +34038,7 @@ ${suffix}`;
               userMeta.name.split(" ")[0],
               "."
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "BRANCH OPERATIONS" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { style: { marginTop: 4 }, children: [
               "Welcome, ",
               userMeta.name.split(" ")[0],
               "."
@@ -34203,10 +34095,7 @@ ${suffix}`;
               ] })
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-action-banner", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "STAFF ACTIONS" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Continue your branch workflow." })
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Quick Actions" }) }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-action-banner-btns", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Shoe Assessment"), children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Sparkles, { size: 15 }),
@@ -34242,7 +34131,7 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", {})
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 8, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No live orders in Supabase yet." }) }) : orders.slice(0, 5).map((row, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 8, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No orders yet." }) }) : orders.slice(0, 5).map((row, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.id }) }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.customer }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.shoe }),
@@ -34685,8 +34574,7 @@ ${suffix}`;
               userMeta.name.split(" ")[0],
               "."
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "EXECUTIVE COMMAND CENTER" }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { children: [
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("h1", { style: { marginTop: 4 }, children: [
               "Welcome, ",
               userMeta.name.split(" ")[0],
               "."
@@ -34780,10 +34668,7 @@ ${suffix}`;
               )
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-action-banner", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "ADMINISTRATOR ACTIONS" }),
-                /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Continue your network operations workflow." })
-              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { children: "Quick Actions" }) }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-action-banner-btns", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setTab("Inventory"), children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Package, { size: 15 }),
@@ -34819,7 +34704,7 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", { children: "Status" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("th", {})
                   ] }) }),
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 8, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No live orders in Supabase yet." }) }) : orders.slice(0, 5).map((row, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tbody", { children: orders.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("tr", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { colSpan: 8, style: { textAlign: "center", color: "#6b7280", padding: 18 }, children: "No orders yet." }) }) : orders.slice(0, 5).map((row, idx) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("tr", { children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: row.id }) }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.customer }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("td", { children: row.shoe }),

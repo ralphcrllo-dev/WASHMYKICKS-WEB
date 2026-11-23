@@ -156,9 +156,9 @@ export type ReviewItem = {
 }
 
 const initialReviews: ReviewItem[] = [
-  { id: 'r1', author: 'Angela M.', service: 'Restoration', branch: 'Wash My Kicks – San Juan City', rating: 5, quote: 'My white pairs looked brand new—honestly unreal.', date: 'March 18, 2026' },
-  { id: 'r2', author: 'Jiro R.', service: 'Deep Cleaning', branch: 'Wash My Kicks – Quezon City', rating: 5, quote: 'The progress photos made the whole service feel premium.', date: 'March 15, 2026' },
-  { id: 'r3', author: 'Kaye S.', service: 'Shoe Repair', branch: 'Wash My Kicks – Pasig City', rating: 5, quote: 'Fast, meticulous, and totally worth it.', date: 'March 11, 2026' },
+  { id: 'r1', author: 'Angela M.', service: 'Restoration', branch: 'Wash My Kicks – San Juan City', rating: 5, quote: 'Brought in my beat-up white AF1s at San Juan. Midsoles came back clean and the smell is gone.', date: 'March 18, 2026' },
+  { id: 'r2', author: 'Jiro R.', service: 'Deep Cleaning', branch: 'Wash My Kicks – Quezon City', rating: 5, quote: 'Got before-and-after photos of my Dunk Lows before pickup at Tomas Morato. Worth the ₱650.', date: 'March 15, 2026' },
+  { id: 'r3', author: 'Kaye S.', service: 'Shoe Repair', branch: 'Wash My Kicks – Pasig City', rating: 5, quote: 'Sole reglue on my Jordan 4s held up through three runs already. Quick turnaround at Pasig.', date: 'March 11, 2026' },
 ]
 
 /* ============================================================================
@@ -209,7 +209,7 @@ function Brand({ onClick }: { onClick?: () => void }) {
       />
       <span>
         <b>WASHMYKICKS</b>
-        <small>SNEAKER CARE SYSTEM</small>
+        <small>SHOE CLEANING &amp; RESTORATION</small>
       </span>
     </button>
   )
@@ -288,7 +288,7 @@ function Footer({ setPage }: { setPage: (page: string) => void }) {
     <footer>
       <div className="footer-brand">
         <Brand onClick={() => setPage('home')} />
-        <p>Premium sneaker care, now organized from booking to pickup.</p>
+        <p>Hand-washed, reglued, and restored across 7 branches in Metro Manila, Rizal, and Cavite.</p>
       </div>
       <div>
         <b>Explore</b>
@@ -332,18 +332,17 @@ function Home({
     <>
       <section className="hero">
         <div className="hero-copy">
-          <span className="eyebrow">MANILA'S TRUSTED SNEAKER CARE</span>
           <h1>
             WE BRING YOUR
             <br />
             KICKS <em>BACK.</em>
           </h1>
           <p>
-            Professional shoe cleaning, repair, and restoration from sneaker specialists who treat every pair like their own.
+            Hand-cleaned, reglued, and restored by sneaker techs across 7 Metro Manila, Rizal, and Cavite branches. Book a drop-off and pay at the shop after inspection.
           </p>
           <div className="actions">
             <button className="primary" onClick={() => setPage('book')}>
-              Book an appointment <ArrowRight size={16} />
+              Book a drop-off <ArrowRight size={16} />
             </button>
             <button className="text-button" onClick={() => setPage('track')}>
               Track my shoes
@@ -352,7 +351,7 @@ function Home({
           <div className="social-proof">
             <span className="avatars">A M J</span>
             <span>
-              <b>4.9/5</b> from 2,800+ sneakerheads
+              <b>4.9/5</b> from 2,800+ Metro Manila pairs cleaned
             </span>
           </div>
         </div>
@@ -360,23 +359,22 @@ function Home({
           <div className="quality-card">
             <Check size={16} />
             <span>
-              <b>Quality checked</b>
-              <small>Every pair. Every time.</small>
+              <b>Pay at the branch</b>
+              <small>After we inspect your pair</small>
             </span>
           </div>
         </div>
       </section>
       <div className="ticker">
-        DEEP CLEAN <i /> RESTORATION <i /> SOLE REPAIR <i /> PROTECTION <i /> COLOR REVIVAL <i /> BUILT FOR EVERY PAIR
+        DEEP CLEAN <i /> RESTORATION <i /> SOLE REGLUE <i /> WATER REPELLENT <i /> DE-YELLOWING <i /> 7 ACTIVE BRANCHES
       </div>
       <section className="section">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">BUILT FOR SNEAKERS</span>
-            <h2>Sneaker care, done right.</h2>
+            <h2>Services &amp; Rates</h2>
           </div>
           <button className="text-button" onClick={() => setPage('services')}>
-            View all services <ArrowRight size={16} />
+            See all services <ArrowRight size={16} />
           </button>
         </div>
         <div className="services-grid">
@@ -390,32 +388,31 @@ function Home({
           <span>RESTORED</span>
         </div>
         <div className="standard-copy">
-          <span className="eyebrow">THE WMK STANDARD</span>
           <h2>
-            Results you can see.
+            No guesswork.
             <br />
-            Care you can trust.
+            You see the work.
           </h2>
           <p>
-            Every pair goes through a documented multi-step process—from assessment and before photos to final quality control.
+            We check your pair at the counter, take before-and-after photos of all four angles, and message you the moment it is ready for pickup.
           </p>
           <ul>
-            <li>Photo-documented service</li>
-            <li>Specialist assigned to every pair</li>
-            <li>Live status notifications</li>
-            <li>Final 5-point quality check</li>
+            <li>4-angle before &amp; after photos (left, right, toe box, sole)</li>
+            <li>Dedicated shoe tech per pair</li>
+            <li>Real-time status tracking by Job Order ID</li>
+            <li>Pay at the branch after final check</li>
           </ul>
           <button className="primary" onClick={() => setPage('reviews')}>
-            See customer results <ArrowRight size={16} />
+            Read customer reviews <ArrowRight size={16} />
           </button>
         </div>
       </section>
       <section className="stats">
         {[
-          ['12K+', 'PAIRS REVIVED'],
-          ['4.9', 'AVERAGE RATING'],
-          ['7+', 'METRO BRANCHES'],
-          ['96%', 'RETURN CUSTOMERS'],
+          ['12K+', 'PAIRS CLEANED'],
+          ['4.9', 'SHOP RATING'],
+          ['7', 'ACTIVE BRANCHES'],
+          ['96%', 'REPEAT CUSTOMERS'],
         ].map(([number, label]) => (
           <div key={label}>
             <b>{number}</b>
@@ -426,32 +423,30 @@ function Home({
       <section className="section branch-section">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">NEAR YOU</span>
-            <h2>Find your closest branch.</h2>
-            <p>Seven active locations across Metro Manila, Rizal, and Cavite — one consistent standard of care.</p>
+            <h2>7 Branches Near You</h2>
+            <p>Drop off at Pasig Kapitolyo (Flagship), San Juan, Quezon City, Pateros, Montalban, Morong, or Bacoor.</p>
           </div>
           <button className="text-button" onClick={() => setPage('branches')}>
-            Explore all branches <ArrowRight size={16} />
+            View all branches <ArrowRight size={16} />
           </button>
         </div>
         <BranchLocatorMap onBookBranch={onBookBranch} />
       </section>
       <section className="cta">
-        <span className="eyebrow">YOUR KICKS DESERVE BETTER</span>
-        <h2>Ready for a fresh start?</h2>
-        <p>Sign in to your portal and book in under two minutes.</p>
-        <button className="primary light" onClick={() => setPage('login')}>
-          Log in / Book appointment <ArrowRight size={16} />
+        <h2>Got a pair sitting in the box?</h2>
+        <p>Book a drop-off slot in under a minute. Pay at the branch after we inspect your shoes.</p>
+        <button className="primary light" onClick={() => setPage('book')}>
+          Book a drop-off <ArrowRight size={16} />
         </button>
       </section>
     </>
   )
 }
 
-function Listing({ title, eyebrow, children }: { title: string; eyebrow: string; children: React.ReactNode }) {
+function Listing({ title, eyebrow, children }: { title: string; eyebrow?: string; children: React.ReactNode }) {
   return (
     <section className="listing">
-      <span className="eyebrow">{eyebrow}</span>
+      {eyebrow && <span className="eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       {children}
     </section>
@@ -467,11 +462,11 @@ function Services({
 }) {
   const activeServices = servicesCatalog.filter((s) => !s.archived)
   return (
-    <Listing eyebrow="OUR SERVICES" title="Care for every kind of kick.">
-      <p className="lead">Transparent pricing, expert hands, and progress updates from drop-off to pickup.</p>
+    <Listing title="Services & Rates">
+      <p className="lead">Straightforward pricing and turnaround times. Pay at the shop after our tech checks your pair.</p>
       <div className="services-grid full">
         {activeServices.map((s) => (
-          <ServiceCard service={s} key={s.id} onClick={() => setPage('login')} />
+          <ServiceCard service={s} key={s.id} onClick={() => setPage('book')} />
         ))}
       </div>
     </Listing>
@@ -484,36 +479,36 @@ function Track({ orders, setPage }: { orders: JobOrder[]; setPage: (p: string) =
     (query.trim() && orders.find((o) => o.id.toLowerCase() === query.trim().toLowerCase())) ||
     (!query.trim() ? orders[0] : undefined)
   return (
-    <Listing eyebrow="ORDER TRACKING" title="Know where your kicks are.">
-      <p className="lead">Enter your job order number to see the latest update from your assigned specialist.</p>
+    <Listing title="Track Your Shoes">
+      <p className="lead">Enter your job order number to check the current stage of your pair.</p>
       <div className="tracking-box">
         <label>
           Job order number
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. WMK-2026-0001" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. WMK-2026-2553" />
         </label>
         {matched ? (
           <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 18 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <b>{matched.id} — {matched.shoe}</b>
+              <b>{matched.id} · {matched.shoe}</b>
               <StatusBadge status={matched.status} />
             </div>
             <p style={{ margin: '6px 0 12px', fontSize: 12 }}>
-              {matched.service} · {matched.branch} · Specialist: {matched.specialist}
+              {matched.service} · {matched.branch} · Tech: {matched.specialist}
             </p>
             <ServiceStatusTimeline currentStatus={matched.status} />
           </div>
         ) : (
           <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: 16, marginBottom: 18, color: '#6b7280', fontSize: 13 }}>
             {orders.length === 0
-              ? 'No live job orders in Supabase yet. Book an appointment to generate your first live Job Order.'
+              ? 'No orders yet. Book a drop-off to get your job order number.'
               : 'No matching job order found for that reference number.'}
           </div>
         )}
         <button className="primary" onClick={() => setPage('login-customer')}>
-          Sign in to Customer Portal for full tracking <ArrowRight size={16} />
+          Log in to view full order history <ArrowRight size={16} />
         </button>
         <p>
-          Don't have an order yet? <button onClick={() => setPage('login')}>Book an appointment</button>
+          Need a clean? <button onClick={() => setPage('book')}>Book a drop-off</button>
         </p>
       </div>
     </Listing>
@@ -526,9 +521,9 @@ function Branches({
   onBookBranch: (branchName: string, branchId: number) => void
 }) {
   return (
-    <Listing eyebrow="OUR LOCATIONS" title="Care that’s close to home.">
+    <Listing title="Our Branches">
       <p className="lead">
-        Locate the nearest WashMyKicks branch in real time, switch between Satellite, Hybrid, and Standard views, and book directly.
+        Find the closest Wash My Kicks shop, check opening hours, and book your drop-off directly.
       </p>
       <div style={{ marginBottom: 40 }}>
         <BranchLocatorMap onBookBranch={onBookBranch} />
@@ -544,7 +539,7 @@ function Branches({
               disabled={branch.comingSoon}
               onClick={() => !branch.comingSoon && onBookBranch(branch.name, branch.id)}
             >
-              {branch.comingSoon ? 'Coming Soon' : 'Book Appointment'} <ArrowRight size={15} />
+              {branch.comingSoon ? 'Coming Soon' : 'Book Here'} <ArrowRight size={15} />
             </button>
           </article>
         ))}
@@ -555,7 +550,7 @@ function Branches({
 
 function Reviews({ reviews }: { reviews: ReviewItem[] }) {
   return (
-    <Listing eyebrow="CUSTOMER STORIES" title="The results speak loud.">
+    <Listing title="Customer Reviews">
       <div className="review-grid">
         {reviews.map((r) => (
           <article key={r.id}>
@@ -577,15 +572,14 @@ function Reviews({ reviews }: { reviews: ReviewItem[] }) {
 
 function About() {
   return (
-    <Listing eyebrow="ABOUT WASHMYKICKS" title="Built by sneakerheads, for sneakerheads.">
+    <Listing title="About Wash My Kicks">
       <p className="lead">
-        We started with a simple belief: every pair deserves skilled, careful work. Today, our specialists combine proven
-        methods with a customer experience that keeps every step clear.
+        Started in Metro Manila by people who wear and collect sneakers every day. Whether it is a daily beater, suede runners, or deadstock Jordans, we clean and repair every pair by hand and document the job before you pick it up.
       </p>
       <div className="about-strip">
         <div>
           <b>12K+</b>
-          <span>pairs revived</span>
+          <span>pairs cleaned</span>
         </div>
         <div>
           <b>7</b>
@@ -593,7 +587,7 @@ function About() {
         </div>
         <div>
           <b>4.9/5</b>
-          <span>customer rating</span>
+          <span>shop rating</span>
         </div>
       </div>
     </Listing>
@@ -710,30 +704,28 @@ function RoleLogin({
       <div className="auth-story">
         <Brand onClick={() => setPage('home')} />
         <div>
-          <span className="eyebrow">{roleLabel.toUpperCase()} PORTAL ACCESS</span>
           <h1>
-            Every pair has a story.
+            Clean pairs.
             <br />
-            We keep it moving.
+            Zero guesswork.
           </h1>
           <p>
-            Connected sneaker care workflows across all WashMyKicks branches—from booking and assessment to final pickup.
+            Drop off your sneakers at any of our 7 branches, get 4-angle before-and-after photos, and pay at the counter after we check your pair.
           </p>
         </div>
         <div className="auth-rbac-preview">
-          <h4>Role-Based Access Control ({roleLabel})</h4>
-          <div className="auth-rbac-list">
-            {perms.allowed.map((item) => (
-              <span key={item} className="auth-rbac-chip">
-                <Check size={12} color="#22c55e" /> {item}
-              </span>
-            ))}
-          </div>
-          {perms.restricted.length > 0 && (
-            <div style={{ marginTop: 10, fontSize: 11, color: '#9ca3af' }}>
-              Restricted modules: {perms.restricted.join(' · ')}
+          <h4>Shop Hours &amp; Locations</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5, color: '#d1d5db' }}>
+            <div>
+              <b style={{ color: '#fff' }}>Flagship Store:</b> West Capitol Dr., Brgy. Kapitolyo, Pasig City
             </div>
-          )}
+            <div>
+              <b style={{ color: '#fff' }}>Store Hours:</b> Open Daily, 10:00 AM – 8:00 PM
+            </div>
+            <div>
+              <b style={{ color: '#fff' }}>Branches:</b> Pasig · San Juan · Quezon City · Pateros · Montalban · Morong · Bacoor
+            </div>
+          </div>
         </div>
       </div>
 
@@ -743,20 +735,19 @@ function RoleLogin({
             <ArrowLeft size={14} /> Back to Home
           </button>
 
-          <span className="eyebrow">{roleLabel.toUpperCase()} PORTAL</span>
-          <h1>{isCreatingAccount ? `Register ${roleLabel} Account` : `${roleLabel} Login`}</h1>
+          <h1>{isCreatingAccount ? `Create ${roleLabel} Account` : `${roleLabel} Sign In`}</h1>
           <p>
             {isCustomer
               ? isCreatingAccount
-                ? 'Register your WashMyKicks customer profile in Supabase Auth.'
-                : 'Sign in with your registered customer credentials.'
+                ? 'Create an account to book drop-offs and track your pairs.'
+                : 'Sign in to book a drop-off or check on your shoes.'
               : isStaff
               ? isCreatingAccount
-                ? 'Provision a branch staff account in Supabase Auth.'
-                : 'Sign in with your provisioned branch staff account.'
+                ? 'Create a branch staff account for your assigned shop.'
+                : 'Sign in with your branch staff account.'
               : isCreatingAccount
-              ? 'Provision an administrator account in Supabase Auth.'
-              : 'Sign in with your administrator credentials.'}
+              ? 'Create an administrator account for Wash My Kicks.'
+              : 'Sign in to manage branches, orders, and inventory.'}
           </p>
 
           {forgotMessage && (
@@ -882,7 +873,7 @@ function RoleLogin({
 }
 
 /* ============================================================================
-   CUSTOMER 5-STEP BOOK APPOINTMENT WIZARD (MATCHING UPLOADED SCREENSHOTS)
+   SINGLE-PAGE CUSTOMER BOOKING FORM (CLEAN, FAST, ZERO-SLOP)
    ============================================================================ */
 
 function CustomerBookAppointmentWizard({
@@ -890,6 +881,7 @@ function CustomerBookAppointmentWizard({
   preselectedFromMap = false,
   existingOrders = initialOrders,
   servicesCatalog = services,
+  defaultEmail = '',
   onCompleteBooking,
   onCancel,
 }: {
@@ -897,6 +889,7 @@ function CustomerBookAppointmentWizard({
   preselectedFromMap?: boolean
   existingOrders?: JobOrder[]
   servicesCatalog?: Service[]
+  defaultEmail?: string
   onCompleteBooking: (newOrder: JobOrder) => void
   onCancel: () => void
 }) {
@@ -906,18 +899,17 @@ function CustomerBookAppointmentWizard({
   const todayDate = today.getDate()
 
   const activeServices = servicesCatalog.filter((s) => !s.archived)
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [selectedBranchId, setSelectedBranchId] = useState<number>(initialBranchId)
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('02') // Deep Cleaning default like screenshot
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('02')
   const [calendarYear, setCalendarYear] = useState<number>(todayYear)
   const [calendarMonth, setCalendarMonth] = useState<number>(todayMonth)
   const [selectedDay, setSelectedDay] = useState<number>(todayDate)
   const [selectedTime, setSelectedTime] = useState<string>('10:30 AM')
-  const [shoeBrand, setShoeBrand] = useState<string>('Nike')
-  const [shoeModel, setShoeModel] = useState<string>('Air Jordan 1 Retro High')
+  const [shoeBrand, setShoeBrand] = useState<string>('')
+  const [shoeModel, setShoeModel] = useState<string>('')
 
   // Booking Email Verification (OTP) state
-  const [customerEmail, setCustomerEmail] = useState<string>('juan.delacruz@email.com')
+  const [customerEmail, setCustomerEmail] = useState<string>(defaultEmail)
   const [otpSent, setOtpSent] = useState<boolean>(false)
   const [otpSending, setOtpSending] = useState<boolean>(false)
   const [otpMode, setOtpMode] = useState<'server-hmac' | 'supabase-auth'>('server-hmac')
@@ -927,6 +919,12 @@ function CustomerBookAppointmentWizard({
   const [otpVerified, setOtpVerified] = useState<boolean>(false)
   const [otpNotice, setOtpNotice] = useState<string>('')
   const [remoteSlotCounts, setRemoteSlotCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (defaultEmail && !customerEmail) {
+      setCustomerEmail(defaultEmail)
+    }
+  }, [defaultEmail])
 
   const monthNames = [
     'January',
@@ -984,9 +982,8 @@ function CustomerBookAppointmentWizard({
   const selectedService =
     activeServices.find((s) => s.id === selectedServiceId) || activeServices[0] || services[1]
 
-  // Fetch live slot availability from /api/available-slots when entering Step 4
+  // Fetch live slot availability whenever branch or date changes
   useEffect(() => {
-    if (step !== 4) return
     const q = new URLSearchParams({
       branch: selectedBranch.name,
       date: formattedDate,
@@ -1003,15 +1000,7 @@ function CustomerBookAppointmentWizard({
         }
       })
       .catch(() => {})
-  }, [step, selectedBranch.name, formattedDate])
-
-  const steps = [
-    { num: 1, label: 'Branch' },
-    { num: 2, label: 'Service' },
-    { num: 3, label: 'Date' },
-    { num: 4, label: 'Schedule' },
-    { num: 5, label: 'Confirm' },
-  ] as const
+  }, [selectedBranch.name, formattedDate])
 
   const timeSlots = [
     '10:00 AM',
@@ -1052,13 +1041,13 @@ function CustomerBookAppointmentWizard({
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
         .join(' ')
     }
-    return local || 'Valued Customer'
+    return local || 'Customer'
   }
 
   const handleSendBookingOtp = async () => {
     const emailTarget = customerEmail.trim()
     if (!emailTarget || !emailTarget.includes('@')) {
-      setOtpNotice('Please enter a valid email address first.')
+      setOtpNotice('Enter a valid email address first.')
       return
     }
 
@@ -1066,7 +1055,7 @@ function CustomerBookAppointmentWizard({
     setOtpSending(true)
     setEnteredOtp('')
     setOtpVerified(false)
-    setOtpNotice(`Sending verification code to ${emailTarget}...`)
+    setOtpNotice(`Sending 6-digit code to ${emailTarget}...`)
 
     try {
       const res = await fetch('/api/booking-otp', {
@@ -1088,15 +1077,12 @@ function CustomerBookAppointmentWizard({
         setOtpToken(String(data.token || ''))
         setOtpExpiresAt(Number(data.expiresAt || 0))
         setOtpSent(true)
-        setOtpNotice(`A 6-digit verification code has been sent to ${emailTarget}. Please check your Inbox (and Spam folder).`)
+        setOtpNotice(`Code sent to ${emailTarget}. Check your Inbox or Spam folder.`)
         setOtpSending(false)
         return
       }
-    } catch {
-      // Fallback to Supabase Auth OTP below
-    }
+    } catch {}
 
-    // Fallback: Use Supabase Auth built-in Email OTP delivery
     if (supabase) {
       const { error } = await supabase.auth.signInWithOtp({
         email: emailTarget,
@@ -1105,24 +1091,24 @@ function CustomerBookAppointmentWizard({
       if (!error) {
         setOtpMode('supabase-auth')
         setOtpSent(true)
-        setOtpNotice(`A verification email has been sent to ${emailTarget} via Supabase Auth. Check your Inbox or Spam folder and enter the code below.`)
+        setOtpNotice(`Verification code sent to ${emailTarget}. Check your Inbox or Spam folder.`)
         setOtpSending(false)
         return
       }
       setOtpSending(false)
-      setOtpNotice(`Could not send email (${error.message}). Configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables for instant Gmail SMTP delivery.`)
+      setOtpNotice(`Could not send email (${error.message}).`)
       return
     }
 
     setOtpSending(false)
-    setOtpNotice('Email service unavailable. Please configure GMAIL_USER and GMAIL_APP_PASSWORD in Vercel Environment Variables.')
+    setOtpNotice('Email verification service unavailable. Try again in a moment.')
   }
 
   const handleVerifyOtp = async () => {
     const candidate = enteredOtp.trim()
     const emailTarget = customerEmail.trim()
     if (!candidate || candidate.length < 6) {
-      setOtpNotice('Please enter the 6-digit verification code sent to your email.')
+      setOtpNotice('Enter the 6-digit code from your email.')
       return false
     }
 
@@ -1142,13 +1128,13 @@ function CustomerBookAppointmentWizard({
         const data = await res.json()
         if (res.ok && data?.verified) {
           setOtpVerified(true)
-          setOtpNotice('✓ Email verification code confirmed!')
+          setOtpNotice('Email verified.')
           return true
         }
-        setOtpNotice(data?.error || 'Invalid verification code. Please check your email and try again.')
+        setOtpNotice(data?.error || 'Wrong code. Check your email and try again.')
         return false
       } catch {
-        setOtpNotice('Could not verify code with server. Please try again.')
+        setOtpNotice('Could not verify code. Try again.')
         return false
       }
     }
@@ -1161,7 +1147,7 @@ function CustomerBookAppointmentWizard({
       })
       if (!firstTry.error) {
         setOtpVerified(true)
-        setOtpNotice('✓ Email verification code confirmed!')
+        setOtpNotice('Email verified.')
         return true
       }
       const secondTry = await supabase.auth.verifyOtp({
@@ -1171,18 +1157,25 @@ function CustomerBookAppointmentWizard({
       })
       if (!secondTry.error) {
         setOtpVerified(true)
-        setOtpNotice('✓ Email verification code confirmed!')
+        setOtpNotice('Email verified.')
         return true
       }
-      setOtpNotice(firstTry.error?.message || 'Invalid verification code. Please check your email and try again.')
+      setOtpNotice(firstTry.error?.message || 'Wrong code. Check your email and try again.')
       return false
     }
 
-    setOtpNotice('Please click "Send Verification Code" first.')
+    setOtpNotice('Click "Send Code" first.')
     return false
   }
 
   const handleConfirm = async () => {
+    const cleanBrand = shoeBrand.trim()
+    const cleanModel = shoeModel.trim()
+    if (!cleanBrand && !cleanModel) {
+      setOtpNotice('Enter your shoe brand and model before booking.')
+      return
+    }
+
     if (!otpVerified) {
       if (!otpSent) {
         await handleSendBookingOtp()
@@ -1192,12 +1185,11 @@ function CustomerBookAppointmentWizard({
       if (!ok) return
     }
 
-    const derivedName = getCustomerNameFromEmail(customerEmail)
+    const emailFinal = customerEmail.trim()
+    const derivedName = getCustomerNameFromEmail(emailFinal)
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
     const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
 
-    const cleanBrand = shoeBrand.trim()
-    const cleanModel = shoeModel.trim()
     const combinedShoe =
       cleanBrand && cleanModel && !cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase())
         ? `${cleanBrand} ${cleanModel}`
@@ -1209,7 +1201,7 @@ function CustomerBookAppointmentWizard({
       scheduledAt: scheduledIso,
       priceAtBooking: numericPrice,
       customerRequest: `${combinedShoe} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
-      customerEmail: customerEmail || 'juan.delacruz@email.com',
+      customerEmail: emailFinal,
       customerName: derivedName,
       serviceName: selectedService.title,
       branchName: selectedBranch.name,
@@ -1218,7 +1210,7 @@ function CustomerBookAppointmentWizard({
     const newOrder: JobOrder = {
       id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
       customer: derivedName,
-      email: customerEmail || 'juan.delacruz@email.com',
+      email: emailFinal,
       shoe: combinedShoe,
       shoeBrand: cleanBrand,
       shoeModel: cleanModel,
@@ -1236,129 +1228,79 @@ function CustomerBookAppointmentWizard({
     onCompleteBooking(newOrder)
   }
 
+  const previewShoeLabel =
+    [shoeBrand.trim(), shoeModel.trim()].filter(Boolean).join(' ') || 'Enter shoe brand & model above'
+
   return (
-    <div>
-      <div className="breadcrumb">
-        <button type="button" onClick={onCancel}>
-          Dashboard
+    <div style={{ maxWidth: 880, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+        <div>
+          <h1 style={{ margin: '0 0 6px' }}>Book a Drop-Off</h1>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: 14 }}>
+            Pick a branch, service, and time slot below. You only pay at the shop after our tech inspects your pair.
+          </p>
+        </div>
+        <button type="button" className="outline" onClick={onCancel} style={{ padding: '8px 14px', fontSize: 12.5 }}>
+          Cancel
         </button>
-        <span>&gt;</span>
-        <span>Book an appointment</span>
       </div>
-      <span className="eyebrow">SHOE BOOKING MANAGEMENT MODULE</span>
-      <h1>Book an appointment</h1>
-      <p>Schedule your pair in five simple steps.</p>
 
       {preselectedFromMap && (
         <div
           style={{
-            maxWidth: 780,
-            margin: '0 auto 18px',
-            padding: '12px 18px',
-            borderRadius: 12,
+            marginBottom: 18,
+            padding: '12px 16px',
+            borderRadius: 10,
             background: '#ecfdf5',
             border: '1px solid #a7f3d0',
             color: '#065f46',
-            fontSize: 12.5,
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            flexWrap: 'wrap',
+            fontSize: 13,
+            fontWeight: 600,
           }}
         >
-          <span>
-            ✓ Branch pre-selected from Branch Locator: <b>{selectedBranch.name}</b>
-          </span>
-          {step === 1 && (
-            <button
-              type="button"
-              className="primary"
-              style={{ padding: '7px 13px', fontSize: 11.5 }}
-              onClick={() => setStep(2)}
-            >
-              Continue with {selectedBranch.name.replace('Wash My Kicks – ', '')} <ChevronRight size={14} />
-            </button>
-          )}
+          ✓ Selected from map: <b>{selectedBranch.name}</b>
         </div>
       )}
 
-      {/* 5-step horizontal stepper matching screenshots */}
-      <div className="stepper-bar">
-        {steps.map((s, idx) => {
-          const isDone = step > s.num
-          const isActive = step === s.num
-          return (
-            <React.Fragment key={s.num}>
-              <button
-                type="button"
-                onClick={() => {
-                  if (s.num <= step) setStep(s.num)
-                }}
-                className={`stepper-item ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}
-              >
-                <span className="stepper-circle">{isDone ? <Check size={13} /> : s.num}</span>
-                <span>{s.label}</span>
-              </button>
-              {idx < steps.length - 1 && <div className={`stepper-line ${step > s.num ? 'done' : ''}`} />}
-            </React.Fragment>
-          )
-        })}
-      </div>
-
-      {/* STEP 1: CHOOSE A BRANCH */}
-      {step === 1 && (
-        <div className="wizard-card">
-          <div className="wizard-header">
-            <span className="step-tag">STEP 1 OF 5</span>
-            <h2>Choose a branch</h2>
-            <p>Where would you like to drop off your pair?</p>
-          </div>
-
+      <div className="wizard-card" style={{ maxWidth: '100%', padding: '28px 28px 32px' }}>
+        {/* 1. BRANCH */}
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ fontSize: 16, margin: '0 0 4px' }}>1. Choose Branch</h3>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 14px' }}>
+            All active branches are open daily, 10:00 AM – 8:00 PM.
+          </p>
           <div className="wizard-grid-2">
-            {wizardBranches.map((b) => {
-              const isSelected = selectedBranchId === b.id
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  disabled={b.comingSoon}
-                  className={`choice-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedBranchId(b.id)}
-                >
-                  <span className="choice-num">{b.id}</span>
-                  <span className="choice-body">
-                    <b>{b.name}</b>
-                    <small>{b.address}</small>
-                    {b.comingSoon && <span className="price-tag">COMING SOON</span>}
-                  </span>
-                  {isSelected && <Check size={16} className="choice-check" />}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="wizard-footer">
-            <button type="button" className="wizard-back" onClick={onCancel}>
-              ← Cancel
-            </button>
-            <button type="button" className="primary" onClick={() => setStep(2)}>
-              Continue <ChevronRight size={15} />
-            </button>
+            {wizardBranches
+              .filter((b) => !b.comingSoon)
+              .map((b) => {
+                const isSelected = selectedBranchId === b.id
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    className={`choice-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => setSelectedBranchId(b.id)}
+                  >
+                    <span className="choice-num">{b.id}</span>
+                    <span className="choice-body">
+                      <b>{b.name.replace('Wash My Kicks – ', '')}</b>
+                      <small>{b.address}</small>
+                    </span>
+                    {isSelected && <Check size={16} className="choice-check" />}
+                  </button>
+                )
+              })}
           </div>
         </div>
-      )}
 
-      {/* STEP 2: SELECT YOUR SERVICE */}
-      {step === 2 && (
-        <div className="wizard-card">
-          <div className="wizard-header">
-            <span className="step-tag">STEP 2 OF 5</span>
-            <h2>Select your service</h2>
-            <p>What does your pair need?</p>
-          </div>
+        <hr style={{ border: 'none', borderTop: '1px solid #eceae6', margin: '0 0 28px' }} />
 
+        {/* 2. SERVICE */}
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ fontSize: 16, margin: '0 0 4px' }}>2. Choose Service</h3>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 14px' }}>
+            Final price is confirmed at the counter after we check the material and condition.
+          </p>
           <div className="wizard-grid-2">
             {activeServices.map((s) => {
               const isSelected = selectedServiceId === s.id
@@ -1369,9 +1311,6 @@ function CustomerBookAppointmentWizard({
                   className={`choice-card ${isSelected ? 'selected' : ''}`}
                   onClick={() => setSelectedServiceId(s.id)}
                 >
-                  <span style={{ color: '#dc2626', flexShrink: 0 }}>
-                    <ShieldCheck size={20} />
-                  </span>
                   <span className="choice-body">
                     <b>{s.title}</b>
                     <small>{s.copy}</small>
@@ -1384,148 +1323,18 @@ function CustomerBookAppointmentWizard({
               )
             })}
           </div>
-
-          <div className="wizard-footer">
-            <button type="button" className="wizard-back" onClick={() => setStep(1)}>
-              ← Back
-            </button>
-            <button type="button" className="primary" onClick={() => setStep(3)}>
-              Continue <ChevronRight size={15} />
-            </button>
-          </div>
         </div>
-      )}
 
-      {/* STEP 3: CHOOSE A DATE */}
-      {step === 3 && (
-        <div className="wizard-card">
-          <div className="wizard-header">
-            <span className="step-tag">STEP 3 OF 5</span>
-            <h2>Choose a date</h2>
-            <p>Select your preferred drop-off date.</p>
-          </div>
+        <hr style={{ border: 'none', borderTop: '1px solid #eceae6', margin: '0 0 28px' }} />
 
-          <div className="calendar-box">
-            <div className="calendar-nav">
-              <button
-                type="button"
-                aria-label="Previous month"
-                disabled={!canGoPrevMonth}
-                style={!canGoPrevMonth ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
-                onClick={handlePrevMonth}
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <b>
-                {currentMonthName} {calendarYear}
-              </b>
-              <button type="button" aria-label="Next month" onClick={handleNextMonth}>
-                <ChevronRight size={14} />
-              </button>
-            </div>
-            <div className="calendar-grid">
-              {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d) => (
-                <div key={d} className="calendar-dow">
-                  {d}
-                </div>
-              ))}
-              {prevMonthTrailingDays.map((d) => (
-                <button key={`prev-${d}`} type="button" disabled className="calendar-day muted">
-                  {d}
-                </button>
-              ))}
-              {Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => {
-                const isPastDay =
-                  calendarYear < todayYear ||
-                  (calendarYear === todayYear && calendarMonth < todayMonth) ||
-                  (isCurrentMonth && day < todayDate)
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    disabled={isPastDay}
-                    className={`calendar-day ${isPastDay ? 'muted' : ''} ${
-                      !isPastDay && activeSelectedDay === day ? 'selected' : ''
-                    }`}
-                    style={isPastDay ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
-                    onClick={() => {
-                      if (!isPastDay) setSelectedDay(day)
-                    }}
-                  >
-                    {day}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="wizard-footer">
-            <button type="button" className="wizard-back" onClick={() => setStep(2)}>
-              ← Back
-            </button>
-            <button type="button" className="primary" onClick={() => setStep(4)}>
-              Continue <ChevronRight size={15} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* STEP 4: SCHEDULE & SHOE PAIR DETAILS */}
-      {step === 4 && (
-        <div className="wizard-card">
-          <div className="wizard-header">
-            <span className="step-tag">STEP 4 OF 5</span>
-            <h2>Select a schedule</h2>
-            <p>
-              Pick your preferred time slot on {currentMonthName} {activeSelectedDay}, {calendarYear}.
-            </p>
-          </div>
+        {/* 3. YOUR PAIR & SCHEDULE */}
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ fontSize: 16, margin: '0 0 4px' }}>3. Shoe Pair &amp; Drop-Off Time</h3>
+          <p style={{ fontSize: 13, color: '#6b7280', margin: '0 0 14px' }}>
+            Tell us what pair you are bringing and pick an available drop-off date and time.
+          </p>
 
           <div className="wizard-grid-2" style={{ marginBottom: 20 }}>
-            {timeSlots.map((slot) => {
-              const { remaining, isFull } = getSlotAvailability(slot)
-              const isSelected = selectedTime === slot && !isFull
-              return (
-                <button
-                  key={slot}
-                  type="button"
-                  disabled={isFull}
-                  className={`choice-card ${isSelected ? 'selected' : ''}`}
-                  style={isFull ? { opacity: 0.55, cursor: 'not-allowed', background: '#f9fafb' } : undefined}
-                  onClick={() => {
-                    if (!isFull) setSelectedTime(slot)
-                  }}
-                >
-                  <Clock3 size={18} color={isFull ? '#9ca3af' : '#dc2626'} />
-                  <span className="choice-body">
-                    <b>{slot}</b>
-                    <small>
-                      {isFull
-                        ? 'Slot full — no remaining capacity'
-                        : `${remaining} of ${MAX_SLOT_CAPACITY} drop-off slots available`}
-                    </small>
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        marginTop: 4,
-                        padding: '2px 8px',
-                        borderRadius: 999,
-                        fontSize: 10.5,
-                        fontWeight: 700,
-                        background: isFull ? '#fee2e2' : remaining === 1 ? '#fef3c7' : '#dcfce7',
-                        color: isFull ? '#991b1b' : remaining === 1 ? '#b45309' : '#166534',
-                      }}
-                    >
-                      {isFull ? 'FULL · BOOKED' : remaining === 1 ? '1 SLOT LEFT' : 'AVAILABLE'}
-                    </span>
-                  </span>
-                  {isSelected && <Check size={16} className="choice-check" />}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="wizard-grid-2" style={{ maxWidth: 640, margin: '0 auto' }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
                 Shoe Brand
@@ -1537,7 +1346,7 @@ function CustomerBookAppointmentWizard({
                 placeholder="e.g. Nike, Jordan, Adidas, New Balance"
                 style={{
                   width: '100%',
-                  padding: '12px 14px',
+                  padding: '11px 13px',
                   border: '1px solid #d1d5db',
                   borderRadius: 10,
                   fontSize: 13,
@@ -1552,10 +1361,10 @@ function CustomerBookAppointmentWizard({
                 type="text"
                 value={shoeModel}
                 onChange={(e) => setShoeModel(e.target.value)}
-                placeholder="e.g. Air Jordan 1 Retro High, Dunk Low, Samba"
+                placeholder="e.g. Air Jordan 1, Dunk Low, Samba OG"
                 style={{
                   width: '100%',
-                  padding: '12px 14px',
+                  padding: '11px 13px',
                   border: '1px solid #d1d5db',
                   borderRadius: 10,
                   fontSize: 13,
@@ -1564,97 +1373,160 @@ function CustomerBookAppointmentWizard({
             </div>
           </div>
 
-          <div className="wizard-footer">
-            <button type="button" className="wizard-back" onClick={() => setStep(3)}>
-              ← Back
-            </button>
-            <button type="button" className="primary" onClick={() => setStep(5)}>
-              Continue <ChevronRight size={15} />
-            </button>
+          <div className="wizard-grid-2" style={{ alignItems: 'start', gap: 20 }}>
+            {/* Calendar */}
+            <div className="calendar-box" style={{ margin: 0, maxWidth: '100%' }}>
+              <div className="calendar-nav">
+                <button
+                  type="button"
+                  aria-label="Previous month"
+                  disabled={!canGoPrevMonth}
+                  style={!canGoPrevMonth ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+                  onClick={handlePrevMonth}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <b>
+                  {currentMonthName} {calendarYear}
+                </b>
+                <button type="button" aria-label="Next month" onClick={handleNextMonth}>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+              <div className="calendar-grid">
+                {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((d) => (
+                  <div key={d} className="calendar-dow">
+                    {d}
+                  </div>
+                ))}
+                {prevMonthTrailingDays.map((d) => (
+                  <button key={`prev-${d}`} type="button" disabled className="calendar-day muted">
+                    {d}
+                  </button>
+                ))}
+                {Array.from({ length: daysInMonth }, (_, idx) => idx + 1).map((day) => {
+                  const isPastDay =
+                    calendarYear < todayYear ||
+                    (calendarYear === todayYear && calendarMonth < todayMonth) ||
+                    (isCurrentMonth && day < todayDate)
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      disabled={isPastDay}
+                      className={`calendar-day ${isPastDay ? 'muted' : ''} ${
+                        !isPastDay && activeSelectedDay === day ? 'selected' : ''
+                      }`}
+                      style={isPastDay ? { opacity: 0.35, cursor: 'not-allowed' } : undefined}
+                      onClick={() => {
+                        if (!isPastDay) setSelectedDay(day)
+                      }}
+                    >
+                      {day}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Live Time Slots */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
+                Available slots for {formattedDate}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                {timeSlots.map((slot) => {
+                  const { remaining, isFull } = getSlotAvailability(slot)
+                  const isSelected = selectedTime === slot && !isFull
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      disabled={isFull}
+                      className={`choice-card ${isSelected ? 'selected' : ''}`}
+                      style={{
+                        padding: '10px 12px',
+                        ...(isFull ? { opacity: 0.5, cursor: 'not-allowed', background: '#f9fafb' } : {}),
+                      }}
+                      onClick={() => {
+                        if (!isFull) setSelectedTime(slot)
+                      }}
+                    >
+                      <span className="choice-body">
+                        <b style={{ fontSize: 13 }}>{slot}</b>
+                        <small style={{ fontSize: 11, color: isFull ? '#b91c1c' : '#6b7280' }}>
+                          {isFull ? 'Full' : `${remaining} of ${MAX_SLOT_CAPACITY} left`}
+                        </small>
+                      </span>
+                      {isSelected && <Check size={14} className="choice-check" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* STEP 5: CONFIRM YOUR BOOKING */}
-      {step === 5 && (
-        <div className="wizard-card">
-          <div className="wizard-header">
-            <span className="step-tag">STEP 5 OF 5</span>
-            <h2>Confirm your booking</h2>
-            <p>Review the details before confirming.</p>
-          </div>
+        <hr style={{ border: 'none', borderTop: '1px solid #eceae6', margin: '0 0 28px' }} />
 
-          <div className="confirm-list">
-            <div className="confirm-item">
-              <div className="confirm-icon">
-                <MapPin size={18} />
-              </div>
-              <div className="confirm-text">
-                <span>BRANCH</span>
-                <b>{selectedBranch.name}</b>
-                <small>{selectedBranch.address}</small>
-              </div>
-              <button type="button" className="confirm-change" onClick={() => setStep(1)}>
-                Change
-              </button>
-            </div>
+        {/* 4. VERIFY EMAIL & CONFIRM */}
+        <div>
+          <h3 style={{ fontSize: 16, margin: '0 0 12px' }}>4. Verify Email &amp; Confirm</h3>
 
-            <div className="confirm-item">
-              <div className="confirm-icon">
-                <Sparkles size={18} />
-              </div>
-              <div className="confirm-text">
-                <span>SERVICE</span>
-                <b>{selectedService.title}</b>
-                <small>Estimated service time: {selectedService.duration}</small>
-              </div>
-              <button type="button" className="confirm-change" onClick={() => setStep(2)}>
-                Change
-              </button>
-            </div>
-
-            <div className="confirm-item">
-              <div className="confirm-icon">
-                <Calendar size={18} />
-              </div>
-              <div className="confirm-text">
-                <span>DROP-OFF</span>
-                <b>
-                  {currentMonthName} {activeSelectedDay}, {calendarYear} · {selectedTime}
-                </b>
-                <small>
-                  Selected appointment date · {[shoeBrand.trim(), shoeModel.trim()].filter(Boolean).join(' ') || 'Sneaker Pair'}
-                </small>
-              </div>
-              <button type="button" className="confirm-change" onClick={() => setStep(3)}>
-                Change
-              </button>
-            </div>
-
-            <div className="confirm-total-bar">
-              <div>
-                <span>ESTIMATED TOTAL</span>
-                <small>Pay at branch after assessment</small>
-              </div>
-              <b>{selectedService.price.replace('From ', '')}</b>
-            </div>
-          </div>
-
-          {/* FEATURE 1: BOOKING EMAIL VERIFICATION CODE (OTP) */}
           <div
             style={{
-              maxWidth: 540,
-              margin: '18px auto 0',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+              gap: 12,
+              padding: 16,
+              borderRadius: 12,
+              background: '#f9fafb',
+              border: '1px solid #e5e7eb',
+              marginBottom: 16,
+              fontSize: 12.5,
+            }}
+          >
+            <div>
+              <span style={{ display: 'block', fontSize: 11, color: '#6b7280', fontWeight: 700 }}>BRANCH</span>
+              <b>{selectedBranch.name.replace('Wash My Kicks – ', '')}</b>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: 11, color: '#6b7280', fontWeight: 700 }}>SERVICE</span>
+              <b>{selectedService.title}</b>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: 11, color: '#6b7280', fontWeight: 700 }}>DROP-OFF</span>
+              <b>
+                {formattedDate} · {selectedTime}
+              </b>
+            </div>
+            <div>
+              <span style={{ display: 'block', fontSize: 11, color: '#6b7280', fontWeight: 700 }}>PAIR</span>
+              <b>{previewShoeLabel}</b>
+            </div>
+          </div>
+
+          <div className="confirm-total-bar" style={{ marginBottom: 16 }}>
+            <div>
+              <span>ESTIMATED TOTAL</span>
+              <small>Pay at the branch after inspection</small>
+            </div>
+            <b>{selectedService.price.replace('From ', '')}</b>
+          </div>
+
+          <div
+            style={{
               padding: '16px 18px',
               borderRadius: 12,
               border: otpVerified ? '1px solid #86efac' : '1px solid #e5e7eb',
-              background: otpVerified ? '#f0fdf4' : '#f9fafb',
+              background: otpVerified ? '#f0fdf4' : '#ffffff',
+              marginBottom: 20,
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Mail size={16} color={otpVerified ? '#16a34a' : '#dc2626'} />
-                <b style={{ fontSize: 13 }}>Booking Email Verification (OTP)</b>
+                <b style={{ fontSize: 13 }}>Email Verification Code</b>
               </div>
               <span
                 style={{
@@ -1666,7 +1538,7 @@ function CustomerBookAppointmentWizard({
                   color: otpVerified ? '#166534' : '#991b1b',
                 }}
               >
-                {otpVerified ? '✓ VERIFIED' : 'VERIFICATION REQUIRED'}
+                {otpVerified ? '✓ Verified' : 'Required'}
               </span>
             </div>
 
@@ -1675,14 +1547,14 @@ function CustomerBookAppointmentWizard({
                 type="email"
                 value={customerEmail}
                 onChange={(e) => setCustomerEmail(e.target.value)}
-                placeholder="Enter your email for booking verification"
+                placeholder="Enter your email address"
                 style={{
                   flex: 1,
                   minWidth: 200,
-                  padding: '9px 12px',
+                  padding: '10px 12px',
                   border: '1px solid #d1d5db',
                   borderRadius: 8,
-                  fontSize: 12.5,
+                  fontSize: 13,
                   background: '#fff',
                 }}
               />
@@ -1690,10 +1562,10 @@ function CustomerBookAppointmentWizard({
                 type="button"
                 className="outline"
                 disabled={otpSending}
-                style={{ padding: '9px 14px', fontSize: 12 }}
+                style={{ padding: '10px 14px', fontSize: 12.5 }}
                 onClick={handleSendBookingOtp}
               >
-                {otpSending ? 'Sending...' : otpSent ? 'Resend Code' : 'Send Verification Code'}
+                {otpSending ? 'Sending...' : otpSent ? 'Resend Code' : 'Send Code'}
               </button>
             </div>
 
@@ -1704,10 +1576,10 @@ function CustomerBookAppointmentWizard({
                   maxLength={6}
                   value={enteredOtp}
                   onChange={(e) => setEnteredOtp(e.target.value)}
-                  placeholder="Enter 6-digit code"
+                  placeholder="6-digit code"
                   style={{
                     width: 170,
-                    padding: '9px 12px',
+                    padding: '10px 12px',
                     border: '1px solid #d1d5db',
                     borderRadius: 8,
                     fontSize: 13,
@@ -1719,7 +1591,7 @@ function CustomerBookAppointmentWizard({
                 <button
                   type="button"
                   className="primary"
-                  style={{ padding: '9px 14px', fontSize: 12 }}
+                  style={{ padding: '10px 16px', fontSize: 12.5 }}
                   onClick={() => void handleVerifyOtp()}
                 >
                   Verify Code
@@ -1741,16 +1613,13 @@ function CustomerBookAppointmentWizard({
             )}
           </div>
 
-          <div className="wizard-footer">
-            <button type="button" className="wizard-back" onClick={() => setStep(4)}>
-              ← Back
-            </button>
-            <button type="button" className="primary" onClick={handleConfirm}>
-              {otpVerified ? 'Confirm appointment' : 'Verify & Confirm appointment'} <ChevronRight size={15} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button type="button" className="primary" style={{ padding: '13px 24px', fontSize: 14 }} onClick={handleConfirm}>
+              {otpVerified ? 'Confirm Drop-Off' : 'Send Code & Confirm Drop-Off'} <ChevronRight size={16} />
             </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -1943,8 +1812,7 @@ function CustomerDashboard({
               <div className="wmk-breadcrumb">
                 <b>Dashboard</b> &gt; Welcome, {profileName.split(' ')[0]}.
               </div>
-              <span className="eyebrow">CUSTOMER PORTAL</span>
-              <h1>Welcome, {profileName.split(' ')[0]}.</h1>
+              <h1 style={{ marginTop: 4 }}>Welcome, {profileName.split(' ')[0]}.</h1>
               <p>{profileBranch.replace('Wash My Kicks – ', '')} branch · {todayFormatted}</p>
 
               {/* Row 1: 4 Icon KPI Stat Cards (100% Live From Customer Orders) */}
@@ -2001,8 +1869,7 @@ function CustomerDashboard({
               {/* Row 2: Horizontal Quick Actions Banner */}
               <div className="wmk-action-banner">
                 <div>
-                  <span className="eyebrow">CUSTOMER ACTIONS</span>
-                  <h3>Continue your sneaker care workflow.</h3>
+                  <h3>Quick Actions</h3>
                 </div>
                 <div className="wmk-action-banner-btns">
                   <button type="button" className="primary" onClick={() => setTab('Book Appointment')}>
@@ -2119,13 +1986,14 @@ function CustomerDashboard({
             </>
           )}
 
-          {/* TAB 2: BOOK APPOINTMENT (5-STEP WIZARD FROM SCREENSHOTS) */}
+          {/* TAB 2: BOOK APPOINTMENT (SINGLE-PAGE BOOKING FORM) */}
           {tab === 'Book Appointment' && (
             <CustomerBookAppointmentWizard
               initialBranchId={preselectedBranchId}
               preselectedFromMap={preselectedFromMap}
               existingOrders={orders}
               servicesCatalog={servicesCatalog}
+              defaultEmail={userMeta.email}
               onCancel={() => setTab('Dashboard')}
               onCompleteBooking={(newOrder) => {
                 const enrichedOrder: JobOrder = {
@@ -2255,7 +2123,7 @@ function CustomerDashboard({
                 </>
               ) : (
                 <div className="dash-panel" style={{ padding: 28, textAlign: 'center', color: '#6b7280' }}>
-                  <p style={{ marginBottom: 14 }}>No live job orders in Supabase yet.</p>
+                  <p style={{ marginBottom: 14 }}>No job orders yet.</p>
                   <button type="button" className="primary" onClick={() => setTab('Book Appointment')}>
                     Book Your First Appointment <ArrowRight size={15} />
                   </button>
@@ -2807,8 +2675,7 @@ function StaffDashboard({
               <div className="wmk-breadcrumb">
                 <b>Dashboard</b> &gt; Welcome, {userMeta.name.split(' ')[0]}.
               </div>
-              <span className="eyebrow">BRANCH OPERATIONS</span>
-              <h1>Welcome, {userMeta.name.split(' ')[0]}.</h1>
+              <h1 style={{ marginTop: 4 }}>Welcome, {userMeta.name.split(' ')[0]}.</h1>
               <p>{(userMeta.branch || 'Wash My Kicks – Pasig City').replace('Wash My Kicks – ', '')} branch · {staffTodayStr}</p>
 
               {/* Row 1: 4 Icon KPI Stat Cards */}
@@ -2861,8 +2728,7 @@ function StaffDashboard({
               {/* Row 2: Horizontal Staff Actions Banner */}
               <div className="wmk-action-banner">
                 <div>
-                  <span className="eyebrow">STAFF ACTIONS</span>
-                  <h3>Continue your branch workflow.</h3>
+                  <h3>Quick Actions</h3>
                 </div>
                 <div className="wmk-action-banner-btns">
                   <button type="button" className="primary" onClick={() => setTab('Shoe Assessment')}>
@@ -2907,7 +2773,7 @@ function StaffDashboard({
                       {orders.length === 0 ? (
                         <tr>
                           <td colSpan={8} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
-                            No live orders in Supabase yet.
+                            No orders yet.
                           </td>
                         </tr>
                       ) : (
@@ -3474,8 +3340,7 @@ function AdminDashboard({
               <div className="wmk-breadcrumb">
                 <b>Dashboard</b> &gt; Welcome, {userMeta.name.split(' ')[0]}.
               </div>
-              <span className="eyebrow">EXECUTIVE COMMAND CENTER</span>
-              <h1>Welcome, {userMeta.name.split(' ')[0]}.</h1>
+              <h1 style={{ marginTop: 4 }}>Welcome, {userMeta.name.split(' ')[0]}.</h1>
               <p>All 7 branches · {adminTodayStr}</p>
 
               {/* Row 1: 7 Required Admin Widgets styled with the white card + icon UI */}
@@ -3565,8 +3430,7 @@ function AdminDashboard({
               {/* Row 2: Horizontal Admin Actions Banner */}
               <div className="wmk-action-banner">
                 <div>
-                  <span className="eyebrow">ADMINISTRATOR ACTIONS</span>
-                  <h3>Continue your network operations workflow.</h3>
+                  <h3>Quick Actions</h3>
                 </div>
                 <div className="wmk-action-banner-btns">
                   <button type="button" className="primary" onClick={() => setTab('Inventory')}>
@@ -3611,7 +3475,7 @@ function AdminDashboard({
                       {orders.length === 0 ? (
                         <tr>
                           <td colSpan={8} style={{ textAlign: 'center', color: '#6b7280', padding: 18 }}>
-                            No live orders in Supabase yet.
+                            No orders yet.
                           </td>
                         </tr>
                       ) : (
