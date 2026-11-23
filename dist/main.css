@@ -38,7 +38,7 @@ button {
   border-bottom: 1px solid #e5e3de;
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 1100;
 }
 .brand {
   display: flex;
@@ -1666,6 +1666,9 @@ footer > div:not(.footer-brand) button:hover {
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.06);
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
 }
 .wmk-locator-search-pane {
   grid-column: 1;
@@ -1690,6 +1693,9 @@ footer > div:not(.footer-brand) button:hover {
   position: relative;
   min-height: 440px;
   background: #12161b;
+  overflow: hidden;
+  z-index: 1;
+  isolation: isolate;
 }
 .wmk-leaflet-canvas {
   width: 100%;
