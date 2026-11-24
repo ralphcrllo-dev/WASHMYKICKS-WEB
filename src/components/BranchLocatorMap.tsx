@@ -973,7 +973,7 @@ export function BranchLocatorMap({
                 <b>Landmark & Access</b>
                 <p>{detailsModalBranch.landmark}</p>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="wmk-modal-grid-2">
                 <div>
                   <b>Contact Number</b>
                   <p>

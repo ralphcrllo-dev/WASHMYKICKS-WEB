@@ -845,6 +845,9 @@ function RoleLogin({
 
       <div className="auth-form-wrap">
         <form className="auth-form" onSubmit={handleSubmit}>
+          <div className="auth-mobile-brand">
+            <Brand onClick={() => setPage('home')} />
+          </div>
           <button type="button" className="back-link" onClick={() => setPage('home')}>
             <ArrowLeft size={14} /> Back to Home
           </button>
@@ -1459,7 +1462,7 @@ function CustomerBookAppointmentWizard({
         </div>
       )}
 
-      <div className="wizard-card" style={{ maxWidth: '100%', padding: '28px 28px 32px' }}>
+      <div className="wizard-card wmk-booking-wizard-card">
         {/* 1. BRANCH */}
         <div style={{ marginBottom: 28 }}>
           <h3 style={{ fontSize: 16, margin: '0 0 4px' }}>1. Choose Branch</h3>
@@ -1631,7 +1634,7 @@ function CustomerBookAppointmentWizard({
               <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 10 }}>
                 Available slots for {formattedDate}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+              <div className="wmk-timeslot-grid">
                 {timeSlots.map((slot) => {
                   const { remaining, isFull } = getSlotAvailability(slot)
                   const isSelected = selectedTime === slot && !isFull
@@ -1865,8 +1868,8 @@ function CustomerBookAppointmentWizard({
             )}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" className="primary" style={{ padding: '13px 24px', fontSize: 14 }} onClick={handleConfirm}>
+          <div className="wmk-wizard-confirm-row">
+            <button type="button" className="primary wmk-wizard-confirm-btn" onClick={handleConfirm}>
               {otpVerified ? 'Confirm Drop-Off' : 'Send Code & Confirm Drop-Off'} <ChevronRight size={16} />
             </button>
           </div>
@@ -1916,6 +1919,7 @@ function CustomerDashboard({
   }, [initialTab])
   const [searchQuery, setSearchQuery] = useState('')
   const [toast, setToast] = useState('')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState(orders[0]?.id || 'WMK-2026-01842')
 
   const savedPrefs = loadCustomerProfilePrefs(userMeta.email)
@@ -2006,26 +2010,61 @@ function CustomerDashboard({
 
   return (
     <section className="dashboard">
-      <aside className="sidebar dark-sidebar">
-        <Brand onClick={() => setPage('home')} />
+      {mobileNavOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside className={`sidebar dark-sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-top-row">
+          <Brand onClick={() => setPage('home')} />
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <span className="portal-label">CUSTOMER PORTAL</span>
         {sidebarItems.map((item) => (
           <button
             key={item.key}
             type="button"
             className={`sidebar-btn ${tab === item.key ? 'selected' : ''}`}
-            onClick={() => setTab(item.key)}
+            onClick={() => {
+              setTab(item.key)
+              setMobileNavOpen(false)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
           >
             {item.icon}
             <span>{item.key}</span>
             {item.badge && <span className="sidebar-badge">{item.badge}</span>}
           </button>
         ))}
-        <button type="button" className="sidebar-btn" onClick={() => setPage('home')}>
+        <button
+          type="button"
+          className="sidebar-btn"
+          onClick={() => {
+            setMobileNavOpen(false)
+            setPage('home')
+          }}
+        >
           <ArrowLeft size={17} />
           <span>Public Homepage</span>
         </button>
-        <button type="button" className="sidebar-btn logout" onClick={onLogout}>
+        <button
+          type="button"
+          className="sidebar-btn logout"
+          onClick={() => {
+            setMobileNavOpen(false)
+            onLogout()
+          }}
+        >
           <LogOut size={17} />
           <span>Log out</span>
         </button>
@@ -2033,6 +2072,14 @@ function CustomerDashboard({
 
       <div className="dash-main">
         <header className="dash-header">
+          <button
+            type="button"
+            className="dash-menu-btn"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <Menu size={20} />
+          </button>
           <div className="dash-search">
             <Search size={15} />
             <input
@@ -2046,13 +2093,33 @@ function CustomerDashboard({
               <Bell size={17} />
               {unreadNotifCount > 0 && <span className="badge-dot">{unreadNotifCount}</span>}
             </button>
-            <div className="dash-avatar">{avatarInitials}</div>
+            <div className="dash-avatar" onClick={() => setTab('Profile')} style={{ cursor: 'pointer' }}>
+              {avatarInitials}
+            </div>
             <div className="dash-user-info">
               <b>{profileName}</b>
               <small>Customer · {profileBranch.replace('Wash My Kicks – ', '')}</small>
             </div>
           </div>
         </header>
+
+        <nav className="dash-mobile-tabs" aria-label="Customer portal tabs">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`dash-mobile-tab ${tab === item.key ? 'active' : ''}`}
+              onClick={() => {
+                setTab(item.key)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            >
+              {item.icon}
+              <span>{item.key}</span>
+              {item.badge && <span className="dash-mobile-tab-badge">{item.badge}</span>}
+            </button>
+          ))}
+        </nav>
 
         <main className="dash-content">
           {toast && (
@@ -2419,10 +2486,11 @@ function CustomerDashboard({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: 16,
+                        flexWrap: 'wrap',
+                        gap: 14,
                       }}
                     >
-                      <div>
+                      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                         <b style={{ fontSize: 13.5, display: 'block', marginBottom: 4 }}>{n.title}</b>
                         <p style={{ fontSize: 12.5, color: '#6b7280', margin: 0 }}>{n.body}</p>
                         <small style={{ fontSize: 11, color: '#9ca3af' }}>{n.time}</small>
@@ -2543,7 +2611,7 @@ function CustomerDashboard({
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, margin: '14px 0 6px' }}>
                     Star Rating
                   </label>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
                     {[1, 2, 3, 4, 5].map((num) => (
                       <button
                         key={num}
@@ -2750,6 +2818,7 @@ function StaffDashboard({
   >('Dashboard')
   const [selectedOrderId, setSelectedOrderId] = useState<string>(orders[0]?.id || 'WMK-2026-0046')
   const [toast, setToast] = useState('')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const staffPendingCount = orders.filter((o) => o.status === 'Pending Assessment').length
   const staffInProgressCount = orders.filter((o) => o.status === 'In Progress' || o.status === 'Quality Check').length
@@ -2868,22 +2937,50 @@ function StaffDashboard({
 
   return (
     <section className="dashboard">
-      <aside className="sidebar dark-sidebar">
-        <Brand />
+      {mobileNavOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside className={`sidebar dark-sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-top-row">
+          <Brand />
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <span className="portal-label">STAFF PORTAL</span>
         {sidebarItems.map((item) => (
           <button
             key={item.key}
             type="button"
             className={`sidebar-btn ${tab === item.key ? 'selected' : ''}`}
-            onClick={() => setTab(item.key)}
+            onClick={() => {
+              setTab(item.key)
+              setMobileNavOpen(false)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
           >
             {item.icon}
             <span>{item.key}</span>
             {item.badge && <span className="sidebar-badge">{item.badge}</span>}
           </button>
         ))}
-        <button type="button" className="sidebar-btn logout" onClick={onLogout}>
+        <button
+          type="button"
+          className="sidebar-btn logout"
+          onClick={() => {
+            setMobileNavOpen(false)
+            onLogout()
+          }}
+        >
           <LogOut size={17} />
           <span>Log out</span>
         </button>
@@ -2891,6 +2988,14 @@ function StaffDashboard({
 
       <div className="dash-main">
         <header className="dash-header">
+          <button
+            type="button"
+            className="dash-menu-btn"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <Menu size={20} />
+          </button>
           <div className="dash-search">
             <Search size={15} />
             <input placeholder="Search orders and customers..." />
@@ -2907,6 +3012,24 @@ function StaffDashboard({
             </div>
           </div>
         </header>
+
+        <nav className="dash-mobile-tabs" aria-label="Staff portal tabs">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`dash-mobile-tab ${tab === item.key ? 'active' : ''}`}
+              onClick={() => {
+                setTab(item.key)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            >
+              {item.icon}
+              <span>{item.key}</span>
+              {item.badge && <span className="dash-mobile-tab-badge">{item.badge}</span>}
+            </button>
+          ))}
+        </nav>
 
         <main className="dash-content">
           {toast && (
@@ -3468,6 +3591,7 @@ function AdminDashboard({
     | 'Settings'
   >('Dashboard')
   const [toast, setToast] = useState('')
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [newSvcTitle, setNewSvcTitle] = useState('')
   const [newSvcCopy, setNewSvcCopy] = useState('')
@@ -3532,21 +3656,49 @@ function AdminDashboard({
 
   return (
     <section className="dashboard">
-      <aside className="sidebar dark-sidebar">
-        <Brand />
+      {mobileNavOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileNavOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+      <aside className={`sidebar dark-sidebar ${mobileNavOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-top-row">
+          <Brand />
+          <button
+            type="button"
+            className="sidebar-close-btn"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={18} />
+          </button>
+        </div>
         <span className="portal-label">ADMINISTRATOR PORTAL</span>
         {sidebarItems.map((item) => (
           <button
             key={item.key}
             type="button"
             className={`sidebar-btn ${tab === item.key ? 'selected' : ''}`}
-            onClick={() => setTab(item.key)}
+            onClick={() => {
+              setTab(item.key)
+              setMobileNavOpen(false)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
           >
             {item.icon}
             <span>{item.key}</span>
           </button>
         ))}
-        <button type="button" className="sidebar-btn logout" onClick={onLogout}>
+        <button
+          type="button"
+          className="sidebar-btn logout"
+          onClick={() => {
+            setMobileNavOpen(false)
+            onLogout()
+          }}
+        >
           <LogOut size={17} />
           <span>Log out</span>
         </button>
@@ -3554,6 +3706,14 @@ function AdminDashboard({
 
       <div className="dash-main">
         <header className="dash-header">
+          <button
+            type="button"
+            className="dash-menu-btn"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation menu"
+          >
+            <Menu size={20} />
+          </button>
           <div className="dash-search">
             <Search size={15} />
             <input placeholder="Search orders and customers..." />
@@ -3572,6 +3732,23 @@ function AdminDashboard({
             </div>
           </div>
         </header>
+
+        <nav className="dash-mobile-tabs" aria-label="Administrator portal tabs">
+          {sidebarItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={`dash-mobile-tab ${tab === item.key ? 'active' : ''}`}
+              onClick={() => {
+                setTab(item.key)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            >
+              {item.icon}
+              <span>{item.key}</span>
+            </button>
+          ))}
+        </nav>
 
         <main className="dash-content">
           {toast && (
@@ -3669,9 +3846,9 @@ function AdminDashboard({
                 </div>
 
                 <div
-                  className="wmk-inv-kpi-card"
+                  className="wmk-inv-kpi-card span-2"
                   onClick={() => setTab('Reports')}
-                  style={{ cursor: 'pointer', gridColumn: 'span 2' }}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="wmk-inv-kpi-icon green">
                     <BarChart3 size={18} />

@@ -416,7 +416,7 @@ export function BeforeAfterDocumentationModule({
           </p>
         </div>
 
-        <label style={{ fontSize: 11.5, fontWeight: 700, color: '#4b5563' }}>
+        <label className="wmk-order-picker-label" style={{ fontSize: 11.5, fontWeight: 700, color: '#4b5563' }}>
           Active Job Order
           <select
             value={activeOrder.id}
@@ -430,7 +430,8 @@ export function BeforeAfterDocumentationModule({
               background: '#fff',
               fontSize: 12.5,
               fontWeight: 600,
-              minWidth: 250,
+              width: '100%',
+              minWidth: 'min(250px, 100%)',
             }}
           >
             {orders.map((o) => (
@@ -885,7 +886,7 @@ export function StaffShoeAssessmentModule({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <select
             value={activeOrder.id}
             onChange={(e) => onSelectOrder(e.target.value)}
@@ -896,6 +897,7 @@ export function StaffShoeAssessmentModule({
               background: '#fff',
               fontSize: 12,
               fontWeight: 600,
+              maxWidth: '100%',
             }}
           >
             {orders.map((o) => (
@@ -994,7 +996,7 @@ export function StaffShoeAssessmentModule({
             />
           </label>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginTop: 22 }}>
             <button
               type="button"
               className="outline"

@@ -8635,7 +8635,7 @@
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Landmark & Access" }),
             /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: detailsModalBranch.landmark })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "wmk-modal-grid-2", children: [
             /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Contact Number" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("a", { href: `tel:${detailsModalBranch.phone.replace(/\s+/g, "")}`, style: { color: "#dc2626", fontWeight: 700 }, children: detailsModalBranch.phone }) })
@@ -30887,7 +30887,7 @@ ${suffix}`;
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h1", { style: { margin: "6px 0 4px" }, children: "Before & after documentation" }),
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { style: { margin: 0, fontSize: 13, color: "#6b7280" }, children: "Compare, document, and approve completed work across Left Side, Right Side, Toe, and Sole." })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { style: { fontSize: 11.5, fontWeight: 700, color: "#4b5563" }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("label", { className: "wmk-order-picker-label", style: { fontSize: 11.5, fontWeight: 700, color: "#4b5563" }, children: [
           "Active Job Order",
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "select",
@@ -30903,7 +30903,8 @@ ${suffix}`;
                 background: "#fff",
                 fontSize: 12.5,
                 fontWeight: 600,
-                minWidth: 250
+                width: "100%",
+                minWidth: "min(250px, 100%)"
               },
               children: orders.map((o) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: o.id, children: [
                 o.id,
@@ -31327,7 +31328,7 @@ ${suffix}`;
             activeOrder.customer
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
             "select",
             {
@@ -31339,7 +31340,8 @@ ${suffix}`;
                 border: "1px solid #e2e0dc",
                 background: "#fff",
                 fontSize: 12,
-                fontWeight: 600
+                fontWeight: 600,
+                maxWidth: "100%"
               },
               children: orders.map((o) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("option", { value: o.id, children: [
                 o.id,
@@ -31432,7 +31434,7 @@ ${suffix}`;
                   }
                 )
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { display: "flex", justifyContent: "flex-end", gap: 10, flexWrap: "wrap", marginTop: 22 }, children: [
                 /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
                   "button",
                   {
@@ -32653,6 +32655,7 @@ ${suffix}`;
         ] })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-form-wrap", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("form", { className: "auth-form", onSubmit: handleSubmit, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "auth-mobile-brand", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, { onClick: () => setPage("home") }) }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "back-link", onClick: () => setPage("home"), children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 14 }),
           " Back to Home"
@@ -33163,7 +33166,7 @@ ${suffix}`;
           ]
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", style: { maxWidth: "100%", padding: "28px 28px 32px" }, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card wmk-booking-wizard-card", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { marginBottom: 28 }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h3", { style: { fontSize: 16, margin: "0 0 4px" }, children: "1. Choose Branch" }),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 13, color: "#6b7280", margin: "0 0 14px" }, children: "All active branches are open daily, 10:00 AM \u2013 8:00 PM." }),
@@ -33309,7 +33312,7 @@ ${suffix}`;
                 "Available slots for ",
                 formattedDate
               ] }),
-              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }, children: timeSlots.map((slot) => {
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-timeslot-grid", children: timeSlots.map((slot) => {
                 const { remaining, isFull } = getSlotAvailability(slot);
                 const isSelected = selectedTime === slot && !isFull;
                 return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
@@ -33528,7 +33531,7 @@ ${suffix}`;
               ]
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", justifyContent: "flex-end" }, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", style: { padding: "13px 24px", fontSize: 14 }, onClick: handleConfirm, children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-wizard-confirm-row", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary wmk-wizard-confirm-btn", onClick: handleConfirm, children: [
             otpVerified ? "Confirm Drop-Off" : "Send Code & Confirm Drop-Off",
             " ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChevronRight, { size: 16 })
@@ -33557,6 +33560,7 @@ ${suffix}`;
     }, [initialTab]);
     const [searchQuery, setSearchQuery] = (0, import_react5.useState)("");
     const [toast, setToast] = (0, import_react5.useState)("");
+    const [mobileNavOpen, setMobileNavOpen] = (0, import_react5.useState)(false);
     const [selectedOrderId, setSelectedOrderId] = (0, import_react5.useState)(orders[0]?.id || "WMK-2026-01842");
     const savedPrefs = loadCustomerProfilePrefs(userMeta.email);
     const [reviewRating, setReviewRating] = (0, import_react5.useState)(5);
@@ -33615,15 +33619,39 @@ ${suffix}`;
       setTimeout(() => setToast(""), 4e3);
     };
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "dashboard", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: "sidebar dark-sidebar", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, { onClick: () => setPage("home") }),
+      mobileNavOpen && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "div",
+        {
+          className: "sidebar-backdrop",
+          onClick: () => setMobileNavOpen(false),
+          "aria-hidden": "true"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: `sidebar dark-sidebar ${mobileNavOpen ? "mobile-open" : ""}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "sidebar-top-row", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, { onClick: () => setPage("home") }),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "sidebar-close-btn",
+              onClick: () => setMobileNavOpen(false),
+              "aria-label": "Close navigation menu",
+              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(X, { size: 18 })
+            }
+          )
+        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "portal-label", children: "CUSTOMER PORTAL" }),
         sidebarItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
           "button",
           {
             type: "button",
             className: `sidebar-btn ${tab === item.key ? "selected" : ""}`,
-            onClick: () => setTab(item.key),
+            onClick: () => {
+              setTab(item.key);
+              setMobileNavOpen(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            },
             children: [
               item.icon,
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.key }),
@@ -33632,17 +33660,49 @@ ${suffix}`;
           },
           item.key
         )),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "sidebar-btn", onClick: () => setPage("home"), children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 17 }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Public Homepage" })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "sidebar-btn logout", onClick: onLogout, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LogOut, { size: 17 }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Log out" })
-        ] })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: "sidebar-btn",
+            onClick: () => {
+              setMobileNavOpen(false);
+              setPage("home");
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowLeft, { size: 17 }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Public Homepage" })
+            ]
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: "sidebar-btn logout",
+            onClick: () => {
+              setMobileNavOpen(false);
+              onLogout();
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LogOut, { size: 17 }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Log out" })
+            ]
+          }
+        )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-main", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("header", { className: "dash-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "dash-menu-btn",
+              onClick: () => setMobileNavOpen(true),
+              "aria-label": "Open navigation menu",
+              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Menu, { size: 20 })
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-search", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Search, { size: 15 }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
@@ -33659,7 +33719,7 @@ ${suffix}`;
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Bell, { size: 17 }),
               unreadNotifCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "badge-dot", children: unreadNotifCount })
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", children: avatarInitials }),
+            /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "dash-avatar", onClick: () => setTab("Profile"), style: { cursor: "pointer" }, children: avatarInitials }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-user-info", children: [
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: profileName }),
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("small", { children: [
@@ -33669,6 +33729,23 @@ ${suffix}`;
             ] })
           ] })
         ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("nav", { className: "dash-mobile-tabs", "aria-label": "Customer portal tabs", children: sidebarItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: `dash-mobile-tab ${tab === item.key ? "active" : ""}`,
+            onClick: () => {
+              setTab(item.key);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            },
+            children: [
+              item.icon,
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.key }),
+              item.badge && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dash-mobile-tab-badge", children: item.badge })
+            ]
+          },
+          item.key
+        )) }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("main", { className: "dash-content", children: [
           toast && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "div",
@@ -33978,10 +34055,11 @@ ${suffix}`;
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  gap: 16
+                  flexWrap: "wrap",
+                  gap: 14
                 },
                 children: [
-                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { flex: "1 1 240px", minWidth: 0 }, children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { style: { fontSize: 13.5, display: "block", marginBottom: 4 }, children: n.title }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("p", { style: { fontSize: 12.5, color: "#6b7280", margin: 0 }, children: n.body }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("small", { style: { fontSize: 11, color: "#9ca3af" }, children: n.time })
@@ -34079,7 +34157,7 @@ ${suffix}`;
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "SUBMIT FEEDBACK" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { children: "Leave a Review" }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("label", { style: { display: "block", fontSize: 12, fontWeight: 700, margin: "14px 0 6px" }, children: "Star Rating" }),
-                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", gap: 8, marginBottom: 14 }, children: [1, 2, 3, 4, 5].map((num) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+                    /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }, children: [1, 2, 3, 4, 5].map((num) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                       "button",
                       {
                         type: "button",
@@ -34267,6 +34345,7 @@ ${suffix}`;
     const [tab, setTab] = (0, import_react5.useState)("Dashboard");
     const [selectedOrderId, setSelectedOrderId] = (0, import_react5.useState)(orders[0]?.id || "WMK-2026-0046");
     const [toast, setToast] = (0, import_react5.useState)("");
+    const [mobileNavOpen, setMobileNavOpen] = (0, import_react5.useState)(false);
     const staffPendingCount = orders.filter((o) => o.status === "Pending Assessment").length;
     const staffInProgressCount = orders.filter((o) => o.status === "In Progress" || o.status === "Quality Check").length;
     const staffCompletedCount = orders.filter((o) => o.status === "Completed").length;
@@ -34356,15 +34435,39 @@ ${suffix}`;
       showToast(`Uploaded ${angleNames[angle]} (${side.toUpperCase()}) photo for ${orderId}.`);
     };
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "dashboard", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: "sidebar dark-sidebar", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, {}),
+      mobileNavOpen && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "div",
+        {
+          className: "sidebar-backdrop",
+          onClick: () => setMobileNavOpen(false),
+          "aria-hidden": "true"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: `sidebar dark-sidebar ${mobileNavOpen ? "mobile-open" : ""}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "sidebar-top-row", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, {}),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "sidebar-close-btn",
+              onClick: () => setMobileNavOpen(false),
+              "aria-label": "Close navigation menu",
+              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(X, { size: 18 })
+            }
+          )
+        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "portal-label", children: "STAFF PORTAL" }),
         sidebarItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
           "button",
           {
             type: "button",
             className: `sidebar-btn ${tab === item.key ? "selected" : ""}`,
-            onClick: () => setTab(item.key),
+            onClick: () => {
+              setTab(item.key);
+              setMobileNavOpen(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            },
             children: [
               item.icon,
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.key }),
@@ -34373,13 +34476,34 @@ ${suffix}`;
           },
           item.key
         )),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "sidebar-btn logout", onClick: onLogout, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LogOut, { size: 17 }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Log out" })
-        ] })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: "sidebar-btn logout",
+            onClick: () => {
+              setMobileNavOpen(false);
+              onLogout();
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LogOut, { size: 17 }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Log out" })
+            ]
+          }
+        )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-main", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("header", { className: "dash-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "dash-menu-btn",
+              onClick: () => setMobileNavOpen(true),
+              "aria-label": "Open navigation menu",
+              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Menu, { size: 20 })
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-search", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Search, { size: 15 }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { placeholder: "Search orders and customers..." })
@@ -34399,6 +34523,23 @@ ${suffix}`;
             ] })
           ] })
         ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("nav", { className: "dash-mobile-tabs", "aria-label": "Staff portal tabs", children: sidebarItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: `dash-mobile-tab ${tab === item.key ? "active" : ""}`,
+            onClick: () => {
+              setTab(item.key);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            },
+            children: [
+              item.icon,
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.key }),
+              item.badge && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "dash-mobile-tab-badge", children: item.badge })
+            ]
+          },
+          item.key
+        )) }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("main", { className: "dash-content", children: [
           toast && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "div",
@@ -34851,6 +34992,7 @@ ${suffix}`;
   }) {
     const [tab, setTab] = (0, import_react5.useState)("Dashboard");
     const [toast, setToast] = (0, import_react5.useState)("");
+    const [mobileNavOpen, setMobileNavOpen] = (0, import_react5.useState)(false);
     const [editingServiceId, setEditingServiceId] = (0, import_react5.useState)(null);
     const [newSvcTitle, setNewSvcTitle] = (0, import_react5.useState)("");
     const [newSvcCopy, setNewSvcCopy] = (0, import_react5.useState)("");
@@ -34896,15 +35038,39 @@ ${suffix}`;
       year: "numeric"
     });
     return /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("section", { className: "dashboard", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: "sidebar dark-sidebar", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, {}),
+      mobileNavOpen && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+        "div",
+        {
+          className: "sidebar-backdrop",
+          onClick: () => setMobileNavOpen(false),
+          "aria-hidden": "true"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("aside", { className: `sidebar dark-sidebar ${mobileNavOpen ? "mobile-open" : ""}`, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "sidebar-top-row", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Brand, {}),
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "sidebar-close-btn",
+              onClick: () => setMobileNavOpen(false),
+              "aria-label": "Close navigation menu",
+              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(X, { size: 18 })
+            }
+          )
+        ] }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "portal-label", children: "ADMINISTRATOR PORTAL" }),
         sidebarItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
           "button",
           {
             type: "button",
             className: `sidebar-btn ${tab === item.key ? "selected" : ""}`,
-            onClick: () => setTab(item.key),
+            onClick: () => {
+              setTab(item.key);
+              setMobileNavOpen(false);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            },
             children: [
               item.icon,
               /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.key })
@@ -34912,13 +35078,34 @@ ${suffix}`;
           },
           item.key
         )),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "sidebar-btn logout", onClick: onLogout, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LogOut, { size: 17 }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Log out" })
-        ] })
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: "sidebar-btn logout",
+            onClick: () => {
+              setMobileNavOpen(false);
+              onLogout();
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(LogOut, { size: 17 }),
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: "Log out" })
+            ]
+          }
+        )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-main", children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("header", { className: "dash-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "dash-menu-btn",
+              onClick: () => setMobileNavOpen(true),
+              "aria-label": "Open navigation menu",
+              children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Menu, { size: 20 })
+            }
+          ),
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "dash-search", children: [
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Search, { size: 15 }),
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("input", { placeholder: "Search orders and customers..." })
@@ -34935,6 +35122,22 @@ ${suffix}`;
             ] })
           ] })
         ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("nav", { className: "dash-mobile-tabs", "aria-label": "Administrator portal tabs", children: sidebarItems.map((item) => /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "button",
+          {
+            type: "button",
+            className: `dash-mobile-tab ${tab === item.key ? "active" : ""}`,
+            onClick: () => {
+              setTab(item.key);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            },
+            children: [
+              item.icon,
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { children: item.key })
+            ]
+          },
+          item.key
+        )) }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("main", { className: "dash-content", children: [
           toast && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
             "div",
@@ -35038,9 +35241,9 @@ ${suffix}`;
               /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
                 "div",
                 {
-                  className: "wmk-inv-kpi-card",
+                  className: "wmk-inv-kpi-card span-2",
                   onClick: () => setTab("Reports"),
-                  style: { cursor: "pointer", gridColumn: "span 2" },
+                  style: { cursor: "pointer" },
                   children: [
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "wmk-inv-kpi-icon green", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ChartColumn, { size: 18 }) }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wmk-inv-kpi-body", children: [
