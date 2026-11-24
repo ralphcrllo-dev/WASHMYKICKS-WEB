@@ -417,9 +417,80 @@ export async function updateCustomerProfileRecord(
    Tables: branches, branch_hours, shoe_services, branch_services, bookings
    ============================================================================ */
 
+export type CustomerAccountLookupResult = {
+  hasAccount: boolean
+  customerName?: string
+  role?: string
+  preferredBranch?: string
+  source?: 'local' | 'server' | 'supabase'
+}
+
+export async function checkCustomerAccountByEmail(rawEmail: string): Promise<CustomerAccountLookupResult> {
+  const emailClean = rawEmail.trim().toLowerCase()
+  if (!emailClean || !emailClean.includes('@')) {
+    return { hasAccount: false }
+  }
+
+  // 1. Check local provisioned account vault first for instant match
+  const localMatch = loadProvisionedAccounts().find((a) => a.email.trim().toLowerCase() === emailClean)
+  if (localMatch) {
+    const fullName = `${localMatch.firstName || ''} ${localMatch.lastName || ''}`.trim()
+    return {
+      hasAccount: true,
+      customerName: fullName || localMatch.username || undefined,
+      role: localMatch.role,
+      preferredBranch: localMatch.branchName,
+      source: 'local',
+    }
+  }
+
+  // 2. Check serverless API lookup (handles customer_profiles, user_accounts, & Auth)
+  try {
+    const res = await fetch(`/api/customer-bookings?email=${encodeURIComponent(emailClean)}&mode=lookup`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.hasAccount) {
+        return {
+          hasAccount: true,
+          role: data.role ? String(data.role) : undefined,
+          preferredBranch: data.preferredBranch ? String(data.preferredBranch) : undefined,
+          source: 'server',
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Fallback direct Supabase user_accounts lookup
+  if (supabase && isSupabaseConfigured) {
+    try {
+      const { data: rows } = await supabase
+        .from('user_accounts')
+        .select('username, email, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)')
+        .ilike('email', emailClean)
+        .limit(1)
+      const row: any = Array.isArray(rows) ? rows[0] : null
+      if (row) {
+        const profile = Array.isArray(row.customer_profiles) ? row.customer_profiles[0] : row.customer_profiles
+        const fullName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : ''
+        return {
+          hasAccount: true,
+          customerName: fullName || String(row.username || '') || undefined,
+          role: row.roles?.role_name ? String(row.roles.role_name) : undefined,
+          preferredBranch: row.branches?.branch_name ? String(row.branches.branch_name) : undefined,
+          source: 'supabase',
+        }
+      }
+    } catch {}
+  }
+
+  return { hasAccount: false }
+}
+
 export async function createBookingRecord(input: {
   customerId: number
   branchServiceId: number
+  branchId?: number
+  orderNumber?: string
   scheduledAt: string
   priceAtBooking: number
   customerRequest?: string
@@ -427,7 +498,55 @@ export async function createBookingRecord(input: {
   customerName?: string
   serviceName?: string
   branchName?: string
+  otpCode?: string
+  otpToken?: string
+  otpExpiresAt?: number
+  loggedInSession?: boolean
 }) {
+  const emailClean = (input.customerEmail || '').trim().toLowerCase()
+  const requestWithEmail =
+    emailClean && !/\[Email:/i.test(input.customerRequest || '')
+      ? `${input.customerRequest || input.serviceName || 'Sneaker Care'} [Email: ${emailClean}]`
+      : input.customerRequest || null
+
+  let serverEmailSent = false
+
+  // Try serverless booking endpoint first so public /book bookings bypass guest RLS and auto-link by email
+  if (emailClean) {
+    try {
+      const res = await fetch('/api/customer-bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderNumber: input.orderNumber,
+          customerEmail: emailClean,
+          customerName: input.customerName,
+          branchId: input.branchId ?? input.branchServiceId,
+          branchName: input.branchName,
+          serviceName: input.serviceName,
+          scheduledAt: input.scheduledAt,
+          priceAtBooking: input.priceAtBooking,
+          customerRequest: input.customerRequest,
+          otpCode: input.otpCode,
+          otpToken: input.otpToken,
+          otpExpiresAt: input.otpExpiresAt,
+          loggedInSession: input.loggedInSession,
+        }),
+      })
+      if (res.ok) {
+        const result = await res.json()
+        serverEmailSent = Boolean(result?.emailSent)
+        if (result?.bookingId) {
+          return {
+            booking_id: Number(result.bookingId),
+            hasAccount: Boolean(result?.hasAccount),
+            customerName: result?.customerName ? String(result.customerName) : undefined,
+          }
+        }
+      }
+    } catch {}
+  }
+
   if (supabase && isSupabaseConfigured) {
     const { data, error } = await supabase
       .from('bookings')
@@ -437,18 +556,28 @@ export async function createBookingRecord(input: {
         scheduled_at: input.scheduledAt,
         price_at_booking: input.priceAtBooking,
         booking_status: 'Confirmed',
-        customer_request: input.customerRequest || null,
+        customer_request: requestWithEmail,
       })
       .select()
       .single()
 
     if (error) throw error
 
-    if (input.customerEmail) {
+    if (input.orderNumber && data?.booking_id) {
+      try {
+        await supabase
+          .from('service_orders')
+          .update({ order_number: input.orderNumber })
+          .eq('booking_id', data.booking_id)
+      } catch {}
+    }
+
+    if (input.customerEmail && !serverEmailSent) {
       await dispatchTransactionalEmail({
         to: input.customerEmail,
         eventType: 'BOOKING_CONFIRMATION',
-        reference: `WMK-${new Date().getFullYear()}-${String(data.booking_id).padStart(4, '0')}`,
+        reference:
+          input.orderNumber || `WMK-${new Date().getFullYear()}-${String(data.booking_id).padStart(4, '0')}`,
         customerName: input.customerName,
         serviceName: input.serviceName,
         branchName: input.branchName,
@@ -944,16 +1073,30 @@ export function loadCachedProductionData(): {
   }
 }
 
-export async function fetchLiveProductionData() {
+function extractEmbeddedEmail(text: string): string {
+  const match = String(text || '').match(/\[Email:\s*([^\s\]]+@[^\s\]]+)\]/i)
+  return match ? match[1].trim().toLowerCase() : ''
+}
+
+function extractEmbeddedSchedule(text: string): { date?: string; time?: string } {
+  const match = String(text || '').match(/\(([A-Za-z]+\s+\d{1,2},\s+\d{4})\s*·\s*([^)]+)\)/)
+  if (!match) return {}
+  return { date: match[1].trim(), time: match[2].trim() }
+}
+
+function deriveDisplayNameFromEmail(email: string): string {
+  const local = (email || '').split('@')[0] || ''
+  const cleaned = local.replace(/[0-9]+/g, ' ').replace(/[._-]+/g, ' ').trim()
+  if (!cleaned) return local || 'Customer'
+  return cleaned
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ')
+}
+
+export async function fetchLiveProductionData(customerEmailFilter?: string) {
   const cached = loadCachedProductionData()
-  if (!supabase || !isSupabaseConfigured) {
-    return {
-      orders: cached.orders,
-      inventory: cached.inventory,
-      users: cached.users,
-      auditLogs: [] as ErdAuditLog[],
-    }
-  }
+  const emailFilterClean = (customerEmailFilter || '').trim().toLowerCase()
 
   const stageMap: Record<string, number> = {
     'Pending Assessment': 1,
@@ -963,8 +1106,52 @@ export async function fetchLiveProductionData() {
     Completed: 5,
   }
 
-  // Run all 4 Supabase queries in PARALLEL instead of sequentially (4x faster load)
-  const [soResult, invResult, usrResult, auditsResult] = await Promise.all([
+  const fetchServerOrders = () =>
+    fetch(
+      `/api/customer-bookings?mode=orders${emailFilterClean ? `&email=${encodeURIComponent(emailFilterClean)}` : ''}`
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => (Array.isArray(d?.orders) ? d.orders : []))
+      .catch(() => [] as any[])
+
+  if (!supabase || !isSupabaseConfigured) {
+    const serverOrders = await fetchServerOrders()
+    if (serverOrders.length === 0) {
+      return {
+        orders: cached.orders,
+        inventory: cached.inventory,
+        users: cached.users,
+        auditLogs: [] as ErdAuditLog[],
+      }
+    }
+    const orderMap = new Map<string, any>()
+    cached.orders.forEach((ord) => {
+      if (ord?.id && !DEMO_SEED_ORDER_IDS.has(String(ord.id))) {
+        orderMap.set(String(ord.id), ord)
+      }
+    })
+    serverOrders.forEach((ord: any) => {
+      if (!ord?.id || DEMO_SEED_ORDER_IDS.has(String(ord.id))) return
+      const email = String(ord.email || '').trim().toLowerCase()
+      if (email && DEMO_SEED_EMAILS.has(email)) return
+      if (!orderMap.has(String(ord.id))) {
+        orderMap.set(String(ord.id), {
+          ...ord,
+          stageIndex: stageMap[ord.status] || 1,
+          specialist: ord.specialist || 'Pending Specialist Assessment',
+        })
+      }
+    })
+    return {
+      orders: Array.from(orderMap.values()),
+      inventory: cached.inventory,
+      users: cached.users,
+      auditLogs: [] as ErdAuditLog[],
+    }
+  }
+
+  // Run all Supabase queries and serverless customer-order sync in PARALLEL
+  const [soResult, invResult, usrResult, auditsResult, serverOrdersResult] = await Promise.all([
     supabase
       .from('service_orders')
       .select(
@@ -1022,6 +1209,7 @@ export async function fetchLiveProductionData() {
         () => null
       ),
     fetchAuditLogsList(50).catch(() => [] as ErdAuditLog[]),
+    fetchServerOrders(),
   ])
 
   const orderMap = new Map<string, any>()
@@ -1046,15 +1234,25 @@ export async function fetchLiveProductionData() {
       const ss = bs?.shoe_services
       const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments
 
-      const email = String(ua?.email || '').trim().toLowerCase()
+      const rawReq = String(bk?.customer_request || row.work_instructions || '')
+      const embeddedEmail = extractEmbeddedEmail(rawReq)
+      const uaEmail = String(ua?.email || '').trim().toLowerCase()
+      const email = embeddedEmail || uaEmail
       if (DEMO_SEED_EMAILS.has(email)) return
 
-      const rawReq = String(bk?.customer_request || row.work_instructions || '')
       const shoeTitle = rawReq.split('—')[0]?.trim() || 'Sneaker Pair'
-      const fullName = cp ? `${cp.first_name || ''} ${cp.last_name || ''}`.trim() : 'Customer'
+      const rawFullName = cp ? `${cp.first_name || ''} ${cp.last_name || ''}`.trim() : ''
+      const fullName =
+        embeddedEmail && uaEmail && embeddedEmail !== uaEmail
+          ? deriveDisplayNameFromEmail(embeddedEmail)
+          : rawFullName || (email ? deriveDisplayNameFromEmail(email) : 'Customer')
+      const embeddedSched = extractEmbeddedSchedule(rawReq)
       const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now())
-      const dateStr = sched.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      const timeStr = sched.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      const dateStr =
+        embeddedSched.date ||
+        sched.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      const timeStr =
+        embeddedSched.time || sched.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650)
       const st = (row.order_status || 'Pending Assessment') as OrderStatus
 
@@ -1074,6 +1272,33 @@ export async function fetchLiveProductionData() {
           specialist: 'Pending Specialist Assessment',
           assessed: sa?.assessment_status === 'Completed' || sa?.assessment_status === 'Approved',
           assessmentNotes: sa?.damage_findings || sa?.service_notes || undefined,
+        })
+      } else if (email && !orderMap.get(ordId)?.email) {
+        const existing = orderMap.get(ordId)
+        orderMap.set(ordId, { ...existing, email })
+      }
+    })
+  }
+
+  // 3. Merge server-synced orders (ensures outside-portal bookings appear across sessions/devices)
+  if (Array.isArray(serverOrdersResult)) {
+    serverOrdersResult.forEach((ord: any) => {
+      if (!ord?.id || DEMO_SEED_ORDER_IDS.has(String(ord.id))) return
+      const email = String(ord.email || '').trim().toLowerCase()
+      if (email && DEMO_SEED_EMAILS.has(email)) return
+
+      const existing = orderMap.get(String(ord.id))
+      if (!existing) {
+        orderMap.set(String(ord.id), {
+          ...ord,
+          stageIndex: stageMap[ord.status] || 1,
+          specialist: ord.specialist || 'Pending Specialist Assessment',
+        })
+      } else {
+        orderMap.set(String(ord.id), {
+          ...existing,
+          email: existing.email || email,
+          customer: existing.customer || ord.customer || 'Customer',
         })
       }
     })

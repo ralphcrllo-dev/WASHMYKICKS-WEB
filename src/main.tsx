@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BranchLocatorMap } from './components/BranchLocatorMap'
 import {
+  checkCustomerAccountByEmail,
   createBookingRecord,
   dispatchTransactionalEmail,
   fetchLiveProductionData,
@@ -141,6 +142,7 @@ export type JobOrder = {
   conditionTags?: string[]
   beforePhoto?: string
   afterPhoto?: string
+  linkedToAccount?: boolean
   docs: ShoeDocumentation
 }
 
@@ -1034,6 +1036,12 @@ function CustomerBookAppointmentWizard({
   const [enteredOtp, setEnteredOtp] = useState<string>('')
   const [otpVerified, setOtpVerified] = useState<boolean>(false)
   const [otpNotice, setOtpNotice] = useState<string>('')
+  const [detectedAccount, setDetectedAccount] = useState<{
+    checking: boolean
+    hasAccount: boolean
+    customerName?: string
+    preferredBranch?: string
+  }>({ checking: false, hasAccount: false })
   const [remoteSlotCounts, setRemoteSlotCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -1041,6 +1049,38 @@ function CustomerBookAppointmentWizard({
       setCustomerEmail(defaultEmail)
     }
   }, [defaultEmail])
+
+  useEffect(() => {
+    const emailCandidate = customerEmail.trim().toLowerCase()
+    if (!emailCandidate || !emailCandidate.includes('@') || !emailCandidate.includes('.')) {
+      setDetectedAccount({ checking: false, hasAccount: false })
+      return
+    }
+
+    let cancelled = false
+    setDetectedAccount((prev) => ({ ...prev, checking: true }))
+    const timer = window.setTimeout(() => {
+      checkCustomerAccountByEmail(emailCandidate)
+        .then((res) => {
+          if (cancelled) return
+          setDetectedAccount({
+            checking: false,
+            hasAccount: res.hasAccount,
+            customerName: res.customerName,
+            preferredBranch: res.preferredBranch,
+          })
+        })
+        .catch(() => {
+          if (cancelled) return
+          setDetectedAccount({ checking: false, hasAccount: false })
+        })
+    }, 300)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [customerEmail])
 
   const monthNames = [
     'January',
@@ -1244,14 +1284,25 @@ function CustomerBookAppointmentWizard({
         const data = await res.json()
         if (res.ok && data?.verified) {
           setOtpVerified(true)
+          if (data?.hasAccount) {
+            const acctName = data.customerName ? String(data.customerName) : undefined
+            setDetectedAccount({
+              checking: false,
+              hasAccount: true,
+              customerName: acctName,
+              preferredBranch: data.preferredBranch ? String(data.preferredBranch) : undefined,
+            })
+            setOtpNotice('Email verified. WashMyKicks Customer Account detected — booking will appear on your dashboard.')
+            return { ok: true, hasAccount: true, customerName: acctName }
+          }
           setOtpNotice('Email verified.')
-          return true
+          return { ok: true, hasAccount: detectedAccount.hasAccount, customerName: detectedAccount.customerName }
         }
         setOtpNotice(data?.error || 'Wrong code. Check your email and try again.')
-        return false
+        return { ok: false }
       } catch {
         setOtpNotice('Could not verify code. Try again.')
-        return false
+        return { ok: false }
       }
     }
 
@@ -1263,8 +1314,12 @@ function CustomerBookAppointmentWizard({
       })
       if (!firstTry.error) {
         setOtpVerified(true)
-        setOtpNotice('Email verified.')
-        return true
+        setOtpNotice(
+          detectedAccount.hasAccount
+            ? 'Email verified. WashMyKicks Customer Account detected — booking will appear on your dashboard.'
+            : 'Email verified.'
+        )
+        return { ok: true, hasAccount: detectedAccount.hasAccount, customerName: detectedAccount.customerName }
       }
       const secondTry = await supabase.auth.verifyOtp({
         email: emailTarget,
@@ -1273,15 +1328,19 @@ function CustomerBookAppointmentWizard({
       })
       if (!secondTry.error) {
         setOtpVerified(true)
-        setOtpNotice('Email verified.')
-        return true
+        setOtpNotice(
+          detectedAccount.hasAccount
+            ? 'Email verified. WashMyKicks Customer Account detected — booking will appear on your dashboard.'
+            : 'Email verified.'
+        )
+        return { ok: true, hasAccount: detectedAccount.hasAccount, customerName: detectedAccount.customerName }
       }
       setOtpNotice(firstTry.error?.message || 'Wrong code. Check your email and try again.')
-      return false
+      return { ok: false }
     }
 
     setOtpNotice('Click "Send Code" first.')
-    return false
+    return { ok: false }
   }
 
   const handleConfirm = async () => {
@@ -1292,19 +1351,27 @@ function CustomerBookAppointmentWizard({
       return
     }
 
+    let verifiedHasAccount = detectedAccount.hasAccount
+    let verifiedCustomerName = detectedAccount.customerName
+
     if (!otpVerified) {
       if (!otpSent) {
         await handleSendBookingOtp()
         return
       }
-      const ok = await handleVerifyOtp()
-      if (!ok) return
+      const verifyResult = await handleVerifyOtp()
+      if (!verifyResult.ok) return
+      if (verifyResult.hasAccount) {
+        verifiedHasAccount = true
+        if (verifyResult.customerName) verifiedCustomerName = verifyResult.customerName
+      }
     }
 
-    const otpEmail = customerEmail.trim()
-    const accountPersonalEmail = (accountEmail || '').trim()
+    const otpEmail = customerEmail.trim().toLowerCase()
+    const accountPersonalEmail = (accountEmail || '').trim().toLowerCase()
     const notificationEmailFinal = accountPersonalEmail || otpEmail
-    const resolvedCustomerName = (accountName || '').trim() || getCustomerNameFromEmail(notificationEmailFinal)
+    const resolvedCustomerName =
+      (accountName || '').trim() || verifiedCustomerName || getCustomerNameFromEmail(notificationEmailFinal)
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
     const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
 
@@ -1313,20 +1380,31 @@ function CustomerBookAppointmentWizard({
         ? `${cleanBrand} ${cleanModel}`
         : cleanModel || cleanBrand || 'Sneaker Pair'
 
+    const generatedOrderId = `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`
+    const isLinkedAccount = Boolean(accountPersonalEmail || verifiedHasAccount)
+
     void createBookingRecord({
       customerId: 1,
       branchServiceId: selectedBranch.id,
+      branchId: selectedBranch.id,
+      orderNumber: generatedOrderId,
       scheduledAt: scheduledIso,
       priceAtBooking: numericPrice,
-      customerRequest: `${combinedShoe} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
+      customerRequest: `${combinedShoe} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [${
+        isLinkedAccount ? 'Account Linked' : 'Email Verified'
+      }]`,
       customerEmail: notificationEmailFinal,
       customerName: resolvedCustomerName,
       serviceName: selectedService.title,
       branchName: selectedBranch.name,
+      otpCode: enteredOtp.trim(),
+      otpToken,
+      otpExpiresAt,
+      loggedInSession: Boolean(accountPersonalEmail),
     }).catch(() => null)
 
     const newOrder: JobOrder = {
-      id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
+      id: generatedOrderId,
       customer: resolvedCustomerName,
       email: notificationEmailFinal,
       shoe: combinedShoe,
@@ -1341,6 +1419,7 @@ function CustomerBookAppointmentWizard({
       stageIndex: 1,
       specialist: 'Pending Specialist Assessment',
       assessed: false,
+      linkedToAccount: isLinkedAccount,
       docs: createDefaultDocumentation(),
     }
     onCompleteBooking(newOrder)
@@ -1664,7 +1743,16 @@ function CustomerBookAppointmentWizard({
               <input
                 type="email"
                 value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setCustomerEmail(val)
+                  if (otpVerified || otpSent) {
+                    setOtpVerified(false)
+                    setOtpSent(false)
+                    setEnteredOtp('')
+                    setOtpNotice('')
+                  }
+                }}
                 placeholder="Enter your email address"
                 style={{
                   flex: 1,
@@ -1687,10 +1775,50 @@ function CustomerBookAppointmentWizard({
               </button>
             </div>
 
-            {accountEmail && (
+            {accountEmail ? (
               <div style={{ fontSize: 11.5, color: '#4b5563', marginBottom: 8 }}>
                 Ready-for-pickup &amp; status emails for this order will go to your account email: <b>{accountEmail}</b>
               </div>
+            ) : (
+              customerEmail.trim().includes('@') &&
+              customerEmail.trim().includes('.') && (
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    marginBottom: 8,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    background: detectedAccount.checking
+                      ? '#f9fafb'
+                      : detectedAccount.hasAccount
+                      ? '#ecfdf5'
+                      : '#f9fafb',
+                    border: `1px solid ${
+                      detectedAccount.checking
+                        ? '#e5e7eb'
+                        : detectedAccount.hasAccount
+                        ? '#a7f3d0'
+                        : '#e5e7eb'
+                    }`,
+                    color: detectedAccount.checking
+                      ? '#6b7280'
+                      : detectedAccount.hasAccount
+                      ? '#065f46'
+                      : '#4b5563',
+                  }}
+                >
+                  {detectedAccount.checking ? (
+                    'Checking if this email is linked to a WashMyKicks Customer Account...'
+                  ) : detectedAccount.hasAccount ? (
+                    <>
+                      <b>WashMyKicks Customer Account detected.</b> This booking will automatically appear in your
+                      Customer Dashboard for <b>{customerEmail.trim().toLowerCase()}</b>.
+                    </>
+                  ) : (
+                    'Guest booking email. Sign up anytime with this same email to view this booking in your Customer Dashboard.'
+                  )}
+                </div>
+              )
             )}
 
             {otpSent && (
@@ -4664,6 +4792,8 @@ function PublicShoeBookingModule({
   preselectedFromMap,
   existingOrders = initialOrders,
   servicesCatalog = services,
+  activeCustomerEmail = '',
+  activeCustomerName = '',
   onCompleteBooking,
   setPage,
 }: {
@@ -4671,29 +4801,56 @@ function PublicShoeBookingModule({
   preselectedFromMap: boolean
   existingOrders?: JobOrder[]
   servicesCatalog?: Service[]
+  activeCustomerEmail?: string
+  activeCustomerName?: string
   onCompleteBooking: (newOrder: JobOrder) => void
   setPage: (p: string) => void
 }) {
   const [bookedOrder, setBookedOrder] = useState<JobOrder | null>(null)
 
   if (bookedOrder) {
+    const signedInSameEmail =
+      Boolean(activeCustomerEmail) &&
+      activeCustomerEmail.trim().toLowerCase() === bookedOrder.email.trim().toLowerCase()
+
     return (
       <section className="listing">
         <div className="wizard-card" style={{ textAlign: 'center', maxWidth: 620 }}>
           <span className="eyebrow">APPOINTMENT CONFIRMED</span>
           <h2 style={{ fontSize: 28, margin: '10px 0 8px' }}>Your kicks are scheduled!</h2>
-          <p style={{ fontSize: 13.5, color: '#4b5563', marginBottom: 20 }}>
+          <p style={{ fontSize: 13.5, color: '#4b5563', marginBottom: 16 }}>
             Job Order <b>{bookedOrder.id}</b> has been created at <b>{bookedOrder.branch}</b> on{' '}
             <b>
               {bookedOrder.date} · {bookedOrder.time}
             </b>
             .
           </p>
+          {bookedOrder.linkedToAccount && (
+            <div
+              style={{
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: 10,
+                padding: '12px 16px',
+                marginBottom: 18,
+                fontSize: 13,
+                color: '#065f46',
+                textAlign: 'left',
+              }}
+            >
+              <b>Synced to Customer Account:</b> Your existing account for <b>{bookedOrder.email}</b> was detected — this
+              booking has been added to your Customer Dashboard.
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button type="button" className="primary" onClick={() => setPage('track')}>
               Track My Order ({bookedOrder.id}) <ArrowRight size={15} />
             </button>
-            <button type="button" className="outline" onClick={() => setPage('login-customer')}>
+            <button
+              type="button"
+              className="outline"
+              onClick={() => setPage(signedInSameEmail ? 'dashboard-customer' : 'login-customer')}
+            >
               Open in Customer Portal
             </button>
           </div>
@@ -4709,6 +4866,9 @@ function PublicShoeBookingModule({
         preselectedFromMap={preselectedFromMap}
         existingOrders={existingOrders}
         servicesCatalog={servicesCatalog}
+        defaultEmail={activeCustomerEmail}
+        accountEmail={activeCustomerEmail}
+        accountName={activeCustomerName}
         onCancel={() => setPage('home')}
         onCompleteBooking={(order) => {
           onCompleteBooking(order)
@@ -4974,9 +5134,9 @@ function App() {
   })
   const [servicesCatalog, setServicesCatalog] = useState<Service[]>(services)
 
-  // Fetch live production rows from Supabase PostgreSQL on mount & after login
+  // Fetch live production rows from Supabase PostgreSQL & Customer Booking API on mount & after login
   useEffect(() => {
-    fetchLiveProductionData()
+    fetchLiveProductionData(activeRole === 'customer' ? userMeta.email : undefined)
       .then((live) => {
         if (live.orders.length > 0) {
           const staffUsers = (live.users || []).filter((u: any) =>
@@ -5156,7 +5316,11 @@ function App() {
         preselectedFromMap={preselectedFromMap}
         existingOrders={orders}
         servicesCatalog={servicesCatalog}
-        onCompleteBooking={(newOrder) => setOrders((prev) => [newOrder, ...prev])}
+        activeCustomerEmail={activeRole === 'customer' ? userMeta.email : ''}
+        activeCustomerName={activeRole === 'customer' ? userMeta.name : ''}
+        onCompleteBooking={(newOrder) =>
+          setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)])
+        }
         setPage={setPage}
       />
     ) : page === 'reviews' ? (

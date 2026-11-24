@@ -1,6 +1,65 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import { createClient } from '@supabase/supabase-js'
+
+async function lookupCustomerByEmail(email: string): Promise<{
+  hasAccount: boolean
+  customerName?: string
+  preferredBranch?: string
+}> {
+  const emailClean = email.trim().toLowerCase()
+  const url =
+    process.env.VITE_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    'https://mwqtenuykrdlspxhgdlw.supabase.co'
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    'sb_publishable_NvYSYfPuqL04mnkD8BSnXw_uEOMtGam'
+  if (!url || !key || !emailClean) return { hasAccount: false }
+
+  try {
+    const client = createClient(url, key)
+    const { data: rows } = await client
+      .from('user_accounts')
+      .select('username, email, branches(branch_name), customer_profiles(first_name, last_name)')
+      .ilike('email', emailClean)
+      .limit(1)
+
+    const userRow = Array.isArray(rows) ? rows[0] : null
+    if (userRow) {
+      const profile = Array.isArray(userRow.customer_profiles)
+        ? userRow.customer_profiles[0]
+        : userRow.customer_profiles
+      const fullName = profile
+        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+        : ''
+      return {
+        hasAccount: true,
+        customerName: fullName || String(userRow.username || ''),
+        preferredBranch: userRow.branches?.branch_name ? String(userRow.branches.branch_name) : undefined,
+      }
+    }
+
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY && client.auth?.admin?.listUsers) {
+      const { data: listData } = await client.auth.admin.listUsers({ page: 1, perPage: 500 })
+      const authUser = (listData?.users || []).find(
+        (u: any) => String(u.email || '').trim().toLowerCase() === emailClean
+      )
+      if (authUser) {
+        const meta = authUser.user_metadata || {}
+        return {
+          hasAccount: true,
+          customerName: [meta.first_name, meta.last_name].filter(Boolean).join(' ').trim() || undefined,
+          preferredBranch: meta.branch_name ? String(meta.branch_name) : undefined,
+        }
+      }
+    }
+  } catch {}
+
+  return { hasAccount: false }
+}
 
 const OTP_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
@@ -72,7 +131,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!valid) {
       return res.status(400).json({ ok: false, verified: false, error: 'Invalid 6-digit verification code.' })
     }
-    return res.status(200).json({ ok: true, verified: true })
+    const accountInfo = await lookupCustomerByEmail(email)
+    return res.status(200).json({
+      ok: true,
+      verified: true,
+      hasAccount: accountInfo.hasAccount,
+      customerName: accountInfo.customerName,
+      preferredBranch: accountInfo.preferredBranch,
+    })
   }
 
   // action === 'send': Generate 6-digit OTP on the server only (never sent back in JSON)

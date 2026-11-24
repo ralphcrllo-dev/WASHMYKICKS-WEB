@@ -29884,7 +29884,96 @@ ${suffix}`;
       eventType: "PASSWORD_RESET"
     });
   }
+  async function checkCustomerAccountByEmail(rawEmail) {
+    const emailClean = rawEmail.trim().toLowerCase();
+    if (!emailClean || !emailClean.includes("@")) {
+      return { hasAccount: false };
+    }
+    const localMatch = loadProvisionedAccounts().find((a) => a.email.trim().toLowerCase() === emailClean);
+    if (localMatch) {
+      const fullName = `${localMatch.firstName || ""} ${localMatch.lastName || ""}`.trim();
+      return {
+        hasAccount: true,
+        customerName: fullName || localMatch.username || void 0,
+        role: localMatch.role,
+        preferredBranch: localMatch.branchName,
+        source: "local"
+      };
+    }
+    try {
+      const res = await fetch(`/api/customer-bookings?email=${encodeURIComponent(emailClean)}&mode=lookup`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.hasAccount) {
+          return {
+            hasAccount: true,
+            role: data.role ? String(data.role) : void 0,
+            preferredBranch: data.preferredBranch ? String(data.preferredBranch) : void 0,
+            source: "server"
+          };
+        }
+      }
+    } catch {
+    }
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const { data: rows } = await supabase.from("user_accounts").select("username, email, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)").ilike("email", emailClean).limit(1);
+        const row = Array.isArray(rows) ? rows[0] : null;
+        if (row) {
+          const profile = Array.isArray(row.customer_profiles) ? row.customer_profiles[0] : row.customer_profiles;
+          const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
+          return {
+            hasAccount: true,
+            customerName: fullName || String(row.username || "") || void 0,
+            role: row.roles?.role_name ? String(row.roles.role_name) : void 0,
+            preferredBranch: row.branches?.branch_name ? String(row.branches.branch_name) : void 0,
+            source: "supabase"
+          };
+        }
+      } catch {
+      }
+    }
+    return { hasAccount: false };
+  }
   async function createBookingRecord(input) {
+    const emailClean = (input.customerEmail || "").trim().toLowerCase();
+    const requestWithEmail = emailClean && !/\[Email:/i.test(input.customerRequest || "") ? `${input.customerRequest || input.serviceName || "Sneaker Care"} [Email: ${emailClean}]` : input.customerRequest || null;
+    let serverEmailSent = false;
+    if (emailClean) {
+      try {
+        const res = await fetch("/api/customer-bookings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: input.orderNumber,
+            customerEmail: emailClean,
+            customerName: input.customerName,
+            branchId: input.branchId ?? input.branchServiceId,
+            branchName: input.branchName,
+            serviceName: input.serviceName,
+            scheduledAt: input.scheduledAt,
+            priceAtBooking: input.priceAtBooking,
+            customerRequest: input.customerRequest,
+            otpCode: input.otpCode,
+            otpToken: input.otpToken,
+            otpExpiresAt: input.otpExpiresAt,
+            loggedInSession: input.loggedInSession
+          })
+        });
+        if (res.ok) {
+          const result = await res.json();
+          serverEmailSent = Boolean(result?.emailSent);
+          if (result?.bookingId) {
+            return {
+              booking_id: Number(result.bookingId),
+              hasAccount: Boolean(result?.hasAccount),
+              customerName: result?.customerName ? String(result.customerName) : void 0
+            };
+          }
+        }
+      } catch {
+      }
+    }
     if (supabase && isSupabaseConfigured) {
       const { data, error } = await supabase.from("bookings").insert({
         customer_id: input.customerId,
@@ -29892,14 +29981,20 @@ ${suffix}`;
         scheduled_at: input.scheduledAt,
         price_at_booking: input.priceAtBooking,
         booking_status: "Confirmed",
-        customer_request: input.customerRequest || null
+        customer_request: requestWithEmail
       }).select().single();
       if (error) throw error;
-      if (input.customerEmail) {
+      if (input.orderNumber && data?.booking_id) {
+        try {
+          await supabase.from("service_orders").update({ order_number: input.orderNumber }).eq("booking_id", data.booking_id);
+        } catch {
+        }
+      }
+      if (input.customerEmail && !serverEmailSent) {
         await dispatchTransactionalEmail({
           to: input.customerEmail,
           eventType: "BOOKING_CONFIRMATION",
-          reference: `WMK-${(/* @__PURE__ */ new Date()).getFullYear()}-${String(data.booking_id).padStart(4, "0")}`,
+          reference: input.orderNumber || `WMK-${(/* @__PURE__ */ new Date()).getFullYear()}-${String(data.booking_id).padStart(4, "0")}`,
           customerName: input.customerName,
           serviceName: input.serviceName,
           branchName: input.branchName,
@@ -30097,16 +30192,24 @@ ${suffix}`;
       users: cachedUsers
     };
   }
-  async function fetchLiveProductionData() {
+  function extractEmbeddedEmail(text) {
+    const match = String(text || "").match(/\[Email:\s*([^\s\]]+@[^\s\]]+)\]/i);
+    return match ? match[1].trim().toLowerCase() : "";
+  }
+  function extractEmbeddedSchedule(text) {
+    const match = String(text || "").match(/\(([A-Za-z]+\s+\d{1,2},\s+\d{4})\s*·\s*([^)]+)\)/);
+    if (!match) return {};
+    return { date: match[1].trim(), time: match[2].trim() };
+  }
+  function deriveDisplayNameFromEmail(email) {
+    const local = (email || "").split("@")[0] || "";
+    const cleaned = local.replace(/[0-9]+/g, " ").replace(/[._-]+/g, " ").trim();
+    if (!cleaned) return local || "Customer";
+    return cleaned.split(/\s+/).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
+  }
+  async function fetchLiveProductionData(customerEmailFilter) {
     const cached = loadCachedProductionData();
-    if (!supabase || !isSupabaseConfigured) {
-      return {
-        orders: cached.orders,
-        inventory: cached.inventory,
-        users: cached.users,
-        auditLogs: []
-      };
-    }
+    const emailFilterClean = (customerEmailFilter || "").trim().toLowerCase();
     const stageMap = {
       "Pending Assessment": 1,
       "In Progress": 2,
@@ -30114,7 +30217,45 @@ ${suffix}`;
       "Ready for Pickup": 4,
       Completed: 5
     };
-    const [soResult, invResult, usrResult, auditsResult] = await Promise.all([
+    const fetchServerOrders = () => fetch(
+      `/api/customer-bookings?mode=orders${emailFilterClean ? `&email=${encodeURIComponent(emailFilterClean)}` : ""}`
+    ).then((r) => r.ok ? r.json() : null).then((d) => Array.isArray(d?.orders) ? d.orders : []).catch(() => []);
+    if (!supabase || !isSupabaseConfigured) {
+      const serverOrders = await fetchServerOrders();
+      if (serverOrders.length === 0) {
+        return {
+          orders: cached.orders,
+          inventory: cached.inventory,
+          users: cached.users,
+          auditLogs: []
+        };
+      }
+      const orderMap2 = /* @__PURE__ */ new Map();
+      cached.orders.forEach((ord) => {
+        if (ord?.id && !DEMO_SEED_ORDER_IDS.has(String(ord.id))) {
+          orderMap2.set(String(ord.id), ord);
+        }
+      });
+      serverOrders.forEach((ord) => {
+        if (!ord?.id || DEMO_SEED_ORDER_IDS.has(String(ord.id))) return;
+        const email = String(ord.email || "").trim().toLowerCase();
+        if (email && DEMO_SEED_EMAILS.has(email)) return;
+        if (!orderMap2.has(String(ord.id))) {
+          orderMap2.set(String(ord.id), {
+            ...ord,
+            stageIndex: stageMap[ord.status] || 1,
+            specialist: ord.specialist || "Pending Specialist Assessment"
+          });
+        }
+      });
+      return {
+        orders: Array.from(orderMap2.values()),
+        inventory: cached.inventory,
+        users: cached.users,
+        auditLogs: []
+      };
+    }
+    const [soResult, invResult, usrResult, auditsResult, serverOrdersResult] = await Promise.all([
       supabase.from("service_orders").select(
         `
         order_id,
@@ -30159,7 +30300,8 @@ ${suffix}`;
         (r) => r.data,
         () => null
       ),
-      fetchAuditLogsList(50).catch(() => [])
+      fetchAuditLogsList(50).catch(() => []),
+      fetchServerOrders()
     ]);
     const orderMap = /* @__PURE__ */ new Map();
     cached.orders.forEach((ord) => {
@@ -30178,14 +30320,18 @@ ${suffix}`;
         const br = bs?.branches;
         const ss = bs?.shoe_services;
         const sa = Array.isArray(row.shoe_assessments) ? row.shoe_assessments[0] : row.shoe_assessments;
-        const email = String(ua?.email || "").trim().toLowerCase();
-        if (DEMO_SEED_EMAILS.has(email)) return;
         const rawReq = String(bk?.customer_request || row.work_instructions || "");
+        const embeddedEmail = extractEmbeddedEmail(rawReq);
+        const uaEmail = String(ua?.email || "").trim().toLowerCase();
+        const email = embeddedEmail || uaEmail;
+        if (DEMO_SEED_EMAILS.has(email)) return;
         const shoeTitle = rawReq.split("\u2014")[0]?.trim() || "Sneaker Pair";
-        const fullName = cp ? `${cp.first_name || ""} ${cp.last_name || ""}`.trim() : "Customer";
+        const rawFullName = cp ? `${cp.first_name || ""} ${cp.last_name || ""}`.trim() : "";
+        const fullName = embeddedEmail && uaEmail && embeddedEmail !== uaEmail ? deriveDisplayNameFromEmail(embeddedEmail) : rawFullName || (email ? deriveDisplayNameFromEmail(email) : "Customer");
+        const embeddedSched = extractEmbeddedSchedule(rawReq);
         const sched = bk?.scheduled_at ? new Date(bk.scheduled_at) : new Date(row.received_at || Date.now());
-        const dateStr = sched.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-        const timeStr = sched.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+        const dateStr = embeddedSched.date || sched.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        const timeStr = embeddedSched.time || sched.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
         const priceNum = Number(bk?.price_at_booking ?? bs?.service_price ?? 650);
         const st = row.order_status || "Pending Assessment";
         if (!orderMap.has(ordId)) {
@@ -30204,6 +30350,30 @@ ${suffix}`;
             specialist: "Pending Specialist Assessment",
             assessed: sa?.assessment_status === "Completed" || sa?.assessment_status === "Approved",
             assessmentNotes: sa?.damage_findings || sa?.service_notes || void 0
+          });
+        } else if (email && !orderMap.get(ordId)?.email) {
+          const existing = orderMap.get(ordId);
+          orderMap.set(ordId, { ...existing, email });
+        }
+      });
+    }
+    if (Array.isArray(serverOrdersResult)) {
+      serverOrdersResult.forEach((ord) => {
+        if (!ord?.id || DEMO_SEED_ORDER_IDS.has(String(ord.id))) return;
+        const email = String(ord.email || "").trim().toLowerCase();
+        if (email && DEMO_SEED_EMAILS.has(email)) return;
+        const existing = orderMap.get(String(ord.id));
+        if (!existing) {
+          orderMap.set(String(ord.id), {
+            ...ord,
+            stageIndex: stageMap[ord.status] || 1,
+            specialist: ord.specialist || "Pending Specialist Assessment"
+          });
+        } else {
+          orderMap.set(String(ord.id), {
+            ...existing,
+            email: existing.email || email,
+            customer: existing.customer || ord.customer || "Customer"
           });
         }
       });
@@ -32636,12 +32806,40 @@ ${suffix}`;
     const [enteredOtp, setEnteredOtp] = (0, import_react5.useState)("");
     const [otpVerified, setOtpVerified] = (0, import_react5.useState)(false);
     const [otpNotice, setOtpNotice] = (0, import_react5.useState)("");
+    const [detectedAccount, setDetectedAccount] = (0, import_react5.useState)({ checking: false, hasAccount: false });
     const [remoteSlotCounts, setRemoteSlotCounts] = (0, import_react5.useState)({});
     (0, import_react5.useEffect)(() => {
       if (defaultEmail && !customerEmail) {
         setCustomerEmail(defaultEmail);
       }
     }, [defaultEmail]);
+    (0, import_react5.useEffect)(() => {
+      const emailCandidate = customerEmail.trim().toLowerCase();
+      if (!emailCandidate || !emailCandidate.includes("@") || !emailCandidate.includes(".")) {
+        setDetectedAccount({ checking: false, hasAccount: false });
+        return;
+      }
+      let cancelled = false;
+      setDetectedAccount((prev) => ({ ...prev, checking: true }));
+      const timer = window.setTimeout(() => {
+        checkCustomerAccountByEmail(emailCandidate).then((res) => {
+          if (cancelled) return;
+          setDetectedAccount({
+            checking: false,
+            hasAccount: res.hasAccount,
+            customerName: res.customerName,
+            preferredBranch: res.preferredBranch
+          });
+        }).catch(() => {
+          if (cancelled) return;
+          setDetectedAccount({ checking: false, hasAccount: false });
+        });
+      }, 300);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      };
+    }, [customerEmail]);
     const monthNames = [
       "January",
       "February",
@@ -32817,14 +33015,25 @@ ${suffix}`;
           const data = await res.json();
           if (res.ok && data?.verified) {
             setOtpVerified(true);
+            if (data?.hasAccount) {
+              const acctName = data.customerName ? String(data.customerName) : void 0;
+              setDetectedAccount({
+                checking: false,
+                hasAccount: true,
+                customerName: acctName,
+                preferredBranch: data.preferredBranch ? String(data.preferredBranch) : void 0
+              });
+              setOtpNotice("Email verified. WashMyKicks Customer Account detected \u2014 booking will appear on your dashboard.");
+              return { ok: true, hasAccount: true, customerName: acctName };
+            }
             setOtpNotice("Email verified.");
-            return true;
+            return { ok: true, hasAccount: detectedAccount.hasAccount, customerName: detectedAccount.customerName };
           }
           setOtpNotice(data?.error || "Wrong code. Check your email and try again.");
-          return false;
+          return { ok: false };
         } catch {
           setOtpNotice("Could not verify code. Try again.");
-          return false;
+          return { ok: false };
         }
       }
       if (otpMode === "supabase-auth" && supabase) {
@@ -32835,8 +33044,10 @@ ${suffix}`;
         });
         if (!firstTry.error) {
           setOtpVerified(true);
-          setOtpNotice("Email verified.");
-          return true;
+          setOtpNotice(
+            detectedAccount.hasAccount ? "Email verified. WashMyKicks Customer Account detected \u2014 booking will appear on your dashboard." : "Email verified."
+          );
+          return { ok: true, hasAccount: detectedAccount.hasAccount, customerName: detectedAccount.customerName };
         }
         const secondTry = await supabase.auth.verifyOtp({
           email: emailTarget,
@@ -32845,14 +33056,16 @@ ${suffix}`;
         });
         if (!secondTry.error) {
           setOtpVerified(true);
-          setOtpNotice("Email verified.");
-          return true;
+          setOtpNotice(
+            detectedAccount.hasAccount ? "Email verified. WashMyKicks Customer Account detected \u2014 booking will appear on your dashboard." : "Email verified."
+          );
+          return { ok: true, hasAccount: detectedAccount.hasAccount, customerName: detectedAccount.customerName };
         }
         setOtpNotice(firstTry.error?.message || "Wrong code. Check your email and try again.");
-        return false;
+        return { ok: false };
       }
       setOtpNotice('Click "Send Code" first.');
-      return false;
+      return { ok: false };
     };
     const handleConfirm = async () => {
       const cleanBrand = shoeBrand.trim();
@@ -32861,34 +33074,48 @@ ${suffix}`;
         setOtpNotice("Enter your shoe brand and model before booking.");
         return;
       }
+      let verifiedHasAccount = detectedAccount.hasAccount;
+      let verifiedCustomerName = detectedAccount.customerName;
       if (!otpVerified) {
         if (!otpSent) {
           await handleSendBookingOtp();
           return;
         }
-        const ok = await handleVerifyOtp();
-        if (!ok) return;
+        const verifyResult = await handleVerifyOtp();
+        if (!verifyResult.ok) return;
+        if (verifyResult.hasAccount) {
+          verifiedHasAccount = true;
+          if (verifyResult.customerName) verifiedCustomerName = verifyResult.customerName;
+        }
       }
-      const otpEmail = customerEmail.trim();
-      const accountPersonalEmail = (accountEmail || "").trim();
+      const otpEmail = customerEmail.trim().toLowerCase();
+      const accountPersonalEmail = (accountEmail || "").trim().toLowerCase();
       const notificationEmailFinal = accountPersonalEmail || otpEmail;
-      const resolvedCustomerName = (accountName || "").trim() || getCustomerNameFromEmail(notificationEmailFinal);
+      const resolvedCustomerName = (accountName || "").trim() || verifiedCustomerName || getCustomerNameFromEmail(notificationEmailFinal);
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
       const combinedShoe = cleanBrand && cleanModel && !cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase()) ? `${cleanBrand} ${cleanModel}` : cleanModel || cleanBrand || "Sneaker Pair";
+      const generatedOrderId = `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`;
+      const isLinkedAccount = Boolean(accountPersonalEmail || verifiedHasAccount);
       void createBookingRecord({
         customerId: 1,
         branchServiceId: selectedBranch.id,
+        branchId: selectedBranch.id,
+        orderNumber: generatedOrderId,
         scheduledAt: scheduledIso,
         priceAtBooking: numericPrice,
-        customerRequest: `${combinedShoe} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
+        customerRequest: `${combinedShoe} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [${isLinkedAccount ? "Account Linked" : "Email Verified"}]`,
         customerEmail: notificationEmailFinal,
         customerName: resolvedCustomerName,
         serviceName: selectedService.title,
-        branchName: selectedBranch.name
+        branchName: selectedBranch.name,
+        otpCode: enteredOtp.trim(),
+        otpToken,
+        otpExpiresAt,
+        loggedInSession: Boolean(accountPersonalEmail)
       }).catch(() => null);
       const newOrder = {
-        id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
+        id: generatedOrderId,
         customer: resolvedCustomerName,
         email: notificationEmailFinal,
         shoe: combinedShoe,
@@ -32903,6 +33130,7 @@ ${suffix}`;
         stageIndex: 1,
         specialist: "Pending Specialist Assessment",
         assessed: false,
+        linkedToAccount: isLinkedAccount,
         docs: createDefaultDocumentation()
       };
       onCompleteBooking(newOrder);
@@ -33196,7 +33424,16 @@ ${suffix}`;
                     {
                       type: "email",
                       value: customerEmail,
-                      onChange: (e) => setCustomerEmail(e.target.value),
+                      onChange: (e) => {
+                        const val = e.target.value;
+                        setCustomerEmail(val);
+                        if (otpVerified || otpSent) {
+                          setOtpVerified(false);
+                          setOtpSent(false);
+                          setEnteredOtp("");
+                          setOtpNotice("");
+                        }
+                      },
                       placeholder: "Enter your email address",
                       style: {
                         flex: 1,
@@ -33221,10 +33458,29 @@ ${suffix}`;
                     }
                   )
                 ] }),
-                accountEmail && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 11.5, color: "#4b5563", marginBottom: 8 }, children: [
+                accountEmail ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 11.5, color: "#4b5563", marginBottom: 8 }, children: [
                   "Ready-for-pickup & status emails for this order will go to your account email: ",
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: accountEmail })
-                ] }),
+                ] }) : customerEmail.trim().includes("@") && customerEmail.trim().includes(".") && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+                  "div",
+                  {
+                    style: {
+                      fontSize: 11.5,
+                      marginBottom: 8,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      background: detectedAccount.checking ? "#f9fafb" : detectedAccount.hasAccount ? "#ecfdf5" : "#f9fafb",
+                      border: `1px solid ${detectedAccount.checking ? "#e5e7eb" : detectedAccount.hasAccount ? "#a7f3d0" : "#e5e7eb"}`,
+                      color: detectedAccount.checking ? "#6b7280" : detectedAccount.hasAccount ? "#065f46" : "#4b5563"
+                    },
+                    children: detectedAccount.checking ? "Checking if this email is linked to a WashMyKicks Customer Account..." : detectedAccount.hasAccount ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "WashMyKicks Customer Account detected." }),
+                      " This booking will automatically appear in your Customer Dashboard for ",
+                      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: customerEmail.trim().toLowerCase() }),
+                      "."
+                    ] }) : "Guest booking email. Sign up anytime with this same email to view this booking in your Customer Dashboard."
+                  }
+                ),
                 otpSent && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "input",
@@ -35708,15 +35964,18 @@ ${suffix}`;
     preselectedFromMap,
     existingOrders = initialOrders,
     servicesCatalog = services,
+    activeCustomerEmail = "",
+    activeCustomerName = "",
     onCompleteBooking,
     setPage
   }) {
     const [bookedOrder, setBookedOrder] = (0, import_react5.useState)(null);
     if (bookedOrder) {
+      const signedInSameEmail = Boolean(activeCustomerEmail) && activeCustomerEmail.trim().toLowerCase() === bookedOrder.email.trim().toLowerCase();
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("section", { className: "listing", children: /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-card", style: { textAlign: "center", maxWidth: 620 }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { className: "eyebrow", children: "APPOINTMENT CONFIRMED" }),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("h2", { style: { fontSize: 28, margin: "10px 0 8px" }, children: "Your kicks are scheduled!" }),
-        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { style: { fontSize: 13.5, color: "#4b5563", marginBottom: 20 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("p", { style: { fontSize: 13.5, color: "#4b5563", marginBottom: 16 }, children: [
           "Job Order ",
           /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: bookedOrder.id }),
           " has been created at ",
@@ -35730,6 +35989,27 @@ ${suffix}`;
           ] }),
           "."
         ] }),
+        bookedOrder.linkedToAccount && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(
+          "div",
+          {
+            style: {
+              background: "#ecfdf5",
+              border: "1px solid #a7f3d0",
+              borderRadius: 10,
+              padding: "12px 16px",
+              marginBottom: 18,
+              fontSize: 13,
+              color: "#065f46",
+              textAlign: "left"
+            },
+            children: [
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "Synced to Customer Account:" }),
+              " Your existing account for ",
+              /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: bookedOrder.email }),
+              " was detected \u2014 this booking has been added to your Customer Dashboard."
+            ]
+          }
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }, children: [
           /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("button", { type: "button", className: "primary", onClick: () => setPage("track"), children: [
             "Track My Order (",
@@ -35737,7 +36017,15 @@ ${suffix}`;
             ") ",
             /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(ArrowRight, { size: 15 })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("button", { type: "button", className: "outline", onClick: () => setPage("login-customer"), children: "Open in Customer Portal" })
+          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+            "button",
+            {
+              type: "button",
+              className: "outline",
+              onClick: () => setPage(signedInSameEmail ? "dashboard-customer" : "login-customer"),
+              children: "Open in Customer Portal"
+            }
+          )
         ] })
       ] }) });
     }
@@ -35748,6 +36036,9 @@ ${suffix}`;
         preselectedFromMap,
         existingOrders,
         servicesCatalog,
+        defaultEmail: activeCustomerEmail,
+        accountEmail: activeCustomerEmail,
+        accountName: activeCustomerName,
         onCancel: () => setPage("home"),
         onCompleteBooking: (order) => {
           onCompleteBooking(order);
@@ -35965,7 +36256,7 @@ ${suffix}`;
     });
     const [servicesCatalog, setServicesCatalog] = (0, import_react5.useState)(services);
     (0, import_react5.useEffect)(() => {
-      fetchLiveProductionData().then((live) => {
+      fetchLiveProductionData(activeRole === "customer" ? userMeta.email : void 0).then((live) => {
         if (live.orders.length > 0) {
           const staffUsers = (live.users || []).filter(
             (u) => String(u.role || "").toLowerCase().includes("staff")
@@ -36110,7 +36401,9 @@ ${suffix}`;
         preselectedFromMap,
         existingOrders: orders,
         servicesCatalog,
-        onCompleteBooking: (newOrder) => setOrders((prev) => [newOrder, ...prev]),
+        activeCustomerEmail: activeRole === "customer" ? userMeta.email : "",
+        activeCustomerName: activeRole === "customer" ? userMeta.name : "",
+        onCompleteBooking: (newOrder) => setOrders((prev) => [newOrder, ...prev.filter((o) => o.id !== newOrder.id)]),
         setPage
       }
     ) : page === "reviews" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Reviews, { reviews }) : page === "about" ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(About, {}) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(Home, { setPage, onBookBranch: handleBookBranchFromMap, servicesCatalog });
