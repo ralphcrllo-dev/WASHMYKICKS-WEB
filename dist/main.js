@@ -29656,10 +29656,18 @@ ${suffix}`;
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) return { ok: false };
+      if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try {
+          const data = await res.json();
+          if (data?.error) errMsg = String(data.error);
+        } catch {
+        }
+        return { ok: false, error: errMsg };
+      }
       return { ok: true };
-    } catch {
-      return { ok: false };
+    } catch (err) {
+      return { ok: false, error: err?.message || "Network request failed" };
     }
   }
   var ACCOUNTS_VAULT_KEY = "wmk-production-accounts-v1";
@@ -29914,42 +29922,63 @@ ${suffix}`;
     if (error) throw error;
     return data;
   }
-  async function updateServiceOrderStatus(input) {
-    if (supabase && isSupabaseConfigured) {
-      const query = supabase.from("service_orders").update({
-        order_status: input.nextStatus,
-        progress_notes: input.progressNotes,
-        completed_at: input.nextStatus === "Completed" ? (/* @__PURE__ */ new Date()).toISOString() : void 0
-      });
-      const { data, error } = input.orderId ? await query.eq("order_id", input.orderId).select().single() : await query.eq("order_number", input.orderNumber).select().single();
-      if (error) throw error;
-      if (input.customerEmail) {
-        const eventType = input.nextStatus === "Ready for Pickup" ? "READY_FOR_PICKUP" : input.nextStatus === "Completed" ? "ORDER_COMPLETED" : "ORDER_STATUS_UPDATE";
-        await dispatchTransactionalEmail({
-          to: input.customerEmail,
-          eventType,
-          reference: input.orderNumber,
-          customerName: input.customerName,
-          serviceName: input.serviceName,
-          branchName: input.branchName,
-          orderStatus: input.nextStatus
-        });
-      }
-      return data;
+  function resolveCustomerAccountEmail(candidateEmail, customerName) {
+    const direct = (candidateEmail || "").trim();
+    if (direct && direct.includes("@") && direct.toLowerCase() !== "juan.delacruz@email.com") {
+      return direct;
     }
-    if (input.customerEmail) {
+    const targetName = (customerName || "").trim().toLowerCase();
+    if (targetName) {
+      const accounts = loadProvisionedAccounts();
+      const matched = accounts.find(
+        (a) => `${a.firstName} ${a.lastName}`.trim().toLowerCase() === targetName || a.username.trim().toLowerCase() === targetName
+      );
+      if (matched?.email && matched.email.includes("@")) {
+        return matched.email.trim();
+      }
+    }
+    return direct && direct.includes("@") ? direct : "";
+  }
+  async function updateServiceOrderStatus(input) {
+    let updatedOrder = null;
+    if (supabase && isSupabaseConfigured) {
+      try {
+        const query = supabase.from("service_orders").update({
+          order_status: input.nextStatus,
+          progress_notes: input.progressNotes,
+          completed_at: input.nextStatus === "Completed" ? (/* @__PURE__ */ new Date()).toISOString() : void 0
+        });
+        const { data } = input.orderId ? await query.eq("order_id", input.orderId).select().maybeSingle() : await query.eq("order_number", input.orderNumber).select().maybeSingle();
+        if (data) updatedOrder = data;
+      } catch {
+      }
+    }
+    const recipientEmail = resolveCustomerAccountEmail(input.customerEmail, input.customerName);
+    if (recipientEmail) {
       const eventType = input.nextStatus === "Ready for Pickup" ? "READY_FOR_PICKUP" : input.nextStatus === "Completed" ? "ORDER_COMPLETED" : "ORDER_STATUS_UPDATE";
-      await dispatchTransactionalEmail({
-        to: input.customerEmail,
+      const emailRes = await dispatchTransactionalEmail({
+        to: recipientEmail,
         eventType,
         reference: input.orderNumber,
         customerName: input.customerName,
+        shoeName: input.shoeName,
         serviceName: input.serviceName,
         branchName: input.branchName,
+        price: input.price,
         orderStatus: input.nextStatus
       });
+      return {
+        order: updatedOrder,
+        emailSent: emailRes.ok,
+        sentTo: recipientEmail,
+        emailError: emailRes.error
+      };
     }
-    return null;
+    return {
+      order: updatedOrder,
+      emailSent: false,
+      emailError: "No customer email on file for this order"
+    };
   }
   async function upsertShoeAssessmentRecord(input) {
     if (!supabase) return null;
@@ -31905,6 +31934,86 @@ ${suffix}`;
     { id: 8, name: "Wash My Kicks \u2013 8th Branch", address: "Location to be announced", comingSoon: true }
   ];
   var initialOrders = [];
+  var CUSTOMER_PREFS_STORAGE_KEY = "wmk-customer-prefs-v1";
+  function loadCustomerProfilePrefs(email) {
+    const key = (email || "").trim().toLowerCase();
+    if (!key) return null;
+    try {
+      const map = JSON.parse(localStorage.getItem(CUSTOMER_PREFS_STORAGE_KEY) || "{}");
+      return map && typeof map === "object" ? map[key] || null : null;
+    } catch {
+      return null;
+    }
+  }
+  function saveCustomerProfilePrefs(email, prefs) {
+    const key = (email || "").trim().toLowerCase();
+    if (!key) return;
+    try {
+      const map = JSON.parse(localStorage.getItem(CUSTOMER_PREFS_STORAGE_KEY) || "{}");
+      const next = map && typeof map === "object" ? { ...map, [key]: prefs } : { [key]: prefs };
+      localStorage.setItem(CUSTOMER_PREFS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+    }
+  }
+  function findBranchIdByName(branchName) {
+    const norm = (s) => s.replace(/,/g, "").trim().toLowerCase();
+    const target = norm(branchName || "");
+    if (!target) return 1;
+    const match = wizardBranches.find((b) => norm(b.name) === target || norm(b.name).includes(target) || target.includes(norm(b.name.replace("Wash My Kicks \u2013 ", ""))));
+    return match && !match.comingSoon ? match.id : 1;
+  }
+  async function applyOrderStatusUpdate({
+    id,
+    nextStatus,
+    orders,
+    setOrders,
+    showToast,
+    actorName
+  }) {
+    const stageMap = {
+      "Pending Assessment": 2,
+      "In Progress": 3,
+      "Quality Check": 4,
+      "Ready for Pickup": 5,
+      Completed: 5
+    };
+    const targetOrder = orders.find((o) => o.id === id);
+    setOrders(
+      (prev) => prev.map(
+        (o) => o.id === id ? {
+          ...o,
+          status: nextStatus,
+          stageIndex: stageMap[nextStatus],
+          specialist: actorName && (!o.specialist || o.specialist === "Carlo Mendoza" || o.specialist === "Pending Specialist Assessment" || o.specialist === "Assigned Specialist") ? actorName : o.specialist
+        } : o
+      )
+    );
+    const resolvedEmail = resolveCustomerAccountEmail(targetOrder?.email, targetOrder?.customer);
+    showToast(
+      nextStatus === "Ready for Pickup" ? `Order ${id} marked Ready for Pickup. Sending notification email...` : `Order ${id} status updated to "${nextStatus}".`
+    );
+    const res = await updateServiceOrderStatus({
+      orderNumber: id,
+      nextStatus,
+      customerEmail: resolvedEmail || targetOrder?.email,
+      customerName: targetOrder?.customer,
+      shoeName: targetOrder?.shoe,
+      serviceName: targetOrder?.service,
+      branchName: targetOrder?.branch,
+      price: targetOrder?.price
+    });
+    if (nextStatus === "Ready for Pickup") {
+      if (res.emailSent && res.sentTo) {
+        showToast(`Order ${id} is Ready for Pickup \u2014 email sent to ${res.sentTo} (${targetOrder?.branch}).`);
+      } else if (!resolvedEmail) {
+        showToast(`Order ${id} marked Ready for Pickup (no customer email on file).`);
+      } else {
+        showToast(`Order ${id} marked Ready for Pickup (email failed: ${res.emailError || "SMTP error"}).`);
+      }
+    } else if (res.emailSent && res.sentTo) {
+      showToast(`Order ${id} updated to "${nextStatus}" \u2014 email update sent to ${res.sentTo}.`);
+    }
+  }
   var initialReviews = [
     { id: "r1", author: "Angela M.", service: "Restoration", branch: "Wash My Kicks \u2013 San Juan City", rating: 5, quote: "Brought in my beat-up white AF1s at San Juan. Midsoles came back clean and the smell is gone.", date: "March 18, 2026" },
     { id: "r2", author: "Jiro R.", service: "Deep Cleaning", branch: "Wash My Kicks \u2013 Quezon City", rating: 5, quote: "Got before-and-after photos of my Dunk Lows before pickup at Tomas Morato. Worth the \u20B1650.", date: "March 15, 2026" },
@@ -32500,6 +32609,8 @@ ${suffix}`;
     existingOrders = initialOrders,
     servicesCatalog = services,
     defaultEmail = "",
+    accountEmail = "",
+    accountName = "",
     onCompleteBooking,
     onCancel
   }) {
@@ -32758,8 +32869,10 @@ ${suffix}`;
         const ok = await handleVerifyOtp();
         if (!ok) return;
       }
-      const emailFinal = customerEmail.trim();
-      const derivedName = getCustomerNameFromEmail(emailFinal);
+      const otpEmail = customerEmail.trim();
+      const accountPersonalEmail = (accountEmail || "").trim();
+      const notificationEmailFinal = accountPersonalEmail || otpEmail;
+      const resolvedCustomerName = (accountName || "").trim() || getCustomerNameFromEmail(notificationEmailFinal);
       const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, "")) || 650;
       const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString();
       const combinedShoe = cleanBrand && cleanModel && !cleanModel.toLowerCase().startsWith(cleanBrand.toLowerCase()) ? `${cleanBrand} ${cleanModel}` : cleanModel || cleanBrand || "Sneaker Pair";
@@ -32769,15 +32882,15 @@ ${suffix}`;
         scheduledAt: scheduledIso,
         priceAtBooking: numericPrice,
         customerRequest: `${combinedShoe} \u2014 ${selectedService.title} (${formattedDate} \xB7 ${selectedTime}) [Email Verified]`,
-        customerEmail: emailFinal,
-        customerName: derivedName,
+        customerEmail: notificationEmailFinal,
+        customerName: resolvedCustomerName,
         serviceName: selectedService.title,
         branchName: selectedBranch.name
       }).catch(() => null);
       const newOrder = {
         id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
-        customer: derivedName,
-        email: emailFinal,
+        customer: resolvedCustomerName,
+        email: notificationEmailFinal,
         shoe: combinedShoe,
         shoeBrand: cleanBrand,
         shoeModel: cleanModel,
@@ -33108,6 +33221,10 @@ ${suffix}`;
                     }
                   )
                 ] }),
+                accountEmail && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { fontSize: 11.5, color: "#4b5563", marginBottom: 8 }, children: [
+                  "Ready-for-pickup & status emails for this order will go to your account email: ",
+                  /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: accountEmail })
+                ] }),
                 otpSent && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                     "input",
@@ -33166,6 +33283,7 @@ ${suffix}`;
   }
   function CustomerDashboard({
     userMeta,
+    onUpdateUserMeta,
     orders,
     setOrders,
     reviews,
@@ -33184,14 +33302,23 @@ ${suffix}`;
     const [searchQuery, setSearchQuery] = (0, import_react5.useState)("");
     const [toast, setToast] = (0, import_react5.useState)("");
     const [selectedOrderId, setSelectedOrderId] = (0, import_react5.useState)(orders[0]?.id || "WMK-2026-01842");
+    const savedPrefs = loadCustomerProfilePrefs(userMeta.email);
     const [reviewRating, setReviewRating] = (0, import_react5.useState)(5);
     const [reviewService, setReviewService] = (0, import_react5.useState)("Deep Cleaning");
-    const [reviewBranch, setReviewBranch] = (0, import_react5.useState)(staffBranches[0]);
+    const [reviewBranch, setReviewBranch] = (0, import_react5.useState)(savedPrefs?.branch || userMeta.branch || staffBranches[0]);
     const [reviewQuote, setReviewQuote] = (0, import_react5.useState)("");
-    const [profileName, setProfileName] = (0, import_react5.useState)(userMeta.name);
+    const [profileName, setProfileName] = (0, import_react5.useState)(savedPrefs?.name || userMeta.name);
     const [profileEmail, setProfileEmail] = (0, import_react5.useState)(userMeta.email);
-    const [profilePhone, setProfilePhone] = (0, import_react5.useState)("");
-    const [profileBranch, setProfileBranch] = (0, import_react5.useState)(staffBranches[0]);
+    const [profilePhone, setProfilePhone] = (0, import_react5.useState)(savedPrefs?.phone || "");
+    const [profileBranch, setProfileBranch] = (0, import_react5.useState)(savedPrefs?.branch || userMeta.branch || staffBranches[0]);
+    (0, import_react5.useEffect)(() => {
+      const prefs = loadCustomerProfilePrefs(userMeta.email);
+      setProfileEmail(userMeta.email);
+      setProfileName(prefs?.name || userMeta.name);
+      setProfilePhone(prefs?.phone || "");
+      setProfileBranch(prefs?.branch || userMeta.branch || staffBranches[0]);
+    }, [userMeta.email]);
+    const preferredBranchId = findBranchIdByName(profileBranch);
     const customerOrders = orders.filter(
       (o) => !userMeta.email || o.email.trim().toLowerCase() === userMeta.email.trim().toLowerCase()
     );
@@ -33201,8 +33328,8 @@ ${suffix}`;
     const nextAppointment = activeOrders[0] || null;
     const customerNotifications = customerOrders.map((o) => ({
       id: o.id,
-      title: `${o.service} (${o.status}) \u2014 ${o.id}`,
-      body: `Your ${o.shoe} at ${o.branch} is currently in stage: ${o.status}. Scheduled drop-off: ${o.date} at ${o.time}.`,
+      title: o.status === "Ready for Pickup" ? `Ready for Pickup at ${o.branch.replace("Wash My Kicks \u2013 ", "")} \u2014 ${o.id}` : `${o.service} (${o.status}) \u2014 ${o.id}`,
+      body: o.status === "Ready for Pickup" ? `Your ${o.shoe} (${o.service}) is ready for pickup at ${o.branch}. A pickup email was sent to ${o.email || userMeta.email}.` : `Your ${o.shoe} at ${o.branch} is currently in stage: ${o.status}. Scheduled drop-off: ${o.date} at ${o.time}.`,
       time: o.date,
       unread: o.status !== "Completed"
     }));
@@ -33464,33 +33591,24 @@ ${suffix}`;
           tab === "Book Appointment" && /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             CustomerBookAppointmentWizard,
             {
-              initialBranchId: preselectedBranchId,
+              initialBranchId: preselectedFromMap ? preselectedBranchId : preferredBranchId,
               preselectedFromMap,
               existingOrders: orders,
               servicesCatalog,
-              defaultEmail: userMeta.email,
+              defaultEmail: userMeta.email || profileEmail,
+              accountEmail: userMeta.email || profileEmail,
+              accountName: profileName || userMeta.name,
               onCancel: () => setTab("Dashboard"),
               onCompleteBooking: (newOrder) => {
                 const enrichedOrder = {
                   ...newOrder,
                   customer: profileName || newOrder.customer,
-                  email: userMeta.email || newOrder.email
+                  email: userMeta.email || profileEmail || newOrder.email
                 };
                 setOrders((prev) => [enrichedOrder, ...prev]);
                 setSelectedOrderId(enrichedOrder.id);
-                void createBookingRecord({
-                  customerId: 1,
-                  branchServiceId: 1,
-                  scheduledAt: (/* @__PURE__ */ new Date()).toISOString(),
-                  priceAtBooking: Number(enrichedOrder.price.replace(/[^\d.]/g, "")) || 650,
-                  customerRequest: `${enrichedOrder.shoe} \u2014 ${enrichedOrder.service}`,
-                  customerEmail: enrichedOrder.email,
-                  customerName: enrichedOrder.customer,
-                  serviceName: enrichedOrder.service,
-                  branchName: enrichedOrder.branch
-                }).catch(() => null);
                 showToast(
-                  `Appointment confirmed! Job Order ${enrichedOrder.id} created for ${enrichedOrder.date} at ${enrichedOrder.time}.`
+                  `Drop-off booked! Job Order ${enrichedOrder.id} created for ${enrichedOrder.date} at ${enrichedOrder.time}. Confirmation sent to ${enrichedOrder.email}.`
                 );
                 setTab("Track Shoes");
               }
@@ -33802,7 +33920,19 @@ ${suffix}`;
                 style: { maxWidth: 620 },
                 onSubmit: (e) => {
                   e.preventDefault();
-                  showToast("Customer profile updated successfully.");
+                  const targetEmail = userMeta.email || profileEmail;
+                  saveCustomerProfilePrefs(targetEmail, {
+                    name: profileName.trim(),
+                    phone: profilePhone.trim(),
+                    branch: profileBranch
+                  });
+                  onUpdateUserMeta?.({
+                    name: profileName.trim() || userMeta.name,
+                    branch: profileBranch
+                  });
+                  showToast(
+                    `Profile saved. Preferred pickup branch: ${profileBranch.replace("Wash My Kicks \u2013 ", "")} (notifications go to ${targetEmail}).`
+                  );
                 },
                 children: [
                   /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { className: "wizard-grid-2", children: [
@@ -33818,13 +33948,22 @@ ${suffix}`;
                       )
                     ] }),
                     /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("label", { style: { fontSize: 12, fontWeight: 700 }, children: [
-                      "Email Address",
+                      "Login Email (Pickup Notifications)",
                       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
                         "input",
                         {
                           value: profileEmail,
+                          readOnly: Boolean(userMeta.email),
                           onChange: (e) => setProfileEmail(e.target.value),
-                          style: { width: "100%", padding: 11, border: "1px solid #d1d5db", borderRadius: 8, marginTop: 6 }
+                          style: {
+                            width: "100%",
+                            padding: 11,
+                            border: "1px solid #d1d5db",
+                            borderRadius: 8,
+                            marginTop: 6,
+                            background: userMeta.email ? "#f9fafb" : "#fff",
+                            color: "#374151"
+                          }
                         }
                       )
                     ] }),
@@ -33920,33 +34059,14 @@ ${suffix}`;
       setTimeout(() => setToast(""), 4e3);
     };
     const updateOrderStatus = (id, nextStatus) => {
-      const stageMap = {
-        "Pending Assessment": 2,
-        "In Progress": 3,
-        "Quality Check": 4,
-        "Ready for Pickup": 5,
-        Completed: 5
-      };
-      const targetOrder = orders.find((o) => o.id === id);
-      setOrders(
-        (prev) => prev.map(
-          (o) => o.id === id ? {
-            ...o,
-            status: nextStatus,
-            stageIndex: stageMap[nextStatus],
-            specialist: !o.specialist || o.specialist === "Carlo Mendoza" || o.specialist === "Pending Specialist Assessment" || o.specialist === "Assigned Specialist" ? userMeta.name : o.specialist
-          } : o
-        )
-      );
-      void updateServiceOrderStatus({
-        orderNumber: id,
+      void applyOrderStatusUpdate({
+        id,
         nextStatus,
-        customerEmail: targetOrder?.email,
-        customerName: targetOrder?.customer,
-        serviceName: targetOrder?.service,
-        branchName: targetOrder?.branch
-      }).catch(() => null);
-      showToast(`Order ${id} status updated to "${nextStatus}".`);
+        orders,
+        setOrders,
+        showToast,
+        actorName: userMeta.name
+      });
     };
     const handleUploadAnglePhoto = (orderId, angle, side, dataUrl) => {
       setOrders(
@@ -35290,10 +35410,13 @@ ${suffix}`;
                   {
                     value: o.status,
                     onChange: (next) => {
-                      setOrders(
-                        (prev) => prev.map((ord) => ord.id === o.id ? { ...ord, status: next } : ord)
-                      );
-                      showToast(`Updated ${o.id} status to "${next}".`);
+                      void applyOrderStatusUpdate({
+                        id: o.id,
+                        nextStatus: next,
+                        orders,
+                        setOrders,
+                        showToast
+                      });
                     }
                   }
                 ) })
@@ -35892,11 +36015,12 @@ ${suffix}`;
     };
     const handleLoginSuccess = (role, meta) => {
       const fallbackName = (meta.email || "").split("@")[0].replace(/[0-9._-]+/g, " ").trim().split(/\s+/).filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ") || (role === "customer" ? "Customer" : role === "staff" ? "Staff Specialist" : "Administrator");
+      const savedPrefs = role === "customer" ? loadCustomerProfilePrefs(meta.email) : null;
       const nextMeta = {
-        name: meta.name || fallbackName,
+        name: savedPrefs?.name || meta.name || fallbackName,
         email: meta.email,
         employeeId: meta.employeeId,
-        branch: meta.branch
+        branch: savedPrefs?.branch || meta.branch
       };
       setActiveRole(role);
       setUserMeta(nextMeta);
@@ -35933,6 +36057,11 @@ ${suffix}`;
         CustomerDashboard,
         {
           userMeta,
+          onUpdateUserMeta: (patch) => {
+            const updated = { ...userMeta, ...patch };
+            setUserMeta(updated);
+            savePersistedRoleSession({ role: "customer", userMeta: updated });
+          },
           orders,
           setOrders,
           reviews,

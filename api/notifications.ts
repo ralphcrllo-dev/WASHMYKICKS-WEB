@@ -11,7 +11,29 @@ type NotificationEventType =
   | 'PASSWORD_RESET'
   | 'EMAIL_VERIFICATION'
 
+const BRANCH_ADDRESSES: { key: string; address: string }[] = [
+  { key: 'pasig', address: 'West Capitol Dr., Brgy. Kapitolyo, Pasig City' },
+  { key: 'san juan', address: '300 Col. Bonny Serrano Ave., San Juan City' },
+  { key: 'quezon', address: 'Tomas Morato Ave. cor. Scout Lozano, Quezon City' },
+  { key: 'pateros', address: '402 G. De Borja St., Brgy. Aguho, Pateros' },
+  { key: 'montalban', address: 'E. Rodriguez Hwy, Brgy. San Jose, Montalban, Rizal' },
+  { key: 'morong', address: '2nd Floor A5R Commercial Space Rental, Manila East Road, Morong, Rizal' },
+  { key: 'bacoor', address: 'Cerritos Trails Molino 3, Bacoor, Cavite' },
+]
+
+function resolveBranchAddress(branchName?: string, explicitAddress?: string): string {
+  if (explicitAddress && explicitAddress.trim()) return explicitAddress.trim()
+  const lower = (branchName || '').toLowerCase()
+  const matched = BRANCH_ADDRESSES.find((b) => lower.includes(b.key))
+  return matched ? matched.address : ''
+}
+
 function deriveNameFromEmail(email?: string, fallbackName?: string): string {
+  const genericNames = new Set(['customer', 'valued customer', 'valued sneakerhead'])
+  const cleanFallback = (fallbackName || '').trim()
+  if (cleanFallback && !genericNames.has(cleanFallback.toLowerCase())) {
+    return cleanFallback
+  }
   const local = (email || '').split('@')[0] || ''
   const cleaned = local
     .replace(/[0-9]+/g, ' ')
@@ -23,7 +45,7 @@ function deriveNameFromEmail(email?: string, fallbackName?: string): string {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
       .join(' ')
   }
-  return fallbackName || local || 'Valued Sneakerhead'
+  return local || 'Valued Sneakerhead'
 }
 
 function buildEmailContent(body: {
@@ -31,28 +53,36 @@ function buildEmailContent(body: {
   eventType: NotificationEventType
   reference?: string
   customerName?: string
+  shoeName?: string
   serviceName?: string
   branchName?: string
+  branchAddress?: string
+  price?: string
   scheduledAt?: string
   orderStatus?: string
   actionUrl?: string
 }) {
   const name = deriveNameFromEmail(body.to, body.customerName)
   const ref = body.reference || 'WMK-2026-0046'
+  const pair = body.shoeName || 'your sneakers'
   const svc = body.serviceName || 'Sneaker Care Service'
-  const branch = body.branchName || 'WashMyKicks Branch'
+  const branch = body.branchName || 'Wash My Kicks Branch'
+  const address = resolveBranchAddress(branch, body.branchAddress)
 
   switch (body.eventType) {
     case 'BOOKING_CONFIRMATION':
       return {
-        subject: `WashMyKicks — Booking Confirmed (${ref})`,
+        subject: `Wash My Kicks — Booking Confirmed (${ref})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · BOOKING CONFIRMATION</div>
-            <h2 style="margin:8px 0 12px;color:#111827;">Hi ${name}, your appointment is confirmed!</h2>
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASH MY KICKS · DROP-OFF CONFIRMED</div>
+            <h2 style="margin:8px 0 12px;color:#111827;">Hi ${name}, your drop-off is booked.</h2>
             <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-              Your booking reference is <b>${ref}</b> for <b>${svc}</b> at <b>${branch}</b>.
-              ${body.scheduledAt ? `<br/>Scheduled Drop-Off: <b>${body.scheduledAt}</b>` : ''}
+              Job Order: <b>${ref}</b><br/>
+              Pair: <b>${pair}</b><br/>
+              Service: <b>${svc}</b><br/>
+              Branch: <b>${branch}</b>${address ? ` (${address})` : ''}
+              ${body.scheduledAt ? `<br/>Drop-Off Slot: <b>${body.scheduledAt}</b>` : ''}
             </p>
             <div style="margin-top:16px;padding:12px 16px;background:#FDEAEA;border:1px solid #EF5350;border-radius:8px;color:#D32F2F;font-size:12px;font-weight:700;">
               Current Stage: Pending Assessment
@@ -62,10 +92,10 @@ function buildEmailContent(body: {
       }
     case 'BOOKING_UPDATE':
       return {
-        subject: `WashMyKicks — Booking Updated (${ref})`,
+        subject: `Wash My Kicks — Booking Updated (${ref})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · BOOKING UPDATE</div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASH MY KICKS · BOOKING UPDATE</div>
             <h2 style="margin:8px 0 12px;color:#111827;">Your appointment details were updated</h2>
             <p style="color:#4b5563;font-size:14px;line-height:1.6;">
               Job Order <b>${ref}</b> (${svc}) at <b>${branch}</b> has been updated.
@@ -76,15 +106,25 @@ function buildEmailContent(body: {
       }
     case 'READY_FOR_PICKUP':
       return {
-        subject: `WashMyKicks — Your Kicks Are Ready for Pickup! (${ref})`,
+        subject: `Wash My Kicks — Ready for Pickup at ${branch.replace('Wash My Kicks – ', '')} (${ref})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#F57C00;">WASHMYKICKS · READY FOR PICKUP</div>
-            <h2 style="margin:8px 0 12px;color:#111827;">Good news, ${name}!</h2>
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#F57C00;">WASH MY KICKS · READY FOR PICKUP</div>
+            <h2 style="margin:8px 0 12px;color:#111827;">Hi ${name}, your pair is ready for pickup.</h2>
             <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-              Your pair under Job Order <b>${ref}</b> (${svc}) has passed our 5-point Quality Check and is waiting for collection at <b>${branch}</b>.
+              We finished checking your <b>${pair}</b> and it is ready at your preferred branch:
             </p>
-            <div style="margin-top:16px;padding:12px 16px;background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;color:#F57C00;font-size:12px;font-weight:700;">
+            <div style="margin:16px 0;padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;color:#111827;line-height:1.7;">
+              <div><b>Job Order:</b> ${ref}</div>
+              <div><b>Service:</b> ${svc}${body.price ? ` (${body.price})` : ''}</div>
+              <div><b>Pickup Branch:</b> ${branch}</div>
+              ${address ? `<div><b>Address:</b> ${address}</div>` : ''}
+              <div><b>Store Hours:</b> Open daily, 10:00 AM – 8:00 PM</div>
+            </div>
+            <p style="color:#4b5563;font-size:13px;line-height:1.6;margin:0 0 14px;">
+              Show your Job Order number (<b>${ref}</b>) at the counter. You can settle payment at the branch when you claim your pair.
+            </p>
+            <div style="padding:12px 16px;background:#FFF3E0;border:1px solid #FFB74D;border-radius:8px;color:#F57C00;font-size:12px;font-weight:700;">
               Status: Ready for Pickup
             </div>
           </div>

@@ -8,6 +8,7 @@ import {
   loadCachedProductionData,
   registerCustomerAccount,
   requestPasswordResetEmail,
+  resolveCustomerAccountEmail,
   saveLiveProductionInventory,
   saveLiveProductionOrders,
   signInWithRole,
@@ -144,6 +145,117 @@ export type JobOrder = {
 }
 
 const initialOrders: JobOrder[] = []
+
+const CUSTOMER_PREFS_STORAGE_KEY = 'wmk-customer-prefs-v1'
+
+type CustomerProfilePrefs = {
+  name?: string
+  phone?: string
+  branch?: string
+}
+
+function loadCustomerProfilePrefs(email?: string): CustomerProfilePrefs | null {
+  const key = (email || '').trim().toLowerCase()
+  if (!key) return null
+  try {
+    const map = JSON.parse(localStorage.getItem(CUSTOMER_PREFS_STORAGE_KEY) || '{}')
+    return map && typeof map === 'object' ? map[key] || null : null
+  } catch {
+    return null
+  }
+}
+
+function saveCustomerProfilePrefs(email: string, prefs: CustomerProfilePrefs): void {
+  const key = (email || '').trim().toLowerCase()
+  if (!key) return
+  try {
+    const map = JSON.parse(localStorage.getItem(CUSTOMER_PREFS_STORAGE_KEY) || '{}')
+    const next = map && typeof map === 'object' ? { ...map, [key]: prefs } : { [key]: prefs }
+    localStorage.setItem(CUSTOMER_PREFS_STORAGE_KEY, JSON.stringify(next))
+  } catch {}
+}
+
+function findBranchIdByName(branchName?: string): number {
+  const norm = (s: string) => s.replace(/,/g, '').trim().toLowerCase()
+  const target = norm(branchName || '')
+  if (!target) return 1
+  const match = wizardBranches.find((b) => norm(b.name) === target || norm(b.name).includes(target) || target.includes(norm(b.name.replace('Wash My Kicks – ', ''))))
+  return match && !match.comingSoon ? match.id : 1
+}
+
+async function applyOrderStatusUpdate({
+  id,
+  nextStatus,
+  orders,
+  setOrders,
+  showToast,
+  actorName,
+}: {
+  id: string
+  nextStatus: JobOrder['status']
+  orders: JobOrder[]
+  setOrders: React.Dispatch<React.SetStateAction<JobOrder[]>>
+  showToast: (msg: string) => void
+  actorName?: string
+}) {
+  const stageMap: Record<JobOrder['status'], number> = {
+    'Pending Assessment': 2,
+    'In Progress': 3,
+    'Quality Check': 4,
+    'Ready for Pickup': 5,
+    Completed: 5,
+  }
+  const targetOrder = orders.find((o) => o.id === id)
+  setOrders((prev) =>
+    prev.map((o) =>
+      o.id === id
+        ? {
+            ...o,
+            status: nextStatus,
+            stageIndex: stageMap[nextStatus],
+            specialist:
+              actorName &&
+              (!o.specialist ||
+                o.specialist === 'Carlo Mendoza' ||
+                o.specialist === 'Pending Specialist Assessment' ||
+                o.specialist === 'Assigned Specialist')
+                ? actorName
+                : o.specialist,
+          }
+        : o
+    )
+  )
+
+  const resolvedEmail = resolveCustomerAccountEmail(targetOrder?.email, targetOrder?.customer)
+  showToast(
+    nextStatus === 'Ready for Pickup'
+      ? `Order ${id} marked Ready for Pickup. Sending notification email...`
+      : `Order ${id} status updated to "${nextStatus}".`
+  )
+
+  const res = await updateServiceOrderStatus({
+    orderNumber: id,
+    nextStatus,
+    customerEmail: resolvedEmail || targetOrder?.email,
+    customerName: targetOrder?.customer,
+    shoeName: targetOrder?.shoe,
+    serviceName: targetOrder?.service,
+    branchName: targetOrder?.branch,
+    price: targetOrder?.price,
+  })
+
+  if (nextStatus === 'Ready for Pickup') {
+    if (res.emailSent && res.sentTo) {
+      showToast(`Order ${id} is Ready for Pickup — email sent to ${res.sentTo} (${targetOrder?.branch}).`)
+    } else if (!resolvedEmail) {
+      showToast(`Order ${id} marked Ready for Pickup (no customer email on file).`)
+    } else {
+      showToast(`Order ${id} marked Ready for Pickup (email failed: ${res.emailError || 'SMTP error'}).`)
+    }
+  } else if (res.emailSent && res.sentTo) {
+    showToast(`Order ${id} updated to "${nextStatus}" — email update sent to ${res.sentTo}.`)
+  }
+}
 
 export type ReviewItem = {
   id: string
@@ -882,6 +994,8 @@ function CustomerBookAppointmentWizard({
   existingOrders = initialOrders,
   servicesCatalog = services,
   defaultEmail = '',
+  accountEmail = '',
+  accountName = '',
   onCompleteBooking,
   onCancel,
 }: {
@@ -890,6 +1004,8 @@ function CustomerBookAppointmentWizard({
   existingOrders?: JobOrder[]
   servicesCatalog?: Service[]
   defaultEmail?: string
+  accountEmail?: string
+  accountName?: string
   onCompleteBooking: (newOrder: JobOrder) => void
   onCancel: () => void
 }) {
@@ -1185,8 +1301,10 @@ function CustomerBookAppointmentWizard({
       if (!ok) return
     }
 
-    const emailFinal = customerEmail.trim()
-    const derivedName = getCustomerNameFromEmail(emailFinal)
+    const otpEmail = customerEmail.trim()
+    const accountPersonalEmail = (accountEmail || '').trim()
+    const notificationEmailFinal = accountPersonalEmail || otpEmail
+    const resolvedCustomerName = (accountName || '').trim() || getCustomerNameFromEmail(notificationEmailFinal)
     const numericPrice = Number(selectedService.price.replace(/[^0-9.]/g, '')) || 650
     const scheduledIso = new Date(calendarYear, calendarMonth, activeSelectedDay, 10, 30).toISOString()
 
@@ -1201,16 +1319,16 @@ function CustomerBookAppointmentWizard({
       scheduledAt: scheduledIso,
       priceAtBooking: numericPrice,
       customerRequest: `${combinedShoe} — ${selectedService.title} (${formattedDate} · ${selectedTime}) [Email Verified]`,
-      customerEmail: emailFinal,
-      customerName: derivedName,
+      customerEmail: notificationEmailFinal,
+      customerName: resolvedCustomerName,
       serviceName: selectedService.title,
       branchName: selectedBranch.name,
     }).catch(() => null)
 
     const newOrder: JobOrder = {
       id: `WMK-${calendarYear}-${Math.floor(1850 + Math.random() * 900)}`,
-      customer: derivedName,
-      email: emailFinal,
+      customer: resolvedCustomerName,
+      email: notificationEmailFinal,
       shoe: combinedShoe,
       shoeBrand: cleanBrand,
       shoeModel: cleanModel,
@@ -1569,6 +1687,12 @@ function CustomerBookAppointmentWizard({
               </button>
             </div>
 
+            {accountEmail && (
+              <div style={{ fontSize: 11.5, color: '#4b5563', marginBottom: 8 }}>
+                Ready-for-pickup &amp; status emails for this order will go to your account email: <b>{accountEmail}</b>
+              </div>
+            )}
+
             {otpSent && (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
                 <input
@@ -1630,6 +1754,7 @@ function CustomerBookAppointmentWizard({
 
 function CustomerDashboard({
   userMeta,
+  onUpdateUserMeta,
   orders,
   setOrders,
   reviews,
@@ -1641,7 +1766,8 @@ function CustomerDashboard({
   preselectedBranchId = 1,
   preselectedFromMap = false,
 }: {
-  userMeta: { name: string; email: string }
+  userMeta: { name: string; email: string; branch?: string }
+  onUpdateUserMeta?: (patch: { name?: string; branch?: string }) => void
   orders: JobOrder[]
   setOrders: React.Dispatch<React.SetStateAction<JobOrder[]>>
   reviews: ReviewItem[]
@@ -1664,17 +1790,29 @@ function CustomerDashboard({
   const [toast, setToast] = useState('')
   const [selectedOrderId, setSelectedOrderId] = useState(orders[0]?.id || 'WMK-2026-01842')
 
+  const savedPrefs = loadCustomerProfilePrefs(userMeta.email)
+
   // Review form state
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewService, setReviewService] = useState('Deep Cleaning')
-  const [reviewBranch, setReviewBranch] = useState(staffBranches[0])
+  const [reviewBranch, setReviewBranch] = useState(savedPrefs?.branch || userMeta.branch || staffBranches[0])
   const [reviewQuote, setReviewQuote] = useState('')
 
-  // Profile form state
-  const [profileName, setProfileName] = useState(userMeta.name)
+  // Profile form state (synced with personal login email & preferred branch)
+  const [profileName, setProfileName] = useState(savedPrefs?.name || userMeta.name)
   const [profileEmail, setProfileEmail] = useState(userMeta.email)
-  const [profilePhone, setProfilePhone] = useState('')
-  const [profileBranch, setProfileBranch] = useState(staffBranches[0])
+  const [profilePhone, setProfilePhone] = useState(savedPrefs?.phone || '')
+  const [profileBranch, setProfileBranch] = useState(savedPrefs?.branch || userMeta.branch || staffBranches[0])
+
+  useEffect(() => {
+    const prefs = loadCustomerProfilePrefs(userMeta.email)
+    setProfileEmail(userMeta.email)
+    setProfileName(prefs?.name || userMeta.name)
+    setProfilePhone(prefs?.phone || '')
+    setProfileBranch(prefs?.branch || userMeta.branch || staffBranches[0])
+  }, [userMeta.email])
+
+  const preferredBranchId = findBranchIdByName(profileBranch)
 
   const customerOrders = orders.filter(
     (o) => !userMeta.email || o.email.trim().toLowerCase() === userMeta.email.trim().toLowerCase()
@@ -1686,8 +1824,14 @@ function CustomerDashboard({
 
   const customerNotifications = customerOrders.map((o) => ({
     id: o.id,
-    title: `${o.service} (${o.status}) — ${o.id}`,
-    body: `Your ${o.shoe} at ${o.branch} is currently in stage: ${o.status}. Scheduled drop-off: ${o.date} at ${o.time}.`,
+    title:
+      o.status === 'Ready for Pickup'
+        ? `Ready for Pickup at ${o.branch.replace('Wash My Kicks – ', '')} — ${o.id}`
+        : `${o.service} (${o.status}) — ${o.id}`,
+    body:
+      o.status === 'Ready for Pickup'
+        ? `Your ${o.shoe} (${o.service}) is ready for pickup at ${o.branch}. A pickup email was sent to ${o.email || userMeta.email}.`
+        : `Your ${o.shoe} at ${o.branch} is currently in stage: ${o.status}. Scheduled drop-off: ${o.date} at ${o.time}.`,
     time: o.date,
     unread: o.status !== 'Completed',
   }))
@@ -1989,33 +2133,24 @@ function CustomerDashboard({
           {/* TAB 2: BOOK APPOINTMENT (SINGLE-PAGE BOOKING FORM) */}
           {tab === 'Book Appointment' && (
             <CustomerBookAppointmentWizard
-              initialBranchId={preselectedBranchId}
+              initialBranchId={preselectedFromMap ? preselectedBranchId : preferredBranchId}
               preselectedFromMap={preselectedFromMap}
               existingOrders={orders}
               servicesCatalog={servicesCatalog}
-              defaultEmail={userMeta.email}
+              defaultEmail={userMeta.email || profileEmail}
+              accountEmail={userMeta.email || profileEmail}
+              accountName={profileName || userMeta.name}
               onCancel={() => setTab('Dashboard')}
               onCompleteBooking={(newOrder) => {
                 const enrichedOrder: JobOrder = {
                   ...newOrder,
                   customer: profileName || newOrder.customer,
-                  email: userMeta.email || newOrder.email,
+                  email: userMeta.email || profileEmail || newOrder.email,
                 }
                 setOrders((prev) => [enrichedOrder, ...prev])
                 setSelectedOrderId(enrichedOrder.id)
-                void createBookingRecord({
-                  customerId: 1,
-                  branchServiceId: 1,
-                  scheduledAt: new Date().toISOString(),
-                  priceAtBooking: Number(enrichedOrder.price.replace(/[^\d.]/g, '')) || 650,
-                  customerRequest: `${enrichedOrder.shoe} — ${enrichedOrder.service}`,
-                  customerEmail: enrichedOrder.email,
-                  customerName: enrichedOrder.customer,
-                  serviceName: enrichedOrder.service,
-                  branchName: enrichedOrder.branch,
-                }).catch(() => null)
                 showToast(
-                  `Appointment confirmed! Job Order ${enrichedOrder.id} created for ${enrichedOrder.date} at ${enrichedOrder.time}.`
+                  `Drop-off booked! Job Order ${enrichedOrder.id} created for ${enrichedOrder.date} at ${enrichedOrder.time}. Confirmation sent to ${enrichedOrder.email}.`
                 )
                 setTab('Track Shoes')
               }}
@@ -2378,7 +2513,19 @@ function CustomerDashboard({
                 style={{ maxWidth: 620 }}
                 onSubmit={(e) => {
                   e.preventDefault()
-                  showToast('Customer profile updated successfully.')
+                  const targetEmail = userMeta.email || profileEmail
+                  saveCustomerProfilePrefs(targetEmail, {
+                    name: profileName.trim(),
+                    phone: profilePhone.trim(),
+                    branch: profileBranch,
+                  })
+                  onUpdateUserMeta?.({
+                    name: profileName.trim() || userMeta.name,
+                    branch: profileBranch,
+                  })
+                  showToast(
+                    `Profile saved. Preferred pickup branch: ${profileBranch.replace('Wash My Kicks – ', '')} (notifications go to ${targetEmail}).`
+                  )
                 }}
               >
                 <div className="wizard-grid-2">
@@ -2391,11 +2538,20 @@ function CustomerDashboard({
                     />
                   </label>
                   <label style={{ fontSize: 12, fontWeight: 700 }}>
-                    Email Address
+                    Login Email (Pickup Notifications)
                     <input
                       value={profileEmail}
+                      readOnly={Boolean(userMeta.email)}
                       onChange={(e) => setProfileEmail(e.target.value)}
-                      style={{ width: '100%', padding: 11, border: '1px solid #d1d5db', borderRadius: 8, marginTop: 6 }}
+                      style={{
+                        width: '100%',
+                        padding: 11,
+                        border: '1px solid #d1d5db',
+                        borderRadius: 8,
+                        marginTop: 6,
+                        background: userMeta.email ? '#f9fafb' : '#fff',
+                        color: '#374151',
+                      }}
                     />
                   </label>
                   <label style={{ fontSize: 12, fontWeight: 700 }}>
@@ -2533,41 +2689,14 @@ function StaffDashboard({
   }
 
   const updateOrderStatus = (id: string, nextStatus: JobOrder['status']) => {
-    const stageMap: Record<JobOrder['status'], number> = {
-      'Pending Assessment': 2,
-      'In Progress': 3,
-      'Quality Check': 4,
-      'Ready for Pickup': 5,
-      Completed: 5,
-    }
-    const targetOrder = orders.find((o) => o.id === id)
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              status: nextStatus,
-              stageIndex: stageMap[nextStatus],
-              specialist:
-                !o.specialist ||
-                o.specialist === 'Carlo Mendoza' ||
-                o.specialist === 'Pending Specialist Assessment' ||
-                o.specialist === 'Assigned Specialist'
-                  ? userMeta.name
-                  : o.specialist,
-            }
-          : o
-      )
-    )
-    void updateServiceOrderStatus({
-      orderNumber: id,
+    void applyOrderStatusUpdate({
+      id,
       nextStatus,
-      customerEmail: targetOrder?.email,
-      customerName: targetOrder?.customer,
-      serviceName: targetOrder?.service,
-      branchName: targetOrder?.branch,
-    }).catch(() => null)
-    showToast(`Order ${id} status updated to "${nextStatus}".`)
+      orders,
+      setOrders,
+      showToast,
+      actorName: userMeta.name,
+    })
   }
 
   const handleUploadAnglePhoto = (
@@ -4165,10 +4294,13 @@ function AdminDashboard({
                           <StatusSelect
                             value={o.status}
                             onChange={(next) => {
-                              setOrders((prev) =>
-                                prev.map((ord) => (ord.id === o.id ? { ...ord, status: next } : ord))
-                              )
-                              showToast(`Updated ${o.id} status to "${next}".`)
+                              void applyOrderStatusUpdate({
+                                id: o.id,
+                                nextStatus: next,
+                                orders,
+                                setOrders,
+                                showToast,
+                              })
                             }}
                           />
                         </td>
@@ -4915,11 +5047,12 @@ function App() {
         .filter(Boolean)
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
         .join(' ') || (role === 'customer' ? 'Customer' : role === 'staff' ? 'Staff Specialist' : 'Administrator')
+    const savedPrefs = role === 'customer' ? loadCustomerProfilePrefs(meta.email) : null
     const nextMeta = {
-      name: meta.name || fallbackName,
+      name: savedPrefs?.name || meta.name || fallbackName,
       email: meta.email,
       employeeId: meta.employeeId,
-      branch: meta.branch,
+      branch: savedPrefs?.branch || meta.branch,
     }
     setActiveRole(role)
     setUserMeta(nextMeta)
@@ -4960,6 +5093,11 @@ function App() {
     return (
       <CustomerDashboard
         userMeta={userMeta}
+        onUpdateUserMeta={(patch) => {
+          const updated = { ...userMeta, ...patch }
+          setUserMeta(updated)
+          savePersistedRoleSession({ role: 'customer', userMeta: updated })
+        }}
         orders={orders}
         setOrders={setOrders}
         reviews={reviews}

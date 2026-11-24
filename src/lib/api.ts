@@ -72,26 +72,37 @@ export type EmailNotificationPayload = {
     | 'EMAIL_VERIFICATION'
   reference?: string
   customerName?: string
+  shoeName?: string
   serviceName?: string
   branchName?: string
+  branchAddress?: string
+  price?: string
   scheduledAt?: string
   orderStatus?: OrderStatus
   actionUrl?: string
   customMessage?: string
 }
 
-export async function dispatchTransactionalEmail(payload: EmailNotificationPayload): Promise<{ ok: boolean }> {
+export async function dispatchTransactionalEmail(
+  payload: EmailNotificationPayload
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!res.ok) return { ok: false }
+    if (!res.ok) {
+      let errMsg = `HTTP ${res.status}`
+      try {
+        const data = await res.json()
+        if (data?.error) errMsg = String(data.error)
+      } catch {}
+      return { ok: false, error: errMsg }
+    }
     return { ok: true }
-  } catch {
-    // Graceful fallback when running static preview without serverless runtime
-    return { ok: false }
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'Network request failed' }
   }
 }
 
@@ -528,6 +539,29 @@ export async function fetchOrderTrackingDetails(orderNumber?: string): Promise<V
   return (data || []) as ViewOrderTrackingDetails[]
 }
 
+export function resolveCustomerAccountEmail(
+  candidateEmail?: string,
+  customerName?: string
+): string {
+  const direct = (candidateEmail || '').trim()
+  if (direct && direct.includes('@') && direct.toLowerCase() !== 'juan.delacruz@email.com') {
+    return direct
+  }
+  const targetName = (customerName || '').trim().toLowerCase()
+  if (targetName) {
+    const accounts = loadProvisionedAccounts()
+    const matched = accounts.find(
+      (a) =>
+        `${a.firstName} ${a.lastName}`.trim().toLowerCase() === targetName ||
+        a.username.trim().toLowerCase() === targetName
+    )
+    if (matched?.email && matched.email.includes('@')) {
+      return matched.email.trim()
+    }
+  }
+  return direct && direct.includes('@') ? direct : ''
+}
+
 export async function updateServiceOrderStatus(input: {
   orderId?: number
   orderNumber: string
@@ -535,47 +569,40 @@ export async function updateServiceOrderStatus(input: {
   progressNotes?: string
   customerEmail?: string
   customerName?: string
+  shoeName?: string
   serviceName?: string
   branchName?: string
-}) {
+  price?: string
+}): Promise<{
+  order: ErdServiceOrder | null
+  emailSent: boolean
+  sentTo?: string
+  emailError?: string
+}> {
+  let updatedOrder: ErdServiceOrder | null = null
+
   if (supabase && isSupabaseConfigured) {
-    const query = supabase
-      .from('service_orders')
-      .update({
-        order_status: input.nextStatus,
-        progress_notes: input.progressNotes,
-        completed_at: input.nextStatus === 'Completed' ? new Date().toISOString() : undefined,
-      })
+    try {
+      const query = supabase
+        .from('service_orders')
+        .update({
+          order_status: input.nextStatus,
+          progress_notes: input.progressNotes,
+          completed_at: input.nextStatus === 'Completed' ? new Date().toISOString() : undefined,
+        })
 
-    const { data, error } = input.orderId
-      ? await query.eq('order_id', input.orderId).select().single()
-      : await query.eq('order_number', input.orderNumber).select().single()
+      const { data } = input.orderId
+        ? await query.eq('order_id', input.orderId).select().maybeSingle()
+        : await query.eq('order_number', input.orderNumber).select().maybeSingle()
 
-    if (error) throw error
-
-    if (input.customerEmail) {
-      const eventType =
-        input.nextStatus === 'Ready for Pickup'
-          ? 'READY_FOR_PICKUP'
-          : input.nextStatus === 'Completed'
-          ? 'ORDER_COMPLETED'
-          : 'ORDER_STATUS_UPDATE'
-
-      await dispatchTransactionalEmail({
-        to: input.customerEmail,
-        eventType,
-        reference: input.orderNumber,
-        customerName: input.customerName,
-        serviceName: input.serviceName,
-        branchName: input.branchName,
-        orderStatus: input.nextStatus,
-      })
+      if (data) updatedOrder = data as ErdServiceOrder
+    } catch {
+      // Do not block customer email delivery if order row only exists in local cache or RLS restricts update
     }
-
-    return data as ErdServiceOrder
   }
 
-  if (input.customerEmail) {
+  const recipientEmail = resolveCustomerAccountEmail(input.customerEmail, input.customerName)
+  if (recipientEmail) {
     const eventType =
       input.nextStatus === 'Ready for Pickup'
         ? 'READY_FOR_PICKUP'
@@ -583,18 +610,31 @@ export async function updateServiceOrderStatus(input: {
         ? 'ORDER_COMPLETED'
         : 'ORDER_STATUS_UPDATE'
 
-    await dispatchTransactionalEmail({
-      to: input.customerEmail,
+    const emailRes = await dispatchTransactionalEmail({
+      to: recipientEmail,
       eventType,
       reference: input.orderNumber,
       customerName: input.customerName,
+      shoeName: input.shoeName,
       serviceName: input.serviceName,
       branchName: input.branchName,
+      price: input.price,
       orderStatus: input.nextStatus,
     })
+
+    return {
+      order: updatedOrder,
+      emailSent: emailRes.ok,
+      sentTo: recipientEmail,
+      emailError: emailRes.error,
+    }
   }
 
-  return null
+  return {
+    order: updatedOrder,
+    emailSent: false,
+    emailError: 'No customer email on file for this order',
+  }
 }
 
 /* ============================================================================
