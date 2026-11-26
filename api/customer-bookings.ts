@@ -10,7 +10,7 @@ import {
   getOtpSecretOrNull,
   getSupabaseServerClient,
   verifyBearerSession,
-} from './_security'
+} from './_security.js'
 
 const consumedOtpTokens = new Set<string>()
 

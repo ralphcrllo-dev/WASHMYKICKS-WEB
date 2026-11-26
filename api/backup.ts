@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { applyApiHeaders, getSupabaseServerClient, verifyBearerSession } from './_security'
+import { applyApiHeaders, getSupabaseServerClient, verifyBearerSession } from './_security.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (applyApiHeaders(req, res)) return

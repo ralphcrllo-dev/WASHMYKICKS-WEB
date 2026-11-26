@@ -9,7 +9,7 @@ import {
   getClientIp,
   getOtpSecretOrNull,
   getSupabaseServerClient,
-} from './_security'
+} from './_security.js'
 
 async function lookupCustomerByEmail(email: string): Promise<{
   hasAccount: boolean

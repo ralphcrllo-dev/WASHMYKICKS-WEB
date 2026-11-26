@@ -8,7 +8,7 @@ import {
   getClientIp,
   getSupabaseServerClient,
   verifyBearerSession,
-} from './_security'
+} from './_security.js'
 
 type NotificationEventType =
   | 'BOOKING_CONFIRMATION'

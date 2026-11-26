@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { applyApiHeaders, checkMemoryRateLimit, getClientIp, getSupabaseServerClient } from './_security'
+import { applyApiHeaders, checkMemoryRateLimit, getClientIp, getSupabaseServerClient } from './_security.js'
 
 const DEFAULT_TIME_SLOTS = [
   '10:00 AM',
