@@ -1,13 +1,31 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
+import { applyApiHeaders, getSupabaseServerClient, verifyBearerSession } from './_security'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (applyApiHeaders(req, res)) return
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env
-  if (!VITE_SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  // Allow automated Vercel Cron requests authenticated via CRON_SECRET OR an Administrator Bearer JWT
+  const authHeader = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization
+  const cronSecret = process.env.CRON_SECRET
+  const isCronAuthorized = Boolean(cronSecret && authHeader === `Bearer ${cronSecret}`)
+
+  if (!isCronAuthorized) {
+    const session = await verifyBearerSession(req)
+    if (!session) {
+      return res.status(401).json({ ok: false, error: 'Authentication required.' })
+    }
+    if (session.role !== 'ADMINISTRATOR') {
+      return res.status(403).json({ ok: false, error: 'Administrator access required.' })
+    }
+  }
+
+  const { adminClient, hasServiceRole } = getSupabaseServerClient()
+  if (!adminClient || !hasServiceRole) {
     return res.status(200).json({
       ok: true,
       mode: 'local-standby',
@@ -17,11 +35,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const adminClient = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     const { data, error } = await adminClient.rpc('fn_generate_backup_manifest')
     if (error) throw error
     return res.status(200).json({ ok: true, manifest: data })
-  } catch (err: any) {
-    return res.status(500).json({ ok: false, error: err?.message || 'Backup manifest failed' })
+  } catch {
+    return res.status(500).json({ ok: false, error: 'Backup manifest failed' })
   }
 }

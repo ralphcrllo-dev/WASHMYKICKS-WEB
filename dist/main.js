@@ -7910,6 +7910,9 @@
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Math.round(R * c * 10) / 10;
   }
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
   function getBranchOpenStatus(openHour, closeHour) {
     try {
       const nowManila = new Date((/* @__PURE__ */ new Date()).toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -8128,7 +8131,7 @@
                 <span class="wmk-map-pin-dot">0${branch.id}</span>
               </div>
               <div class="wmk-map-pin-label ${mapMode === "standard" ? "light-mode" : ""}">
-                ${isNearest ? '<em class="wmk-nearest-dot">\u2605</em>' : ""}${branch.shortName}
+                ${isNearest ? '<em class="wmk-nearest-dot">\u2605</em>' : ""}${escapeHtml(branch.shortName)}
               </div>
             </div>
           `,
@@ -8154,7 +8157,7 @@
       const userIcon = L.divIcon({
         className: "wmk-custom-div-icon",
         html: `
-        <div class="wmk-user-loc-wrap" title="${userCoords.label}">
+        <div class="wmk-user-loc-wrap" title="${escapeHtml(userCoords.label)}">
           <span class="wmk-user-loc-ring"></span>
           <span class="wmk-user-loc-dot"></span>
         </div>
@@ -29628,12 +29631,33 @@ ${suffix}`;
   // src/lib/api.ts
   var LOCAL_ATTEMPT_WINDOW_MS = 15 * 60 * 1e3;
   var MAX_FAILED_ATTEMPTS = 5;
+  var AUTH_RATE_STORAGE_KEY = "wmk-auth-rate-v1";
   var failedLoginTracker = /* @__PURE__ */ new Map();
+  function loadPersistedRateMap() {
+    try {
+      const raw = localStorage.getItem(AUTH_RATE_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  function savePersistedRateMap(map) {
+    try {
+      localStorage.setItem(AUTH_RATE_STORAGE_KEY, JSON.stringify(map));
+    } catch {
+    }
+  }
   function checkClientBruteForceGuard(email) {
     const key = email.trim().toLowerCase();
     const now = Date.now();
-    const recent = (failedLoginTracker.get(key) || []).filter((ts) => now - ts < LOCAL_ATTEMPT_WINDOW_MS);
+    const persisted = loadPersistedRateMap();
+    const combined = [...failedLoginTracker.get(key) || [], ...Array.isArray(persisted[key]) ? persisted[key] : []];
+    const recent = Array.from(new Set(combined)).filter((ts) => now - ts < LOCAL_ATTEMPT_WINDOW_MS);
     failedLoginTracker.set(key, recent);
+    persisted[key] = recent;
+    savePersistedRateMap(persisted);
     return {
       allowed: recent.length < MAX_FAILED_ATTEMPTS,
       remainingAttempts: Math.max(0, MAX_FAILED_ATTEMPTS - recent.length)
@@ -29641,19 +29665,41 @@ ${suffix}`;
   }
   function recordClientLoginAttempt(email, success) {
     const key = email.trim().toLowerCase();
+    const persisted = loadPersistedRateMap();
     if (success) {
       failedLoginTracker.delete(key);
+      delete persisted[key];
+      savePersistedRateMap(persisted);
       return;
     }
-    const recent = failedLoginTracker.get(key) || [];
-    recent.push(Date.now());
+    const now = Date.now();
+    const recent = (Array.isArray(persisted[key]) ? persisted[key] : failedLoginTracker.get(key) || []).filter(
+      (ts) => now - ts < LOCAL_ATTEMPT_WINDOW_MS
+    );
+    recent.push(now);
     failedLoginTracker.set(key, recent);
+    persisted[key] = recent;
+    savePersistedRateMap(persisted);
+  }
+  async function getAuthBearerHeaders() {
+    if (!supabase || !isSupabaseConfigured) return {};
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data?.session?.access_token;
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    } catch {
+      return {};
+    }
   }
   async function dispatchTransactionalEmail(payload) {
     try {
+      const authHeaders = await getAuthBearerHeaders();
       const res = await fetch("/api/notifications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders
+        },
         body: JSON.stringify(payload)
       });
       if (!res.ok) {
@@ -29679,12 +29725,7 @@ ${suffix}`;
       const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
       return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
     }
-    let h = 2166136261;
-    for (let i = 0; i < raw.length; i++) {
-      h ^= raw.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return `fnv1a_${(h >>> 0).toString(16)}`;
+    throw new Error("Secure WebCrypto hashing is required on HTTPS.");
   }
   function loadProvisionedAccounts() {
     try {
@@ -29720,7 +29761,7 @@ ${suffix}`;
   }
   async function registerCustomerAccount(input) {
     const emailClean = input.email.trim().toLowerCase();
-    const targetRole = input.role || "CUSTOMER";
+    const targetRole = "CUSTOMER";
     const username = input.username || `${input.firstName.toLowerCase().replace(/\s+/g, "")}_${Math.floor(1e3 + Math.random() * 9e3)}`;
     const pwdHash = await hashPasswordSha256(input.password, emailClean);
     const existingAccounts = loadProvisionedAccounts();
@@ -29732,9 +29773,6 @@ ${suffix}`;
       username,
       firstName: input.firstName,
       lastName: input.lastName,
-      branchId: input.branchId,
-      branchName: input.branchName,
-      employeeId: input.employeeId,
       accountStatus: "ACTIVE",
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -29752,10 +29790,7 @@ ${suffix}`;
               first_name: input.firstName,
               last_name: input.lastName,
               phone: input.phone || "",
-              address: input.address || "",
-              branch_id: input.branchId ? String(input.branchId) : "",
-              branch_name: input.branchName || "",
-              employee_id: input.employeeId || ""
+              address: input.address || ""
             }
           }
         });
@@ -29803,22 +29838,40 @@ ${suffix}`;
         if (error) {
           if (!isNetworkFetchError(error)) {
             recordClientLoginAttempt(emailClean, false);
+            void supabase.rpc("fn_record_auth_event", { p_action: "LOGIN_FAILED", p_email: emailClean }).then(
+              () => null,
+              () => null
+            );
             throw error;
           }
         } else if (data?.user) {
+          let dbRole = "";
+          let dbBranch = "";
+          try {
+            const { data: uaRow } = await supabase.from("user_accounts").select("roles(role_name), branches(branch_name)").eq("auth_uid", data.user.id).maybeSingle();
+            const rowAny = uaRow;
+            if (rowAny?.roles?.role_name) dbRole = String(rowAny.roles.role_name).toUpperCase();
+            if (rowAny?.branches?.branch_name) dbBranch = String(rowAny.branches.branch_name);
+          } catch {
+          }
           const metaRole = String(data.user.user_metadata?.role || "CUSTOMER").toUpperCase();
-          if (metaRole && metaRole !== input.expectedRole) {
+          const effectiveRole = dbRole || metaRole;
+          if (effectiveRole !== input.expectedRole) {
             await supabase.auth.signOut();
-            throw new Error(`Access denied: this account is registered as ${metaRole}, not ${input.expectedRole}.`);
+            throw new Error(`Access denied: this account is registered as ${effectiveRole}, not ${input.expectedRole}.`);
           }
           if (input.expectedRole === "STAFF" && input.branchName) {
-            const assignedBranch = String(data.user.user_metadata?.branch_name || "");
+            const assignedBranch = dbBranch || String(data.user.user_metadata?.branch_name || "");
             if (assignedBranch && assignedBranch !== input.branchName) {
               await supabase.auth.signOut();
               throw new Error(`Branch access denied: your staff account is provisioned for ${assignedBranch}.`);
             }
           }
           recordClientLoginAttempt(emailClean, true);
+          void supabase.rpc("fn_record_auth_event", { p_action: "LOGIN", p_email: emailClean }).then(
+            () => null,
+            () => null
+          );
           return { mode: "supabase", user: data.user, account: null };
         }
       } catch (err) {
@@ -29875,14 +29928,33 @@ ${suffix}`;
       await supabase.auth.signOut();
     }
   }
+  async function verifyPersistedSessionRole(expectedRole) {
+    if (!supabase || !isSupabaseConfigured) {
+      return { valid: true, unreachable: true };
+    }
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        if (isNetworkFetchError(error)) return { valid: true, unreachable: true };
+        return { valid: false };
+      }
+      if (!data?.user) {
+        return { valid: false };
+      }
+      const { data: uaRow } = await supabase.from("user_accounts").select("roles(role_name)").eq("auth_uid", data.user.id).maybeSingle();
+      const rowAny = uaRow;
+      const dbRole = String(rowAny?.roles?.role_name || data.user.user_metadata?.role || "CUSTOMER").toUpperCase();
+      const want = expectedRole === "admin" ? "ADMINISTRATOR" : expectedRole === "staff" ? "STAFF" : "CUSTOMER";
+      return { valid: dbRole === want };
+    } catch (err) {
+      if (isNetworkFetchError(err)) return { valid: true, unreachable: true };
+      return { valid: false };
+    }
+  }
   async function requestPasswordResetEmail(email) {
     if (supabase && isSupabaseConfigured) {
-      await supabase.auth.resetPasswordForEmail(email);
+      await supabase.auth.resetPasswordForEmail(email.trim());
     }
-    await dispatchTransactionalEmail({
-      to: email,
-      eventType: "PASSWORD_RESET"
-    });
   }
   async function checkCustomerAccountByEmail(rawEmail) {
     const emailClean = rawEmail.trim().toLowerCase();
@@ -29901,34 +29973,42 @@ ${suffix}`;
       };
     }
     try {
-      const res = await fetch(`/api/customer-bookings?email=${encodeURIComponent(emailClean)}&mode=lookup`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.hasAccount) {
-          return {
-            hasAccount: true,
-            role: data.role ? String(data.role) : void 0,
-            preferredBranch: data.preferredBranch ? String(data.preferredBranch) : void 0,
-            source: "server"
-          };
+      const authHeaders = await getAuthBearerHeaders();
+      if (authHeaders.Authorization) {
+        const res = await fetch(`/api/customer-bookings?email=${encodeURIComponent(emailClean)}&mode=lookup`, {
+          headers: authHeaders
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.hasAccount) {
+            return {
+              hasAccount: true,
+              role: data.role ? String(data.role) : void 0,
+              preferredBranch: data.preferredBranch ? String(data.preferredBranch) : void 0,
+              source: "server"
+            };
+          }
         }
       }
     } catch {
     }
     if (supabase && isSupabaseConfigured) {
       try {
-        const { data: rows } = await supabase.from("user_accounts").select("username, email, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)").ilike("email", emailClean).limit(1);
-        const row = Array.isArray(rows) ? rows[0] : null;
-        if (row) {
-          const profile = Array.isArray(row.customer_profiles) ? row.customer_profiles[0] : row.customer_profiles;
-          const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
-          return {
-            hasAccount: true,
-            customerName: fullName || String(row.username || "") || void 0,
-            role: row.roles?.role_name ? String(row.roles.role_name) : void 0,
-            preferredBranch: row.branches?.branch_name ? String(row.branches.branch_name) : void 0,
-            source: "supabase"
-          };
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (sessionData?.session?.access_token) {
+          const { data: rows } = await supabase.from("user_accounts").select("username, email, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)").ilike("email", emailClean).limit(1);
+          const row = Array.isArray(rows) ? rows[0] : null;
+          if (row) {
+            const profile = Array.isArray(row.customer_profiles) ? row.customer_profiles[0] : row.customer_profiles;
+            const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "";
+            return {
+              hasAccount: true,
+              customerName: fullName || String(row.username || "") || void 0,
+              role: row.roles?.role_name ? String(row.roles.role_name) : void 0,
+              preferredBranch: row.branches?.branch_name ? String(row.branches.branch_name) : void 0,
+              source: "supabase"
+            };
+          }
         }
       } catch {
       }
@@ -29941,9 +30021,13 @@ ${suffix}`;
     let serverEmailSent = false;
     if (emailClean) {
       try {
+        const authHeaders = await getAuthBearerHeaders();
         const res = await fetch("/api/customer-bookings", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders
+          },
           body: JSON.stringify({
             orderNumber: input.orderNumber,
             customerEmail: emailClean,
@@ -29956,8 +30040,7 @@ ${suffix}`;
             customerRequest: input.customerRequest,
             otpCode: input.otpCode,
             otpToken: input.otpToken,
-            otpExpiresAt: input.otpExpiresAt,
-            loggedInSession: input.loggedInSession
+            otpExpiresAt: input.otpExpiresAt
           })
         });
         if (res.ok) {
@@ -30217,9 +30300,14 @@ ${suffix}`;
       "Ready for Pickup": 4,
       Completed: 5
     };
-    const fetchServerOrders = () => fetch(
-      `/api/customer-bookings?mode=orders${emailFilterClean ? `&email=${encodeURIComponent(emailFilterClean)}` : ""}`
-    ).then((r) => r.ok ? r.json() : null).then((d) => Array.isArray(d?.orders) ? d.orders : []).catch(() => []);
+    const fetchServerOrders = async () => {
+      const authHeaders = await getAuthBearerHeaders();
+      if (!authHeaders.Authorization) return [];
+      return fetch(
+        `/api/customer-bookings?mode=orders${emailFilterClean ? `&email=${encodeURIComponent(emailFilterClean)}` : ""}`,
+        { headers: authHeaders }
+      ).then((r) => r.ok ? r.json() : null).then((d) => Array.isArray(d?.orders) ? d.orders : []).catch(() => []);
+    };
     if (!supabase || !isSupabaseConfigured) {
       const serverOrders = await fetchServerOrders();
       if (serverOrders.length === 0) {
@@ -30540,7 +30628,9 @@ ${suffix}`;
     if (value === null || value === void 0 || value === "") return `<c r="${ref}"${s}/>`;
     if (typeof value === "number" && Number.isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`;
     if (typeof value === "boolean") return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`;
-    return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escapeXml(String(value))}</t></is></c>`;
+    const raw = String(value);
+    const sanitized = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
+    return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escapeXml(sanitized)}</t></is></c>`;
   }
   function sheetXml(sheet) {
     const allRows = [sheet.headers, ...sheet.rows];
@@ -32576,16 +32666,16 @@ ${suffix}`;
         const roleEnum = isAdmin ? "ADMINISTRATOR" : isStaff ? "STAFF" : "CUSTOMER";
         const branchIdx = Math.max(1, staffBranches.indexOf(branch) + 1);
         if (isCreatingAccount) {
+          if (!isCustomer) {
+            throw new Error("Staff and administrator accounts can only be provisioned by an administrator.");
+          }
           const parts = (fullName.trim() || deriveDisplayName(email)).split(" ");
           const regRes = await registerCustomerAccount({
             email,
             password,
             firstName: parts[0] || roleLabel,
             lastName: parts.slice(1).join(" ") || "Account",
-            role: roleEnum,
-            branchId: isStaff ? branchIdx : void 0,
-            branchName: isStaff ? branch : void 0,
-            employeeId: isStaff ? employeeId : void 0
+            role: "CUSTOMER"
           });
           const metaName = deriveDisplayName(
             email,
@@ -32755,12 +32845,12 @@ ${suffix}`;
                 }
                 void requestPasswordResetEmail(email.trim()).catch(() => null);
                 setIsErrorMsg(false);
-                setForgotMessage(`Password reset instructions sent to ${email.trim()}.`);
+                setForgotMessage(`If an account exists for ${email.trim()}, password reset instructions have been sent.`);
               },
               children: "Forgot Password?"
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
+          isCustomer ? /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(
             "button",
             {
               type: "button",
@@ -32769,9 +32859,9 @@ ${suffix}`;
                 setForgotMessage("");
                 setIsErrorMsg(false);
               },
-              children: isCreatingAccount ? "Already registered? Sign In" : isStaff ? "Provision Staff Account" : isAdmin ? "Provision Admin Account" : "Create Account"
+              children: isCreatingAccount ? "Already registered? Sign In" : "Create Account"
             }
-          )
+          ) : /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("span", { style: { fontSize: 11.5, color: "#6b7280", fontWeight: 500 }, children: "Provisioned by WashMyKicks HQ" })
         ] })
       ] }) })
     ] });
@@ -32964,14 +33054,19 @@ ${suffix}`;
             scheduledAt: `${formattedDate} \xB7 ${selectedTime}`
           })
         });
+        const data = await res.json().catch(() => ({}));
         if (res.ok) {
-          const data = await res.json();
           setOtpMode("server-hmac");
           setOtpToken(String(data.token || ""));
           setOtpExpiresAt(Number(data.expiresAt || 0));
           setOtpSent(true);
           setOtpNotice(`Code sent to ${emailTarget}. Check your Inbox or Spam folder.`);
           setOtpSending(false);
+          return;
+        }
+        if (res.status === 429 || res.status === 400 || res.status === 403) {
+          setOtpSending(false);
+          setOtpNotice(String(data?.error || "Too many verification requests. Please wait a few minutes."));
           return;
         }
       } catch {
@@ -33000,7 +33095,7 @@ ${suffix}`;
       const emailTarget = customerEmail.trim();
       if (!candidate || candidate.length < 6) {
         setOtpNotice("Enter the 6-digit code from your email.");
-        return false;
+        return { ok: false };
       }
       if (otpMode === "server-hmac" && otpToken) {
         try {
@@ -33472,16 +33567,16 @@ ${suffix}`;
                       marginBottom: 8,
                       padding: "8px 10px",
                       borderRadius: 8,
-                      background: detectedAccount.checking ? "#f9fafb" : detectedAccount.hasAccount ? "#ecfdf5" : "#f9fafb",
-                      border: `1px solid ${detectedAccount.checking ? "#e5e7eb" : detectedAccount.hasAccount ? "#a7f3d0" : "#e5e7eb"}`,
-                      color: detectedAccount.checking ? "#6b7280" : detectedAccount.hasAccount ? "#065f46" : "#4b5563"
+                      background: detectedAccount.hasAccount ? "#ecfdf5" : "#f9fafb",
+                      border: `1px solid ${detectedAccount.hasAccount ? "#a7f3d0" : "#e5e7eb"}`,
+                      color: detectedAccount.hasAccount ? "#065f46" : "#4b5563"
                     },
-                    children: detectedAccount.checking ? "Checking if this email is linked to a WashMyKicks Customer Account..." : detectedAccount.hasAccount ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
+                    children: detectedAccount.hasAccount ? /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)(import_jsx_runtime3.Fragment, { children: [
                       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: "WashMyKicks Customer Account detected." }),
                       " This booking will automatically appear in your Customer Dashboard for ",
                       /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("b", { children: customerEmail.trim().toLowerCase() }),
                       "."
-                    ] }) : "Guest booking email. Sign up anytime with this same email to view this booking in your Customer Dashboard."
+                    ] }) : "Verify your email with the 6-digit code. If this email already has a WashMyKicks account, your booking will sync to your Customer Dashboard once verified."
                   }
                 ),
                 otpSent && /* @__PURE__ */ (0, import_jsx_runtime3.jsxs)("div", { style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }, children: [
@@ -36418,6 +36513,18 @@ ${suffix}`;
     };
     (0, import_react5.useEffect)(() => {
       if (typeof window === "undefined") return;
+      if (initialSavedSession?.role) {
+        verifyPersistedSessionRole(initialSavedSession.role).then((check) => {
+          if (!check.valid && !check.unreachable) {
+            savePersistedRoleSession(null);
+            setActiveRole(null);
+            setPageState(
+              (curr) => curr.startsWith("dashboard-") ? `login-${initialSavedSession.role}` : curr
+            );
+          }
+        }).catch(() => {
+        });
+      }
       const expectedUrl = pageToUrlPath(page);
       if (window.location.pathname !== expectedUrl) {
         window.history.replaceState({ page }, "", expectedUrl);

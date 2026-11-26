@@ -747,18 +747,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_role_name VARCHAR(30);
   v_role_id INT;
   v_user_id INT;
   v_customer_id INT;
   v_first_name VARCHAR(80);
   v_last_name VARCHAR(80);
 BEGIN
-  v_role_name := UPPER(COALESCE(NEW.raw_user_meta_data->>'role', 'CUSTOMER'));
-  SELECT role_id INTO v_role_id FROM public.roles WHERE role_name = v_role_name LIMIT 1;
-  IF v_role_id IS NULL THEN
-    SELECT role_id INTO v_role_id FROM public.roles WHERE role_name = 'CUSTOMER' LIMIT 1;
-  END IF;
+  -- Always assign least-privilege CUSTOMER role on public Auth self-signup.
+  -- Staff and Administrator privileges must only be granted via service-role SQL/Admin Console.
+  SELECT role_id INTO v_role_id FROM public.roles WHERE role_name = 'CUSTOMER' LIMIT 1;
 
   INSERT INTO public.user_accounts (
     auth_uid,
@@ -773,7 +770,7 @@ BEGIN
   VALUES (
     NEW.id,
     v_role_id,
-    NULLIF(NEW.raw_user_meta_data->>'branch_id', '')::INT,
+    NULL,
     COALESCE(
       NEW.raw_user_meta_data->>'username',
       SPLIT_PART(NEW.email, '@', 1) || '_' || SUBSTR(NEW.id::TEXT, 1, 6)
@@ -789,30 +786,28 @@ BEGIN
         updated_at = NOW()
   RETURNING user_id INTO v_user_id;
 
-  IF v_role_name = 'CUSTOMER' THEN
-    v_first_name := COALESCE(NEW.raw_user_meta_data->>'first_name', 'Valued');
-    v_last_name := COALESCE(NEW.raw_user_meta_data->>'last_name', 'Customer');
+  v_first_name := COALESCE(NEW.raw_user_meta_data->>'first_name', 'Valued');
+  v_last_name := COALESCE(NEW.raw_user_meta_data->>'last_name', 'Customer');
 
-    INSERT INTO public.customer_profiles (user_id, first_name, last_name, phone, address)
-    VALUES (
-      v_user_id,
-      v_first_name,
-      v_last_name,
-      NEW.raw_user_meta_data->>'phone',
-      NEW.raw_user_meta_data->>'address'
-    )
-    ON CONFLICT (user_id) DO NOTHING
-    RETURNING customer_id INTO v_customer_id;
+  INSERT INTO public.customer_profiles (user_id, first_name, last_name, phone, address)
+  VALUES (
+    v_user_id,
+    v_first_name,
+    v_last_name,
+    NEW.raw_user_meta_data->>'phone',
+    NEW.raw_user_meta_data->>'address'
+  )
+  ON CONFLICT (user_id) DO NOTHING
+  RETURNING customer_id INTO v_customer_id;
 
-    IF v_customer_id IS NOT NULL THEN
-      INSERT INTO public.customer_notification_preferences (customer_id, preference_type, is_enabled)
-      VALUES
-        (v_customer_id, 'EMAIL_BOOKING', TRUE),
-        (v_customer_id, 'EMAIL_ORDER_STATUS', TRUE),
-        (v_customer_id, 'EMAIL_PICKUP', TRUE),
-        (v_customer_id, 'IN_APP', TRUE)
-      ON CONFLICT (customer_id, preference_type) DO NOTHING;
-    END IF;
+  IF v_customer_id IS NOT NULL THEN
+    INSERT INTO public.customer_notification_preferences (customer_id, preference_type, is_enabled)
+    VALUES
+      (v_customer_id, 'EMAIL_BOOKING', TRUE),
+      (v_customer_id, 'EMAIL_ORDER_STATUS', TRUE),
+      (v_customer_id, 'EMAIL_PICKUP', TRUE),
+      (v_customer_id, 'IN_APP', TRUE)
+    ON CONFLICT (customer_id, preference_type) DO NOTHING;
   END IF;
 
   RETURN NEW;
@@ -1347,8 +1342,16 @@ DROP POLICY IF EXISTS "customer_profiles_select" ON public.customer_profiles;
 CREATE POLICY "customer_profiles_select" ON public.customer_profiles
   FOR SELECT USING (
     user_id = public.fn_current_user_id()
-    OR public.fn_is_staff()
     OR public.fn_is_admin()
+    OR (
+      public.fn_is_staff() AND EXISTS (
+        SELECT 1
+        FROM public.bookings bk
+        JOIN public.branch_services bs ON bs.branch_service_id = bk.branch_service_id
+        WHERE bk.customer_id = customer_profiles.customer_id
+          AND bs.branch_id = public.fn_current_branch_id()
+      )
+    )
   );
 
 DROP POLICY IF EXISTS "customer_profiles_self_insert" ON public.customer_profiles;
@@ -1777,7 +1780,7 @@ CREATE POLICY "audit_logs_admin_select" ON public.audit_logs
 
 DROP POLICY IF EXISTS "audit_logs_system_insert" ON public.audit_logs;
 CREATE POLICY "audit_logs_system_insert" ON public.audit_logs
-  FOR INSERT WITH CHECK (TRUE);
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
 DROP POLICY IF EXISTS "system_settings_admin_all" ON public.system_settings;
 CREATE POLICY "system_settings_admin_all" ON public.system_settings
@@ -2152,7 +2155,7 @@ VALUES
   (1, 'IN_APP', TRUE)
 ON CONFLICT (customer_id, preference_type) DO NOTHING;
 
--- Allow publishable client testing across operational tables alongside role-based policies
+-- Remove any permissive anon/public catch-all policies and enforce security_invoker on views
 DO $$
 DECLARE
   t TEXT;
@@ -2167,7 +2170,16 @@ BEGIN
   ]
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS "wmk_publishable_client_%I" ON public.%I;', t, t);
-    EXECUTE format('CREATE POLICY "wmk_publishable_client_%I" ON public.%I FOR ALL USING (TRUE) WITH CHECK (TRUE);', t, t);
   END LOOP;
 END $$;
+
+ALTER VIEW IF EXISTS public.v_branch_inventory_stock SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.v_low_stock_alerts SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.v_order_tracking_details SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.v_branch_performance_summary SET (security_invoker = true);
+
+REVOKE ALL ON public.user_accounts, public.customer_profiles, public.bookings, public.service_orders,
+  public.shoe_assessments, public.assessment_photos, public.audit_logs, public.system_settings,
+  public.security_login_attempts, public.v_branch_inventory_stock, public.v_low_stock_alerts,
+  public.v_order_tracking_details, public.v_branch_performance_summary FROM anon;
 

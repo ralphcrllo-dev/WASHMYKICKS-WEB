@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
+import { applyApiHeaders, checkMemoryRateLimit, getClientIp, getSupabaseServerClient } from './_security'
 
 const DEFAULT_TIME_SLOTS = [
   '10:00 AM',
@@ -15,39 +15,51 @@ const DEFAULT_TIME_SLOTS = [
 const MAX_CAPACITY_PER_SLOT = 2
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (applyApiHeaders(req, res)) return
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
+  }
+
+  const rate = checkMemoryRateLimit(`slots:${getClientIp(req)}`, 60, 60 * 1000)
+  if (!rate.allowed) {
+    res.setHeader('Retry-After', String(rate.retryAfterSec))
+    return res.status(429).json({ ok: false, error: 'Too many requests.' })
   }
 
   const branchName = String(req.query.branch || 'Wash My Kicks – Pasig City')
   const dateLabel = String(req.query.date || '')
 
-  const supabaseUrl =
-    process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    'https://mwqtenuykrdlspxhgdlw.supabase.co'
-  const supabaseKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    'sb_publishable_NvYSYfPuqL04mnkD8BSnXw_uEOMtGam'
+  const { adminClient, hasServiceRole } = getSupabaseServerClient()
 
   const slotCounts: Record<string, number> = {}
   for (const s of DEFAULT_TIME_SLOTS) slotCounts[s] = 0
 
   try {
-    if (supabaseUrl && supabaseKey) {
-      const client = createClient(supabaseUrl, supabaseKey)
-      const { data: bookings } = await client
-        .from('bookings')
-        .select('scheduled_at, booking_status, customer_request')
-        .neq('booking_status', 'Cancelled')
+    if (adminClient) {
+      if (hasServiceRole) {
+        const { data: bookings } = await adminClient
+          .from('bookings')
+          .select('scheduled_at, booking_status, customer_request')
+          .neq('booking_status', 'Cancelled')
 
-      if (Array.isArray(bookings)) {
-        for (const b of bookings) {
-          const reqText = String(b.customer_request || '')
-          for (const slot of DEFAULT_TIME_SLOTS) {
-            if (reqText.includes(slot) && (!dateLabel || reqText.includes(dateLabel))) {
-              slotCounts[slot] = (slotCounts[slot] || 0) + 1
+        if (Array.isArray(bookings)) {
+          for (const b of bookings) {
+            const reqText = String(b.customer_request || '')
+            for (const slot of DEFAULT_TIME_SLOTS) {
+              if (reqText.includes(slot) && (!dateLabel || reqText.includes(dateLabel))) {
+                slotCounts[slot] = (slotCounts[slot] || 0) + 1
+              }
+            }
+          }
+        }
+      } else {
+        const { data: rpcRows } = await adminClient.rpc('fn_get_public_slot_counts', {
+          p_date_label: dateLabel,
+        })
+        if (Array.isArray(rpcRows)) {
+          for (const r of rpcRows as any[]) {
+            if (r?.slot_label && r.slot_label in slotCounts) {
+              slotCounts[String(r.slot_label)] = Number(r.booked_count || 0)
             }
           }
         }

@@ -19,6 +19,7 @@ import {
   updateServiceOrderStatus,
   uploadAssessmentPhotoToStorage,
   upsertShoeAssessmentRecord,
+  verifyPersistedSessionRole,
 } from './lib/api'
 import { downloadExcel, exportDateStamp, pesoToNumber } from './lib/excelExport'
 import { supabase } from './lib/supabase'
@@ -757,16 +758,16 @@ function RoleLogin({
       const branchIdx = Math.max(1, staffBranches.indexOf(branch) + 1)
 
       if (isCreatingAccount) {
+        if (!isCustomer) {
+          throw new Error('Staff and administrator accounts can only be provisioned by an administrator.')
+        }
         const parts = (fullName.trim() || deriveDisplayName(email)).split(' ')
         const regRes = await registerCustomerAccount({
           email,
           password,
           firstName: parts[0] || roleLabel,
           lastName: parts.slice(1).join(' ') || 'Account',
-          role: roleEnum,
-          branchId: isStaff ? branchIdx : undefined,
-          branchName: isStaff ? branch : undefined,
-          employeeId: isStaff ? employeeId : undefined,
+          role: 'CUSTOMER',
         })
         const metaName = deriveDisplayName(
           email,
@@ -961,27 +962,27 @@ function RoleLogin({
                 }
                 void requestPasswordResetEmail(email.trim()).catch(() => null)
                 setIsErrorMsg(false)
-                setForgotMessage(`Password reset instructions sent to ${email.trim()}.`)
+                setForgotMessage(`If an account exists for ${email.trim()}, password reset instructions have been sent.`)
               }}
             >
               Forgot Password?
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsCreatingAccount(!isCreatingAccount)
-                setForgotMessage('')
-                setIsErrorMsg(false)
-              }}
-            >
-              {isCreatingAccount
-                ? 'Already registered? Sign In'
-                : isStaff
-                ? 'Provision Staff Account'
-                : isAdmin
-                ? 'Provision Admin Account'
-                : 'Create Account'}
-            </button>
+            {isCustomer ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreatingAccount(!isCreatingAccount)
+                  setForgotMessage('')
+                  setIsErrorMsg(false)
+                }}
+              >
+                {isCreatingAccount ? 'Already registered? Sign In' : 'Create Account'}
+              </button>
+            ) : (
+              <span style={{ fontSize: 11.5, color: '#6b7280', fontWeight: 500 }}>
+                Provisioned by WashMyKicks HQ
+              </span>
+            )}
           </div>
         </form>
       </div>
@@ -1230,14 +1231,19 @@ function CustomerBookAppointmentWizard({
         }),
       })
 
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        const data = await res.json()
         setOtpMode('server-hmac')
         setOtpToken(String(data.token || ''))
         setOtpExpiresAt(Number(data.expiresAt || 0))
         setOtpSent(true)
         setOtpNotice(`Code sent to ${emailTarget}. Check your Inbox or Spam folder.`)
         setOtpSending(false)
+        return
+      }
+      if (res.status === 429 || res.status === 400 || res.status === 403) {
+        setOtpSending(false)
+        setOtpNotice(String(data?.error || 'Too many verification requests. Please wait a few minutes.'))
         return
       }
     } catch {}
@@ -1263,12 +1269,16 @@ function CustomerBookAppointmentWizard({
     setOtpNotice('Email verification service unavailable. Try again in a moment.')
   }
 
-  const handleVerifyOtp = async () => {
+  const handleVerifyOtp = async (): Promise<{
+    ok: boolean
+    hasAccount?: boolean
+    customerName?: string
+  }> => {
     const candidate = enteredOtp.trim()
     const emailTarget = customerEmail.trim()
     if (!candidate || candidate.length < 6) {
       setOtpNotice('Enter the 6-digit code from your email.')
-      return false
+      return { ok: false }
     }
 
     if (otpMode === 'server-hmac' && otpToken) {
@@ -1791,34 +1801,18 @@ function CustomerBookAppointmentWizard({
                     marginBottom: 8,
                     padding: '8px 10px',
                     borderRadius: 8,
-                    background: detectedAccount.checking
-                      ? '#f9fafb'
-                      : detectedAccount.hasAccount
-                      ? '#ecfdf5'
-                      : '#f9fafb',
-                    border: `1px solid ${
-                      detectedAccount.checking
-                        ? '#e5e7eb'
-                        : detectedAccount.hasAccount
-                        ? '#a7f3d0'
-                        : '#e5e7eb'
-                    }`,
-                    color: detectedAccount.checking
-                      ? '#6b7280'
-                      : detectedAccount.hasAccount
-                      ? '#065f46'
-                      : '#4b5563',
+                    background: detectedAccount.hasAccount ? '#ecfdf5' : '#f9fafb',
+                    border: `1px solid ${detectedAccount.hasAccount ? '#a7f3d0' : '#e5e7eb'}`,
+                    color: detectedAccount.hasAccount ? '#065f46' : '#4b5563',
                   }}
                 >
-                  {detectedAccount.checking ? (
-                    'Checking if this email is linked to a WashMyKicks Customer Account...'
-                  ) : detectedAccount.hasAccount ? (
+                  {detectedAccount.hasAccount ? (
                     <>
                       <b>WashMyKicks Customer Account detected.</b> This booking will automatically appear in your
                       Customer Dashboard for <b>{customerEmail.trim().toLowerCase()}</b>.
                     </>
                   ) : (
-                    'Guest booking email. Sign up anytime with this same email to view this booking in your Customer Dashboard.'
+                    'Verify your email with the 6-digit code. If this email already has a WashMyKicks account, your booking will sync to your Customer Dashboard once verified.'
                   )}
                 </div>
               )
@@ -5264,9 +5258,22 @@ function App() {
     }
   }
 
-  // Sync browser URL on initial mount and listen to Back/Forward buttons
+  // Sync browser URL on initial mount and verify live session integrity
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (initialSavedSession?.role) {
+      verifyPersistedSessionRole(initialSavedSession.role)
+        .then((check) => {
+          if (!check.valid && !check.unreachable) {
+            savePersistedRoleSession(null)
+            setActiveRole(null)
+            setPageState((curr) =>
+              curr.startsWith('dashboard-') ? `login-${initialSavedSession.role}` : curr
+            )
+          }
+        })
+        .catch(() => {})
+    }
     const expectedUrl = pageToUrlPath(page)
     if (window.location.pathname !== expectedUrl) {
       window.history.replaceState({ page }, '', expectedUrl)

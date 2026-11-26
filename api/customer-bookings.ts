@@ -1,37 +1,24 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 import nodemailer from 'nodemailer'
+import {
+  applyApiHeaders,
+  checkMemoryRateLimit,
+  enforceTrustedOrigin,
+  escapeHtml,
+  getClientIp,
+  getOtpSecretOrNull,
+  getSupabaseServerClient,
+  verifyBearerSession,
+} from './_security'
 
-const DEFAULT_SUPABASE_URL = 'https://mwqtenuykrdlspxhgdlw.supabase.co'
-const DEFAULT_SUPABASE_KEY = 'sb_publishable_NvYSYfPuqL04mnkD8BSnXw_uEOMtGam'
-
-function getSupabaseAdmin() {
-  const url =
-    process.env.VITE_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    DEFAULT_SUPABASE_URL
-  const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    DEFAULT_SUPABASE_KEY
-  if (!url || !key) return null
-  return createClient(url, key)
-}
-
-function getOtpSecret(): string {
-  return (
-    process.env.OTP_SIGNING_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.GMAIL_APP_PASSWORD ||
-    'wmk-enterprise-otp-hmac-secret-2026'
-  )
-}
+const consumedOtpTokens = new Set<string>()
 
 function verifyOtpSignature(email: string, code: string, token: string, expiresAt: number): boolean {
-  if (!email || !code || !token || !expiresAt || Date.now() > Number(expiresAt)) return false
+  const secret = getOtpSecretOrNull()
+  if (!secret || !email || !code || !token || !expiresAt || Date.now() > Number(expiresAt)) return false
   const expected = crypto
-    .createHmac('sha256', getOtpSecret())
+    .createHmac('sha256', secret)
     .update(`${email.trim().toLowerCase()}:${code.trim()}:${expiresAt}`)
     .digest('hex')
   const a = Buffer.from(expected, 'hex')
@@ -70,18 +57,18 @@ function extractEmbeddedSchedule(text: string): { date?: string; time?: string }
 
 async function lookupCustomerByEmail(client: any, rawEmail: string) {
   const emailClean = rawEmail.trim().toLowerCase()
-  if (!emailClean) return { hasAccount: false as const }
+  if (!emailClean || !client) return { hasAccount: false as const }
 
   try {
     const { data: rows } = await client
       .from('user_accounts')
       .select(
-        'user_id, auth_uid, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(customer_id, first_name, last_name, phone)'
+        'user_id, auth_uid, username, email, account_status, roles(role_name), branches(branch_name), customer_profiles(customer_id, first_name, last_name)'
       )
       .ilike('email', emailClean)
       .limit(1)
 
-    const userRow = Array.isArray(rows) ? rows[0] : null
+    const userRow: any = Array.isArray(rows) ? rows[0] : null
     if (userRow) {
       const profile = Array.isArray(userRow.customer_profiles)
         ? userRow.customer_profiles[0]
@@ -101,7 +88,6 @@ async function lookupCustomerByEmail(client: any, rawEmail: string) {
     }
   } catch {}
 
-  // Fallback check via Supabase Auth Admin if service role key is set
   if (process.env.SUPABASE_SERVICE_ROLE_KEY && client.auth?.admin?.listUsers) {
     try {
       const { data: listData } = await client.auth.admin.listUsers({ page: 1, perPage: 500 })
@@ -125,20 +111,41 @@ async function lookupCustomerByEmail(client: any, rawEmail: string) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const client = getSupabaseAdmin()
+  if (applyApiHeaders(req, res)) return
 
-  // GET: Account lookup by email OR fetch orders linked to customer email
+  const { adminClient } = getSupabaseServerClient()
+  const clientIp = getClientIp(req)
+
+  // GET requires an authenticated Bearer session JWT (closes both email enumeration & order PII dumps)
   if (req.method === 'GET') {
-    const email = String(req.query.email || '').trim().toLowerCase()
+    const rate = checkMemoryRateLimit(`cust-get:${clientIp}`, 60, 60 * 1000)
+    if (!rate.allowed) {
+      res.setHeader('Retry-After', String(rate.retryAfterSec))
+      return res.status(429).json({ ok: false, error: 'Too many requests.' })
+    }
+
+    const session = await verifyBearerSession(req)
+    if (!session) {
+      return res.status(401).json({ ok: false, error: 'Authentication required.' })
+    }
+
+    const requestedEmail = String(req.query.email || '').trim().toLowerCase()
     const mode = String(req.query.mode || 'lookup')
 
-    if (!client) {
+    if (!adminClient) {
       return res.status(200).json({ ok: true, hasAccount: false, orders: [] })
     }
 
     if (mode === 'orders') {
+      // Customers may only query their own verified email; Staff scoped to their branch; Admin unrestricted
+      const isPrivileged = session.role === 'ADMINISTRATOR' || session.role === 'STAFF'
+      if (!isPrivileged && requestedEmail && requestedEmail !== session.email) {
+        return res.status(403).json({ ok: false, error: 'Access denied for requested customer email.' })
+      }
+      const targetEmail = isPrivileged ? requestedEmail : session.email
+
       try {
-        const { data: soRows } = await client
+        const { data: soRows } = await adminClient
           .from('service_orders')
           .select(
             `
@@ -221,19 +228,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               assessmentNotes: sa?.damage_findings || sa?.service_notes || undefined,
             }
           })
-          .filter((ord) => !email || ord.email.toLowerCase() === email)
+          .filter((ord) => {
+            if (targetEmail && ord.email.toLowerCase() !== targetEmail) return false
+            if (session.role === 'STAFF' && session.branchName) {
+              return ord.branch.toLowerCase() === session.branchName.toLowerCase()
+            }
+            return true
+          })
 
         return res.status(200).json({ ok: true, orders: mapped })
-      } catch (err: any) {
-        return res.status(200).json({ ok: false, orders: [], error: err?.message })
+      } catch {
+        return res.status(500).json({ ok: false, orders: [], error: 'Failed to retrieve orders.' })
       }
     }
 
-    if (!email || !email.includes('@')) {
-      return res.status(200).json({ ok: true, hasAccount: false })
+    // Authenticated self-lookup only (or Staff/Admin)
+    const lookupEmail = requestedEmail || session.email
+    if (session.role === 'CUSTOMER' && lookupEmail !== session.email) {
+      return res.status(403).json({ ok: false, error: 'Cannot look up third-party accounts.' })
     }
-
-    const account = await lookupCustomerByEmail(client, email)
+    const account = await lookupCustomerByEmail(adminClient, lookupEmail)
     return res.status(200).json({
       ok: true,
       hasAccount: account.hasAccount,
@@ -242,8 +256,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
   }
 
-  // POST: Save booking and auto-link to customer's Supabase account if their email exists
+  // POST: Save booking strictly with verified OTP proof OR verified Bearer JWT
   if (req.method === 'POST') {
+    if (!enforceTrustedOrigin(req, res)) return
+
+    const postRate = checkMemoryRateLimit(`cust-post:${clientIp}`, 10, 15 * 60 * 1000)
+    if (!postRate.allowed) {
+      res.setHeader('Retry-After', String(postRate.retryAfterSec))
+      return res.status(429).json({ ok: false, error: 'Too many booking requests. Please try again later.' })
+    }
+
     const {
       orderNumber,
       customerEmail,
@@ -257,33 +279,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       otpCode,
       otpToken,
       otpExpiresAt,
-      loggedInSession = false,
     } = req.body ?? {}
 
     const emailClean = String(customerEmail || '').trim().toLowerCase()
-    if (!emailClean || !emailClean.includes('@')) {
+    if (!emailClean || !emailClean.includes('@') || emailClean.length > 254) {
       return res.status(400).json({ ok: false, error: 'Valid customer email is required.' })
     }
 
-    // If not already logged into the portal, allow either verified OTP token or proceed carefully if client fallback
+    const session = await verifyBearerSession(req)
+    const sessionAuthorized =
+      Boolean(session) &&
+      (session!.email === emailClean || session!.role === 'STAFF' || session!.role === 'ADMINISTRATOR')
+
+    const tokenKey = otpToken ? crypto.createHash('sha256').update(String(otpToken)).digest('hex') : ''
     const otpValid =
-      otpCode && otpToken && otpExpiresAt
-        ? verifyOtpSignature(emailClean, String(otpCode), String(otpToken), Number(otpExpiresAt))
-        : false
+      Boolean(otpCode && otpToken && otpExpiresAt) &&
+      !consumedOtpTokens.has(tokenKey) &&
+      verifyOtpSignature(emailClean, String(otpCode), String(otpToken), Number(otpExpiresAt))
+
+    if (!sessionAuthorized && !otpValid) {
+      return res.status(401).json({
+        ok: false,
+        error: 'Valid email verification code or signed-in session is required before booking.',
+      })
+    }
+
+    if (otpValid && tokenKey) {
+      if (consumedOtpTokens.size > 5000) consumedOtpTokens.clear()
+      consumedOtpTokens.add(tokenKey)
+    }
 
     let linkedAccount: Awaited<ReturnType<typeof lookupCustomerByEmail>> = { hasAccount: false }
     let createdBookingId: number | null = null
 
-    if (client) {
-      linkedAccount = await lookupCustomerByEmail(client, emailClean)
+    if (adminClient) {
+      linkedAccount = await lookupCustomerByEmail(adminClient, emailClean)
 
       try {
-        // Resolve customer_id for this email (prefer matched customer's profile ID)
         let resolvedCustomerId: number | null = linkedAccount.hasAccount ? linkedAccount.customerId ?? null : null
 
         if (!resolvedCustomerId && linkedAccount.hasAccount && linkedAccount.userId) {
           const nameParts = deriveNameFromEmail(emailClean, customerName || linkedAccount.customerName).split(/\s+/)
-          const { data: createdProfile } = await client
+          const { data: createdProfile } = await adminClient
             .from('customer_profiles')
             .insert({
               user_id: linkedAccount.userId,
@@ -296,8 +333,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (!resolvedCustomerId) {
-          // Ensure a guest/shadow customer_profiles lookup fallback only if bookings FK requires one
-          const { data: firstProfile } = await client
+          const { data: firstProfile } = await adminClient
             .from('customer_profiles')
             .select('customer_id')
             .order('customer_id', { ascending: true })
@@ -306,10 +342,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (firstProfile?.customer_id) resolvedCustomerId = firstProfile.customer_id
         }
 
-        // Resolve branch_service_id matching selected branch & service
         let resolvedBranchServiceId = Number(branchId) || 1
         try {
-          const { data: bsRows } = await client
+          const { data: bsRows } = await adminClient
             .from('branch_services')
             .select('branch_service_id, branch_id, shoe_services!inner(service_name)')
             .eq('branch_id', Number(branchId) || 1)
@@ -324,7 +359,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const requestWithEmail = `${String(customerRequest || serviceName)} [Email: ${emailClean}]`
 
         if (resolvedCustomerId) {
-          const { data: bookingRow } = await client
+          const { data: bookingRow } = await adminClient
             .from('bookings')
             .insert({
               customer_id: resolvedCustomerId,
@@ -340,23 +375,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (bookingRow?.booking_id) {
             createdBookingId = bookingRow.booking_id
             if (orderNumber) {
-              await client
+              await adminClient
                 .from('service_orders')
                 .update({ order_number: String(orderNumber) })
                 .eq('booking_id', createdBookingId)
             }
           }
         }
-      } catch {
-        // Non-blocking fallback: client order state still persists
-      }
+      } catch {}
     }
 
-    // Send booking confirmation email
     const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env
     const resolvedName =
       (linkedAccount.hasAccount && linkedAccount.customerName) ||
-      deriveNameFromEmail(emailClean, customerName)
+      deriveNameFromEmail(emailClean, typeof customerName === 'string' ? customerName : undefined)
     let emailSent = false
 
     if (GMAIL_USER && GMAIL_APP_PASSWORD) {
@@ -368,6 +400,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ref = String(
           orderNumber || `WMK-${new Date().getFullYear()}-${String(createdBookingId || 1).padStart(4, '0')}`
         )
+        const safeName = escapeHtml(resolvedName)
+        const safeRef = escapeHtml(ref)
+        const safeService = escapeHtml(serviceName)
+        const safeBranch = escapeHtml(branchName)
+
         await transporter.sendMail({
           from: `WashMyKicks Sneaker Care <${GMAIL_USER}>`,
           to: emailClean,
@@ -375,11 +412,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           html: `
             <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
               <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASH MY KICKS · DROP-OFF CONFIRMED</div>
-              <h2 style="margin:8px 0 12px;color:#111827;">Hi ${resolvedName}, your drop-off is booked.</h2>
+              <h2 style="margin:8px 0 12px;color:#111827;">Hi ${safeName}, your drop-off is booked.</h2>
               <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-                Job Order: <b>${ref}</b><br/>
-                Service: <b>${serviceName}</b><br/>
-                Branch: <b>${branchName}</b>
+                Job Order: <b>${safeRef}</b><br/>
+                Service: <b>${safeService}</b><br/>
+                Branch: <b>${safeBranch}</b>
                 ${linkedAccount.hasAccount ? '<br/><b>Account Sync:</b> Linked to your Customer Dashboard.' : ''}
               </p>
               <div style="margin-top:16px;padding:12px 16px;background:#FDEAEA;border:1px solid #EF5350;border-radius:8px;color:#D32F2F;font-size:12px;font-weight:700;">
@@ -397,7 +434,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       hasAccount: linkedAccount.hasAccount,
       customerName: resolvedName,
       bookingId: createdBookingId,
-      otpVerifiedOnServer: otpValid || Boolean(loggedInSession),
+      otpVerifiedOnServer: otpValid || sessionAuthorized,
       emailSent,
     })
   }

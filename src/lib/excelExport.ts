@@ -140,7 +140,9 @@ function cellXml(value: ExcelCell, ref: string, styleId: number): string {
   if (value === null || value === undefined || value === '') return `<c r="${ref}"${s}/>`
   if (typeof value === 'number' && Number.isFinite(value)) return `<c r="${ref}"${s}><v>${value}</v></c>`
   if (typeof value === 'boolean') return `<c r="${ref}"${s} t="b"><v>${value ? 1 : 0}</v></c>`
-  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escapeXml(String(value))}</t></is></c>`
+  const raw = String(value)
+  const sanitized = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw
+  return `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${escapeXml(sanitized)}</t></is></c>`
 }
 
 function sheetXml(sheet: ExcelSheet): string {

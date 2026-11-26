@@ -32,13 +32,35 @@ import type {
 
 const LOCAL_ATTEMPT_WINDOW_MS = 15 * 60 * 1000
 const MAX_FAILED_ATTEMPTS = 5
+const AUTH_RATE_STORAGE_KEY = 'wmk-auth-rate-v1'
 const failedLoginTracker = new Map<string, number[]>()
+
+function loadPersistedRateMap(): Record<string, number[]> {
+  try {
+    const raw = localStorage.getItem(AUTH_RATE_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function savePersistedRateMap(map: Record<string, number[]>): void {
+  try {
+    localStorage.setItem(AUTH_RATE_STORAGE_KEY, JSON.stringify(map))
+  } catch {}
+}
 
 export function checkClientBruteForceGuard(email: string): { allowed: boolean; remainingAttempts: number } {
   const key = email.trim().toLowerCase()
   const now = Date.now()
-  const recent = (failedLoginTracker.get(key) || []).filter((ts) => now - ts < LOCAL_ATTEMPT_WINDOW_MS)
+  const persisted = loadPersistedRateMap()
+  const combined = [...(failedLoginTracker.get(key) || []), ...(Array.isArray(persisted[key]) ? persisted[key] : [])]
+  const recent = Array.from(new Set(combined)).filter((ts) => now - ts < LOCAL_ATTEMPT_WINDOW_MS)
   failedLoginTracker.set(key, recent)
+  persisted[key] = recent
+  savePersistedRateMap(persisted)
   return {
     allowed: recent.length < MAX_FAILED_ATTEMPTS,
     remainingAttempts: Math.max(0, MAX_FAILED_ATTEMPTS - recent.length),
@@ -47,13 +69,32 @@ export function checkClientBruteForceGuard(email: string): { allowed: boolean; r
 
 export function recordClientLoginAttempt(email: string, success: boolean): void {
   const key = email.trim().toLowerCase()
+  const persisted = loadPersistedRateMap()
   if (success) {
     failedLoginTracker.delete(key)
+    delete persisted[key]
+    savePersistedRateMap(persisted)
     return
   }
-  const recent = failedLoginTracker.get(key) || []
-  recent.push(Date.now())
+  const now = Date.now()
+  const recent = (Array.isArray(persisted[key]) ? persisted[key] : failedLoginTracker.get(key) || []).filter(
+    (ts) => now - ts < LOCAL_ATTEMPT_WINDOW_MS
+  )
+  recent.push(now)
   failedLoginTracker.set(key, recent)
+  persisted[key] = recent
+  savePersistedRateMap(persisted)
+}
+
+async function getAuthBearerHeaders(): Promise<Record<string, string>> {
+  if (!supabase || !isSupabaseConfigured) return {}
+  try {
+    const { data } = await supabase.auth.getSession()
+    const token = data?.session?.access_token
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  } catch {
+    return {}
+  }
 }
 
 /* ============================================================================
@@ -87,9 +128,13 @@ export async function dispatchTransactionalEmail(
   payload: EmailNotificationPayload
 ): Promise<{ ok: boolean; error?: string }> {
   try {
+    const authHeaders = await getAuthBearerHeaders()
     const res = await fetch('/api/notifications', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+      },
       body: JSON.stringify(payload),
     })
     if (!res.ok) {
@@ -145,12 +190,7 @@ async function hashPasswordSha256(plain: string, saltEmail: string): Promise<str
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')
   }
-  let h = 2166136261
-  for (let i = 0; i < raw.length; i++) {
-    h ^= raw.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return `fnv1a_${(h >>> 0).toString(16)}`
+  throw new Error('Secure WebCrypto hashing is required on HTTPS.')
 }
 
 function loadProvisionedAccounts(): ProvisionedAccount[] {
@@ -207,7 +247,8 @@ export async function registerCustomerAccount(input: {
   employeeId?: string
 }) {
   const emailClean = input.email.trim().toLowerCase()
-  const targetRole: RoleName = input.role || 'CUSTOMER'
+  // Enforce least-privilege: self-registration is strictly scoped to CUSTOMER accounts
+  const targetRole: RoleName = 'CUSTOMER'
   const username =
     input.username || `${input.firstName.toLowerCase().replace(/\s+/g, '')}_${Math.floor(1000 + Math.random() * 9000)}`
   const pwdHash = await hashPasswordSha256(input.password, emailClean)
@@ -222,9 +263,6 @@ export async function registerCustomerAccount(input: {
     username,
     firstName: input.firstName,
     lastName: input.lastName,
-    branchId: input.branchId,
-    branchName: input.branchName,
-    employeeId: input.employeeId,
     accountStatus: 'ACTIVE',
     createdAt: new Date().toISOString(),
   }
@@ -244,9 +282,6 @@ export async function registerCustomerAccount(input: {
             last_name: input.lastName,
             phone: input.phone || '',
             address: input.address || '',
-            branch_id: input.branchId ? String(input.branchId) : '',
-            branch_name: input.branchName || '',
-            employee_id: input.employeeId || '',
           },
         },
       })
@@ -306,22 +341,45 @@ export async function signInWithRole(input: {
       if (error) {
         if (!isNetworkFetchError(error)) {
           recordClientLoginAttempt(emailClean, false)
+          void supabase.rpc('fn_record_auth_event', { p_action: 'LOGIN_FAILED', p_email: emailClean }).then(
+            () => null,
+            () => null
+          )
           throw error
         }
       } else if (data?.user) {
+        // Verify authoritative role against user_accounts table in PostgreSQL (never rely solely on metadata)
+        let dbRole = ''
+        let dbBranch = ''
+        try {
+          const { data: uaRow } = await supabase
+            .from('user_accounts')
+            .select('roles(role_name), branches(branch_name)')
+            .eq('auth_uid', data.user.id)
+            .maybeSingle()
+          const rowAny: any = uaRow
+          if (rowAny?.roles?.role_name) dbRole = String(rowAny.roles.role_name).toUpperCase()
+          if (rowAny?.branches?.branch_name) dbBranch = String(rowAny.branches.branch_name)
+        } catch {}
+
         const metaRole = String(data.user.user_metadata?.role || 'CUSTOMER').toUpperCase()
-        if (metaRole && metaRole !== input.expectedRole) {
+        const effectiveRole = dbRole || metaRole
+        if (effectiveRole !== input.expectedRole) {
           await supabase.auth.signOut()
-          throw new Error(`Access denied: this account is registered as ${metaRole}, not ${input.expectedRole}.`)
+          throw new Error(`Access denied: this account is registered as ${effectiveRole}, not ${input.expectedRole}.`)
         }
         if (input.expectedRole === 'STAFF' && input.branchName) {
-          const assignedBranch = String(data.user.user_metadata?.branch_name || '')
+          const assignedBranch = dbBranch || String(data.user.user_metadata?.branch_name || '')
           if (assignedBranch && assignedBranch !== input.branchName) {
             await supabase.auth.signOut()
             throw new Error(`Branch access denied: your staff account is provisioned for ${assignedBranch}.`)
           }
         }
         recordClientLoginAttempt(emailClean, true)
+        void supabase.rpc('fn_record_auth_event', { p_action: 'LOGIN', p_email: emailClean }).then(
+          () => null,
+          () => null
+        )
         return { mode: 'supabase' as const, user: data.user, account: null }
       }
     } catch (err: any) {
@@ -387,14 +445,40 @@ export async function signOutSession(email?: string) {
   }
 }
 
+export async function verifyPersistedSessionRole(
+  expectedRole: 'customer' | 'staff' | 'admin'
+): Promise<{ valid: boolean; unreachable?: boolean }> {
+  if (!supabase || !isSupabaseConfigured) {
+    return { valid: true, unreachable: true }
+  }
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      if (isNetworkFetchError(error)) return { valid: true, unreachable: true }
+      return { valid: false }
+    }
+    if (!data?.user) {
+      return { valid: false }
+    }
+    const { data: uaRow } = await supabase
+      .from('user_accounts')
+      .select('roles(role_name)')
+      .eq('auth_uid', data.user.id)
+      .maybeSingle()
+    const rowAny: any = uaRow
+    const dbRole = String(rowAny?.roles?.role_name || data.user.user_metadata?.role || 'CUSTOMER').toUpperCase()
+    const want = expectedRole === 'admin' ? 'ADMINISTRATOR' : expectedRole === 'staff' ? 'STAFF' : 'CUSTOMER'
+    return { valid: dbRole === want }
+  } catch (err: any) {
+    if (isNetworkFetchError(err)) return { valid: true, unreachable: true }
+    return { valid: false }
+  }
+}
+
 export async function requestPasswordResetEmail(email: string) {
   if (supabase && isSupabaseConfigured) {
-    await supabase.auth.resetPasswordForEmail(email)
+    await supabase.auth.resetPasswordForEmail(email.trim())
   }
-  await dispatchTransactionalEmail({
-    to: email,
-    eventType: 'PASSWORD_RESET',
-  })
 }
 
 export async function updateCustomerProfileRecord(
@@ -444,40 +528,48 @@ export async function checkCustomerAccountByEmail(rawEmail: string): Promise<Cus
     }
   }
 
-  // 2. Check serverless API lookup (handles customer_profiles, user_accounts, & Auth)
+  // 2. Check serverless API ONLY when caller holds an active authenticated session (prevents pre-OTP enumeration)
   try {
-    const res = await fetch(`/api/customer-bookings?email=${encodeURIComponent(emailClean)}&mode=lookup`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data?.hasAccount) {
-        return {
-          hasAccount: true,
-          role: data.role ? String(data.role) : undefined,
-          preferredBranch: data.preferredBranch ? String(data.preferredBranch) : undefined,
-          source: 'server',
+    const authHeaders = await getAuthBearerHeaders()
+    if (authHeaders.Authorization) {
+      const res = await fetch(`/api/customer-bookings?email=${encodeURIComponent(emailClean)}&mode=lookup`, {
+        headers: authHeaders,
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.hasAccount) {
+          return {
+            hasAccount: true,
+            role: data.role ? String(data.role) : undefined,
+            preferredBranch: data.preferredBranch ? String(data.preferredBranch) : undefined,
+            source: 'server',
+          }
         }
       }
     }
   } catch {}
 
-  // 3. Fallback direct Supabase user_accounts lookup
+  // 3. Direct Supabase user_accounts lookup only if signed in (protected by RLS)
   if (supabase && isSupabaseConfigured) {
     try {
-      const { data: rows } = await supabase
-        .from('user_accounts')
-        .select('username, email, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)')
-        .ilike('email', emailClean)
-        .limit(1)
-      const row: any = Array.isArray(rows) ? rows[0] : null
-      if (row) {
-        const profile = Array.isArray(row.customer_profiles) ? row.customer_profiles[0] : row.customer_profiles
-        const fullName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : ''
-        return {
-          hasAccount: true,
-          customerName: fullName || String(row.username || '') || undefined,
-          role: row.roles?.role_name ? String(row.roles.role_name) : undefined,
-          preferredBranch: row.branches?.branch_name ? String(row.branches.branch_name) : undefined,
-          source: 'supabase',
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData?.session?.access_token) {
+        const { data: rows } = await supabase
+          .from('user_accounts')
+          .select('username, email, roles(role_name), branches(branch_name), customer_profiles(first_name, last_name)')
+          .ilike('email', emailClean)
+          .limit(1)
+        const row: any = Array.isArray(rows) ? rows[0] : null
+        if (row) {
+          const profile = Array.isArray(row.customer_profiles) ? row.customer_profiles[0] : row.customer_profiles
+          const fullName = profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : ''
+          return {
+            hasAccount: true,
+            customerName: fullName || String(row.username || '') || undefined,
+            role: row.roles?.role_name ? String(row.roles.role_name) : undefined,
+            preferredBranch: row.branches?.branch_name ? String(row.branches.branch_name) : undefined,
+            source: 'supabase',
+          }
         }
       }
     } catch {}
@@ -514,9 +606,13 @@ export async function createBookingRecord(input: {
   // Try serverless booking endpoint first so public /book bookings bypass guest RLS and auto-link by email
   if (emailClean) {
     try {
+      const authHeaders = await getAuthBearerHeaders()
       const res = await fetch('/api/customer-bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
         body: JSON.stringify({
           orderNumber: input.orderNumber,
           customerEmail: emailClean,
@@ -530,7 +626,6 @@ export async function createBookingRecord(input: {
           otpCode: input.otpCode,
           otpToken: input.otpToken,
           otpExpiresAt: input.otpExpiresAt,
-          loggedInSession: input.loggedInSession,
         }),
       })
       if (res.ok) {
@@ -1106,13 +1201,17 @@ export async function fetchLiveProductionData(customerEmailFilter?: string) {
     Completed: 5,
   }
 
-  const fetchServerOrders = () =>
-    fetch(
-      `/api/customer-bookings?mode=orders${emailFilterClean ? `&email=${encodeURIComponent(emailFilterClean)}` : ''}`
+  const fetchServerOrders = async () => {
+    const authHeaders = await getAuthBearerHeaders()
+    if (!authHeaders.Authorization) return [] as any[]
+    return fetch(
+      `/api/customer-bookings?mode=orders${emailFilterClean ? `&email=${encodeURIComponent(emailFilterClean)}` : ''}`,
+      { headers: authHeaders }
     )
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => (Array.isArray(d?.orders) ? d.orders : []))
       .catch(() => [] as any[])
+  }
 
   if (!supabase || !isSupabaseConfigured) {
     const serverOrders = await fetchServerOrders()

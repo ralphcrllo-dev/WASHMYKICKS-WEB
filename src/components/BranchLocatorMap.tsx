@@ -210,6 +210,16 @@ function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: num
   return Math.round(R * c * 10) / 10
 }
 
+/** HTML-attribute escaping to prevent DOM XSS inside Leaflet divIcon strings */
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 /** Real-time Open / Closed check using Philippine Time (UTC+8) */
 function getBranchOpenStatus(openHour: number, closeHour: number): { isOpen: boolean; statusText: string } {
   try {
@@ -470,7 +480,7 @@ export function BranchLocatorMap({
                 <span class="wmk-map-pin-dot">0${branch.id}</span>
               </div>
               <div class="wmk-map-pin-label ${mapMode === 'standard' ? 'light-mode' : ''}">
-                ${isNearest ? '<em class="wmk-nearest-dot">★</em>' : ''}${branch.shortName}
+                ${isNearest ? '<em class="wmk-nearest-dot">★</em>' : ''}${escapeHtml(branch.shortName)}
               </div>
             </div>
           `,
@@ -501,7 +511,7 @@ export function BranchLocatorMap({
     const userIcon = L.divIcon({
       className: 'wmk-custom-div-icon',
       html: `
-        <div class="wmk-user-loc-wrap" title="${userCoords.label}">
+        <div class="wmk-user-loc-wrap" title="${escapeHtml(userCoords.label)}">
           <span class="wmk-user-loc-ring"></span>
           <span class="wmk-user-loc-dot"></span>
         </div>

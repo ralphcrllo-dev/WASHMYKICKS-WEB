@@ -1,6 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import nodemailer from 'nodemailer'
-import { createClient } from '@supabase/supabase-js'
+import {
+  applyApiHeaders,
+  checkMemoryRateLimit,
+  enforceTrustedOrigin,
+  escapeHtml,
+  getClientIp,
+  getSupabaseServerClient,
+  verifyBearerSession,
+} from './_security'
 
 type NotificationEventType =
   | 'BOOKING_CONFIRMATION'
@@ -60,19 +68,21 @@ function buildEmailContent(body: {
   price?: string
   scheduledAt?: string
   orderStatus?: string
-  actionUrl?: string
 }) {
-  const name = deriveNameFromEmail(body.to, body.customerName)
-  const ref = body.reference || 'WMK-2026-0046'
-  const pair = body.shoeName || 'your sneakers'
-  const svc = body.serviceName || 'Sneaker Care Service'
-  const branch = body.branchName || 'Wash My Kicks Branch'
-  const address = resolveBranchAddress(branch, body.branchAddress)
+  const name = escapeHtml(deriveNameFromEmail(body.to, body.customerName))
+  const ref = escapeHtml(body.reference || 'WMK-2026-0046')
+  const pair = escapeHtml(body.shoeName || 'your sneakers')
+  const svc = escapeHtml(body.serviceName || 'Sneaker Care Service')
+  const branch = escapeHtml(body.branchName || 'Wash My Kicks Branch')
+  const address = escapeHtml(resolveBranchAddress(body.branchName, body.branchAddress))
+  const scheduled = escapeHtml(body.scheduledAt || '')
+  const price = escapeHtml(body.price || '')
+  const orderStatus = escapeHtml(body.orderStatus || 'In Progress')
 
   switch (body.eventType) {
     case 'BOOKING_CONFIRMATION':
       return {
-        subject: `Wash My Kicks — Booking Confirmed (${ref})`,
+        subject: `Wash My Kicks — Booking Confirmed (${String(body.reference || 'WMK-2026')})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
             <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASH MY KICKS · DROP-OFF CONFIRMED</div>
@@ -82,7 +92,7 @@ function buildEmailContent(body: {
               Pair: <b>${pair}</b><br/>
               Service: <b>${svc}</b><br/>
               Branch: <b>${branch}</b>${address ? ` (${address})` : ''}
-              ${body.scheduledAt ? `<br/>Drop-Off Slot: <b>${body.scheduledAt}</b>` : ''}
+              ${scheduled ? `<br/>Drop-Off Slot: <b>${scheduled}</b>` : ''}
             </p>
             <div style="margin-top:16px;padding:12px 16px;background:#FDEAEA;border:1px solid #EF5350;border-radius:8px;color:#D32F2F;font-size:12px;font-weight:700;">
               Current Stage: Pending Assessment
@@ -92,21 +102,21 @@ function buildEmailContent(body: {
       }
     case 'BOOKING_UPDATE':
       return {
-        subject: `Wash My Kicks — Booking Updated (${ref})`,
+        subject: `Wash My Kicks — Booking Updated (${String(body.reference || 'WMK-2026')})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
             <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASH MY KICKS · BOOKING UPDATE</div>
             <h2 style="margin:8px 0 12px;color:#111827;">Your appointment details were updated</h2>
             <p style="color:#4b5563;font-size:14px;line-height:1.6;">
               Job Order <b>${ref}</b> (${svc}) at <b>${branch}</b> has been updated.
-              ${body.scheduledAt ? `<br/>New Schedule: <b>${body.scheduledAt}</b>` : ''}
+              ${scheduled ? `<br/>New Schedule: <b>${scheduled}</b>` : ''}
             </p>
           </div>
         `,
       }
     case 'READY_FOR_PICKUP':
       return {
-        subject: `Wash My Kicks — Ready for Pickup at ${branch.replace('Wash My Kicks – ', '')} (${ref})`,
+        subject: `Wash My Kicks — Ready for Pickup at ${String(body.branchName || 'Branch').replace('Wash My Kicks – ', '')} (${String(body.reference || 'WMK-2026')})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
             <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#F57C00;">WASH MY KICKS · READY FOR PICKUP</div>
@@ -116,7 +126,7 @@ function buildEmailContent(body: {
             </p>
             <div style="margin:16px 0;padding:14px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;color:#111827;line-height:1.7;">
               <div><b>Job Order:</b> ${ref}</div>
-              <div><b>Service:</b> ${svc}${body.price ? ` (${body.price})` : ''}</div>
+              <div><b>Service:</b> ${svc}${price ? ` (${price})` : ''}</div>
               <div><b>Pickup Branch:</b> ${branch}</div>
               ${address ? `<div><b>Address:</b> ${address}</div>` : ''}
               <div><b>Store Hours:</b> Open daily, 10:00 AM – 8:00 PM</div>
@@ -132,7 +142,7 @@ function buildEmailContent(body: {
       }
     case 'ORDER_COMPLETED':
       return {
-        subject: `WashMyKicks — Order Completed (${ref})`,
+        subject: `WashMyKicks — Order Completed (${String(body.reference || 'WMK-2026')})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
             <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#2E7D32;">WASHMYKICKS · COMPLETED</div>
@@ -159,31 +169,15 @@ function buildEmailContent(body: {
           </div>
         `,
       }
-    case 'EMAIL_VERIFICATION':
-      return {
-        subject: `WashMyKicks — Verification Code (${ref})`,
-        html: `
-          <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
-            <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#dc2626;">WASHMYKICKS · BOOKING & EMAIL VERIFICATION</div>
-            <h2 style="margin:8px 0 12px;color:#111827;">Hi ${name}, verify your WashMyKicks booking</h2>
-            <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-              Enter the verification code below to confirm your appointment for <b>${svc}</b> at <b>${branch}</b>:
-            </p>
-            <div style="margin:18px 0;padding:16px;text-align:center;background:#111827;color:#ffffff;border-radius:10px;font-size:26px;font-weight:800;letter-spacing:6px;">
-              ${ref}
-            </div>
-          </div>
-        `,
-      }
     default:
       return {
-        subject: `WashMyKicks — Order Status Update: ${body.orderStatus || 'In Progress'} (${ref})`,
+        subject: `WashMyKicks — Order Status Update (${String(body.reference || 'WMK-2026')})`,
         html: `
           <div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px;">
             <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#1976D2;">WASHMYKICKS · ORDER STATUS UPDATE</div>
             <h2 style="margin:8px 0 12px;color:#111827;">Update on Job Order ${ref}</h2>
             <p style="color:#4b5563;font-size:14px;line-height:1.6;">
-              Your sneaker care order (${svc}) at <b>${branch}</b> is now in stage: <b>${body.orderStatus || 'In Progress'}</b>.
+              Your sneaker care order (${svc}) at <b>${branch}</b> is now in stage: <b>${orderStatus}</b>.
             </p>
           </div>
         `,
@@ -192,16 +186,40 @@ function buildEmailContent(body: {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (applyApiHeaders(req, res)) return
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
+  if (!enforceTrustedOrigin(req, res)) return
 
-  const { to, eventType = 'ORDER_STATUS_UPDATE', notificationId, ...rest } = req.body ?? {}
-  if (!to) {
-    return res.status(400).json({ error: 'Recipient email ("to") is required' })
+  const clientIp = getClientIp(req)
+  const rate = checkMemoryRateLimit(`notif-post:${clientIp}`, 20, 15 * 60 * 1000)
+  if (!rate.allowed) {
+    res.setHeader('Retry-After', String(rate.retryAfterSec))
+    return res.status(429).json({ error: 'Too many notification requests.' })
   }
 
-  const { GMAIL_USER, GMAIL_APP_PASSWORD, VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env
+  // Require authenticated Bearer session (closes open SMTP relay / spoofing)
+  const session = await verifyBearerSession(req)
+  if (!session) {
+    return res.status(401).json({ error: 'Authentication required to send notifications.' })
+  }
+
+  const { to, eventType = 'ORDER_STATUS_UPDATE', notificationId, ...rest } = req.body ?? {}
+  const toClean = String(to || '').trim().toLowerCase()
+  if (!toClean || !toClean.includes('@') || toClean.length > 254) {
+    return res.status(400).json({ error: 'Valid recipient email ("to") is required' })
+  }
+
+  // Enforce RBAC on notification dispatch
+  const isStaffOrAdmin = session.role === 'STAFF' || session.role === 'ADMINISTRATOR'
+  const isSelfBooking =
+    (eventType === 'BOOKING_CONFIRMATION' || eventType === 'BOOKING_UPDATE') && toClean === session.email
+  if (!isStaffOrAdmin && !isSelfBooking) {
+    return res.status(403).json({ error: 'Insufficient permissions to dispatch this notification.' })
+  }
+
+  const { GMAIL_USER, GMAIL_APP_PASSWORD } = process.env
   if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
     return res.status(503).json({ error: 'Gmail SMTP credentials (GMAIL_USER / GMAIL_APP_PASSWORD) are not configured' })
   }
@@ -215,26 +233,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     })
 
-    const { subject, html } = buildEmailContent({ to, eventType, ...rest })
+    const { subject, html } = buildEmailContent({ to: toClean, eventType, ...rest })
 
     await transporter.sendMail({
       from: `WashMyKicks Sneaker Care <${GMAIL_USER}>`,
-      to,
+      to: toClean,
       subject,
       html,
     })
 
-    // Mark notification as Sent in Supabase PostgreSQL if notificationId is provided
-    if (notificationId && VITE_SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
-      const adminClient = createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const { adminClient, hasServiceRole } = getSupabaseServerClient()
+    if (notificationId && adminClient && hasServiceRole) {
       await adminClient
         .from('notifications')
         .update({ delivery_status: 'Sent', sent_at: new Date().toISOString() })
         .eq('notification_id', notificationId)
     }
 
-    return res.status(200).json({ ok: true, eventType, to })
-  } catch (err: any) {
-    return res.status(500).json({ error: err?.message || 'Failed to send email via Gmail SMTP' })
+    return res.status(200).json({ ok: true, eventType, to: toClean })
+  } catch {
+    return res.status(500).json({ error: 'Failed to send email via SMTP' })
   }
 }
